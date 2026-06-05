@@ -87,9 +87,9 @@
 
 ### Phase 1
 
-- [ ] P0-1: Step1B — 完整数据集下载指南
-- [ ] P0-2: Step9 — Rearrange 操作任务全教程
-- [ ] P0-3: Step5B — DD-PPO 分布式训练实操
+- [x] P0-1: Step1B — 完整数据集下载指南
+- [x] P0-2: Step9 — Rearrange 操作任务全教程
+- [x] P0-3: Step5B — DD-PPO 分布式训练实操
 
 ### Phase 2
 

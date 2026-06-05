@@ -1483,12 +1483,14 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
 <!-- ═══════════════ 第八章：学习路线图 ═══════════════ -->
 <section>
   <div class="container">
-    <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 第8章 · 动手路线图 — 九步从零到部署</h2>
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 第8章 · 动手路线图 — 从零到部署</h2>
     <p class="section-subtitle">
       前面的章节帮你建立了"这是什么"的心智模型。这一章把所有内容串成一条可执行的学习路径：
       <b style="color:#60a5fa;">研究轨</b>（Steps 1–5，掌握 Habitat 平台）
       →
-      <b style="color:#2dd4bf;">部署轨</b>（Steps 6–8，将模型部署到真实机器人）。
+      <b style="color:#2dd4bf;">部署轨</b>（Steps 6–8，将模型部署到真实机器人）
+      →
+      <b style="color:#c4b5fd;">进阶轨</b>（Step 9，Habitat 2.0 交互式操作）。
     </p>
 
     <!-- 研究轨 5 步 -->
@@ -1564,6 +1566,15 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
           <li>下载测试数据：<code>habitat_test_scenes</code></li>
         </ul>
       </div>
+      <div class="module" style="border-left-color: #10b981;">
+        <h3>第1B步：完整数据集下载 (半天) &nbsp;<a href="habitat-textbook-step1b.html" style="font-size:0.78rem; color:#6ee7b7; text-decoration:none; border:1px solid #10b98140; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <ul>
+          <li><b>7 种场景数据集</b>：Gibson / MP3D / HM3D / ReplicaCAD 对比</li>
+          <li><b>6 种任务数据集</b>：PointNav / ObjectNav / VLN / Rearrange</li>
+          <li>获取流程：官网申请 → 签署协议 → 下载解压</li>
+          <li><b>目录规范：</b><code>data/scene_datasets/</code> vs <code>data/datasets/</code></li>
+        </ul>
+      </div>
       <div class="module" style="border-left-color: var(--accent-core);">
         <h3>第2步：跑通示例 (1天) &nbsp;<a href="habitat-textbook-step2.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
@@ -1599,8 +1610,16 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
           <li><b>Day 1-2：</b>PointNav + PPO 训练（抄官方配置）</li>
           <li><b>Day 3-4：</b>理解训练循环：Rollout → PPO更新 → 评估</li>
           <li><b>Day 5-7：</b>调参实验（lr、entropy、num_envs）</li>
-          <li><b>进阶：</b>DD-PPO 多GPU训练</li>
           <li><b>目标：</b>能看懂 TensorBoard 曲线并解释</li>
+        </ul>
+      </div>
+      <div class="module" style="border-left-color: #f59e0b;">
+        <h3>第5B步：DD-PPO 分布式训练 (半天) &nbsp;<a href="habitat-textbook-step5b.html" style="font-size:0.78rem; color:#fcd34d; text-decoration:none; border:1px solid #f59e0b40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <ul>
+          <li><b>原理：</b>PPO vs DD-PPO 架构对比、分布式梯度同步</li>
+          <li><b>配置：</b><code>trainer_name: ddppo</code> + 关键参数含义</li>
+          <li><b>运行：</b><code>torchrun --nproc_per_node N</code> 单机多卡启动</li>
+          <li><b>排错：</b>NCCL 超时、OOM、preemption、端口冲突</li>
         </ul>
       </div>
       <div class="module" style="border-left-color: var(--accent-tip);">
@@ -1630,6 +1649,15 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
           <li><b>目标：</b>无地图、无导航栈，端到端 VLN</li>
         </ul>
       </div>
+      <div class="module" style="border-left-color: #8b5cf6;">
+        <h3>第9步：Rearrange 操作任务 (1周) &nbsp;<a href="habitat-textbook-step9.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #8b5cf640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <ul>
+          <li><b>6 个案例：</b>Pick → Place → NavToObj → Open/Close → PDDL 复合任务</li>
+          <li><b>Fetch 机器人：</b>手臂控制 + 吸盘抓取 + 底盘移动</li>
+          <li><b>物理仿真：</b>Bullet 引擎 + 关节物体（抽屉/冰箱）</li>
+          <li><b>目标：</b>掌握 Habitat 2.0 交互式操作任务</li>
+        </ul>
+      </div>
     </div>
 
     <div class="tip-box" style="margin-top: 28px;">
@@ -1652,7 +1680,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
 
 <!-- ═══════════════ Footer ═══════════════ -->
 <footer class="footer">
-  <p><a href="index.html">门户首页</a> · <b>教科书</b> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
+  <p><a href="index.html">门户首页</a> · <b>教科书</b> · <a href="habitat-textbook-step1b.html">数据集</a> · <a href="habitat-textbook-step5b.html">DD-PPO</a> · <a href="habitat-textbook-step9.html">Rearrange</a> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
   <p style="margin-top:8px;">Habitat 从零理解 — 具身智能入门教科书 &nbsp;|&nbsp;
   基于 Habitat-Lab v0.2.5 工程架构 &nbsp;|&nbsp;
   Meta FAIR · Habitat 1.0 (ICCV 2019) · Habitat 2.0 (NeurIPS 2021) &nbsp;|&nbsp;
@@ -1665,7 +1693,11 @@ document.getElementById('topnav').innerHTML =
   '<span class="sep">|</span>' +
   '<span class="current">📗 教科书</span>' +
   '<span class="sep">|</span>' +
-  '<a href="habitat-textbook-step6.html">🧭 VLN 部署</a>' +
+  '<a href="habitat-textbook-step1b.html">📦 数据集</a>' +
+  '<span class="sep">|</span>' +
+  '<a href="habitat-textbook-step5b.html">🚀 DD-PPO</a>' +
+  '<span class="sep">|</span>' +
+  '<a href="habitat-textbook-step9.html">🦾 Rearrange</a>' +
   '<span class="sep">|</span>' +
   '<a href="vln.html">🧭 VLN 专题</a>' +
   '<span class="sep">|</span>' +
