@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sleep *)",
+      "Bash(pip show *)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/develop/habitat-lab/.claude/hooks/update_log.sh"
+          },
+          {
+            "type": "command",
+            "command": "/develop/habitat-lab/.claude/hooks/check_curriculum.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
