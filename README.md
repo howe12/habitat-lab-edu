@@ -13,6 +13,53 @@ Habitat-Lab
 ==============================
 
 Habitat-Lab is a modular high-level library for end-to-end development in embodied AI --
+
+---
+
+## :cn: 从零理解 Habitat — 中文教学版
+
+本仓库是 [facebookresearch/habitat-lab](https://github.com/facebookresearch/habitat-lab) 的**教学分支**，在原工程基础上增加了：
+
+| 新增内容 | 说明 |
+|---------|------|
+| :book: **中文 HTML 教材** | `habitat-viz/` — 7 步渐进式课程：安装 → PointNav → 传感器配置 → RL 训练与评测 → 自定义扩展 → ROS 桥接 |
+| :rocket: **RL 导航 Demo** | `examples/rl_nav_demo.py` — 一键运行：环境探索 → 策略架构 → PPO 训练 → 推理评估 |
+| :wrench: **PyTorch 2.6 兼容** | 修复 `torch.load(weights_only)` 和 `torch.where` 的兼容性问题 |
+
+### 快速开始
+
+```bash
+# 安装
+pip install -e habitat-lab
+pip install -e habitat-baselines
+
+# 打开教材首页
+open habitat-viz/index.html
+
+# 或启动本地服务器
+cd habitat-viz && python3 -m http.server 8080
+
+# 运行 RL 导航 Demo
+python examples/rl_nav_demo.py --explore-only
+```
+
+### 课程目录
+
+| 步 | 主题 |
+|----|------|
+| 第1步 | 安装与环境配置 |
+| 第2步 | 第一个 PointNav 程序 |
+| 第3步 | 可视化与调试 |
+| 第4步 | 改配置实验（传感器、分辨率、动作） |
+| 第5步 | **训练与评测**（PPO、Policy 网络、5种目标类型） |
+| 第6步 | 自定义扩展（传感器、任务、规则） |
+| 第7步 | ROS 桥接（Habitat ↔ ROS 2） |
+
+> 原工程 LICENSE 和版权声明保持不变，见下方。
+
+---
+
+Habitat-Lab is a modular high-level library for end-to-end development in embodied AI --
 defining embodied AI tasks (e.g. navigation, rearrangement, instruction following, question answering), configuring embodied agents (physical form, sensors, capabilities), training these agents (via imitation or reinforcement learning, or no learning at all as in SensePlanAct pipelines), and benchmarking their performance on the defined tasks using standard metrics.
 
 Habitat-Lab uses [`Habitat-Sim`](https://github.com/facebookresearch/habitat-sim) as the core simulator. For documentation refer [here](https://aihabitat.org/docs/habitat-lab/).
