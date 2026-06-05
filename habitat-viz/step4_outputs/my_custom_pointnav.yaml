@@ -1,0 +1,24 @@
+# @package _global_
+# 自定义 PointNav 配置 — 降低分辨率 + 减少步数 + 放宽成功条件
+defaults:
+  - /benchmark/nav/pointnav: pointnav_base
+  - /habitat/dataset/pointnav: habitat_test
+  - _self_
+
+habitat:
+  environment:
+    max_episode_steps: 200
+  simulator:
+    agents:
+      main_agent:
+        sim_sensors:
+          rgb_sensor:
+            width: 128
+            height: 128
+          depth_sensor:
+            width: 128
+            height: 128
+  task:
+    measurements:
+      success:
+        success_distance: 0.5

@@ -1,0 +1,14 @@
+观测类型: ['rgb', 'depth', 'pointgoal_with_gps_compass']
+  rgb: shape=(256, 256, 3), dtype=uint8
+  depth: shape=(256, 256, 1), dtype=float32
+  pointgoal_with_gps_compass: shape=(2,), dtype=float32
+
+初始 GPS: distance=10.9006m, angle=1.5645rad
+执行 5 步 move_forward...
+  第1步 — 到目标的距离: 10.9019m, 角度: 1.5874rad
+  第2步 — 到目标的距离: 10.8858m, 角度: 1.6013rad
+  第3步 — 到目标的距离: 10.8858m, 角度: 1.6013rad
+  第4步 — 到目标的距离: 10.8858m, 角度: 1.6013rad
+  第5步 — 到目标的距离: 10.8858m, 角度: 1.6013rad
+
+5 步后 metrics: {'distance_to_goal': 11.814453125, 'success': 0.0, 'spl': 0.0, 'distance_to_goal_reward': -0.0}

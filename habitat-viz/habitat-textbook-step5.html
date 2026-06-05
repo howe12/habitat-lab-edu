@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第5步：训练与评测 — Habitat 从零理解</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<style>
+  /* ── Step 5 专属样式：训练参数卡片 ─── */
+  .param-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px; margin: 18px 0;
+  }
+  .param-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-core);
+    border-radius: var(--radius); padding: 18px 22px;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .param-card:hover { transform: translateY(-2px); }
+  .param-card h4 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.92rem; color: var(--text); margin: 0;
+  }
+  .param-val {
+    font-size: 0.82rem; color: #93c5fd;
+    background: #3b82f615; padding: 4px 10px;
+    border-radius: 4px; align-self: flex-start;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .param-desc { font-size: 0.85rem; color: var(--text-dim); line-height: 1.7; }
+  .param-desc code {
+    background: #334155; padding: 1px 6px; border-radius: 3px; font-size: 0.78rem;
+  }
+
+  /* ── Table of Contents ─── */
+  .toc-bar {
+    background: #0c1a2b; border-bottom: 1px solid var(--border);
+    padding: 16px 24px; position: sticky; top: 48px; z-index: 99;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px 14px;
+    max-width: 1100px; margin: 0 auto;
+  }
+  .toc-item {
+    display: flex; align-items: center; gap: 7px;
+    padding: 5px 10px; border-radius: 6px;
+    text-decoration: none; color: var(--text-dim);
+    font-size: 0.76rem; white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+  }
+  .toc-item:hover { background: #1e293b; color: var(--text); }
+  .toc-item .toc-dot {
+    width: 7px; height: 7px; border-radius: 2px; flex-shrink: 0;
+  }
+  .toc-num { font-weight: 700; color: #64748b; font-size: 0.7rem; min-width: 18px; }
+
+  /* ── Normalize arch diagram arrows ─── */
+  .arch-arrow-center { font-size: 0.9rem !important; }
+  .arch-layer h4 { font-size: 0.85rem; }
+
+  /* ── Normalize h3 / h4 ─── */
+  h3 { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+  h4 { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+
+  /* ── Standalone info-title (outside info-box) ─── */
+  .info-title { color: #60a5fa; font-weight: 700; margin-bottom: 6px; }
+
+  @media (max-width: 900px) {
+    .toc-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .toc-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="topnav">
+  <a href="index.html">🏠 门户</a>
+  <span class="sep">|</span>
+  <a href="habitat-textbook.html">📗 教科书</a>
+  <span class="sep">/</span>
+  <a href="habitat-textbook-step4.html">第4步：改配置实验</a>
+  <span class="sep">/</span>
+  <span class="current">第5步：训练与评测</span>
+  <span class="sep" style="margin-left:auto;"></span>
+  <a href="vln.html">🧭 VLN</a>
+  <span class="sep">|</span>
+  <a href="architecture.html">🔌 架构</a>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="step-badge">第 5 步 · 核心实战</div>
+  <h1>训练与评测</h1>
+  <p class="subtitle">
+    从配置到训练，从 checkpoint 到评估指标。理解 PPO 训练流程、RL 环境包装链、以及如何解释训练结果。
+  </p>
+</header>
+
+<!-- ═══════════════ TOC ═══════════════ -->
+<div class="toc-bar">
+  <div class="toc-grid">
+    <a href="#sec0" class="toc-item"><span class="toc-num">0</span><span class="toc-dot" style="background:#64748b;"></span> 训练全景图</a>
+    <a href="#sec1" class="toc-item"><span class="toc-num">1</span><span class="toc-dot" style="background:#a78bfa;"></span> 导航任务全景</a>
+    <a href="#sec2" class="toc-item"><span class="toc-num">2</span><span class="toc-dot" style="background:#8b5cf6;"></span> Policy 网络结构</a>
+    <a href="#sec3" class="toc-item"><span class="toc-num">3</span><span class="toc-dot" style="background:#22d3ee;"></span> RL 环境包装链</a>
+    <a href="#sec4" class="toc-item"><span class="toc-num">4</span><span class="toc-dot" style="background:#ec4899;"></span> PPO 训练算法</a>
+    <a href="#sec5" class="toc-item"><span class="toc-num">5</span><span class="toc-dot" style="background:#3b82f6;"></span> 训练配置体系</a>
+    <a href="#sec6" class="toc-item"><span class="toc-num">6</span><span class="toc-dot" style="background:#f59e0b;"></span> RL 导航实战</a>
+    <a href="#sec7" class="toc-item"><span class="toc-num">7</span><span class="toc-dot" style="background:#10b981;"></span> 评估与 Benchmark</a>
+    <a href="#sec8" class="toc-item"><span class="toc-num">8</span><span class="toc-dot" style="background:#f59e0b;"></span> 实践指南</a>
+    <a href="#sec9" class="toc-item"><span class="toc-num">9</span><span class="toc-dot" style="background:#64748b;"></span> 本章总结</a>
+  </div>
+</div>
+
+<!-- ═══════════════ 1. 概述 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec0"><span class="dot" style="background:#64748b;"></span> 0. 训练全景图</h2>
+    <p class="section-subtitle">
+      一次完整的训练涉及 4 层结构：CLI 入口 → Trainer → VectorEnv → RLEnv → Core Env。
+    </p>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
+          🖥 CLI 入口
+          <small>habitat_baselines/run.py</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ Hydra 配置加载 + 训练/评估 分支</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#ec489920;border:1px solid #ec489940;">
+          🤖 PPOTrainer
+          <small>rl/ppo/ppo_trainer.py</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ 管理训练循环、checkpoint、日志</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
+          📊 AgentAccessMgr (Single)
+          <small>Policy + Storage + Updater</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ 收集 rollouts → 计算 returns → PPO 更新</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
+          🔄 VectorEnv (N 个并行)
+          <small>habitat/core/vector_env.py</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ 每个 env 独立运行一个场景实例</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#22d3ee20;border:1px solid #22d3ee40;">
+          🎮 RLEnv → Env
+          <small>step() → (obs, reward, done, info)</small>
+        </div>
+        &nbsp;&nbsp;
+        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
+          🧠 Task (Nav-v0)
+          <small>reward_measure + success_measure</small>
+        </div>
+        &nbsp;&nbsp;
+        <div class="arch-layer" style="background:#06b6d420;border:1px solid #06b6d440;">
+          🏗 Simulator
+          <small>habitat_sim 渲染引擎</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">📁 两个仓库的边界</div>
+      <b>habitat-lab</b>：提供 <code>Env</code>、<code>RLEnv</code>、<code>Benchmark</code>、<code>Task</code>、<code>Simulator</code> — 环境基础设施。<br>
+      <b>habitat-baselines</b>：提供 <code>run.py</code>、<code>PPOTrainer</code>、<code>PPO</code>、<code>Policy</code> — 训练算法和工具。<br>
+      训练时，baselines 通过 Hydra <code>defaults</code> 引用 lab 的 benchmark 配置，统一在 <code>DictConfig</code> 中。
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 1. 导航任务全景 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec1"><span class="dot" style="background:#a78bfa;"></span> 1. 导航任务全景：五种目标类型</h2>
+    <p class="section-subtitle">
+      PointNav 只是导航的起点。Habitat 支持 5 种目标类型——从几何坐标到语言指令，覆盖 Embodied AI 导航的全谱系。
+    </p>
+
+    <!-- 3.1 五型对比总表 -->
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.1 五种目标类型对比总表</h3>
+
+    <table class="compare-table">
+      <thead>
+        <tr><th style="width:8%;">任务</th><th style="width:20%;">目标描述</th><th style="width:16%;">目标传感器</th><th style="width:10%;">动作数</th><th style="width:18%;">核心数据集</th><th style="width:16%;">评判指标</th><th style="width:12%;">难度</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>PointNav</b></td>
+          <td>几何坐标 (x,y)</td>
+          <td>GPS + Compass<br><small>(pointgoal_with_gps_compass)</small></td>
+          <td>4<br><small>STOP/FWD/LEFT/RIGHT</small></td>
+          <td>Gibson, MP3D, HM3D</td>
+          <td>success, SPL,<br>distance_to_goal</td>
+          <td>⭐⭐</td>
+        </tr>
+        <tr>
+          <td><b>ObjectNav</b></td>
+          <td>物体类别<br><small>(如 chair, bed)</small></td>
+          <td>GPS + Compass<br><small>+ objectgoal (类别ID)</small></td>
+          <td>6<br><small>+LOOK_UP/LOOK_DOWN</small></td>
+          <td>HM3D, MP3D,<br>HSSD, ProcTHOR</td>
+          <td>success, SPL, softSPL,<br>VIEW_POINTS 距离</td>
+          <td>⭐⭐⭐</td>
+        </tr>
+        <tr>
+          <td><b>ImageNav</b></td>
+          <td>一张目标图片<br><small>(goal image)</small></td>
+          <td>目标 RGB 图像<br><small>(imagegoal_sensor)</small></td>
+          <td>4<br><small>STOP/FWD/LEFT/RIGHT</small></td>
+          <td>Gibson, MP3D<br><small>(共用 PointNav 数据)</small></td>
+          <td>success, SPL,<br>distance_to_goal</td>
+          <td>⭐⭐⭐</td>
+        </tr>
+        <tr>
+          <td><b>InstanceImageNav</b></td>
+          <td>特定实例图片<br><small>("这把椅子", 非 "椅子类")</small></td>
+          <td>目标实例图片<br><small>(instance_imagegoal)</small></td>
+          <td>6<br><small>+LOOK_UP/LOOK_DOWN</small></td>
+          <td>HM3D</td>
+          <td>success, SPL, softSPL,<br>VIEW_POINTS 距离</td>
+          <td>⭐⭐⭐⭐</td>
+        </tr>
+        <tr>
+          <td><b>VLN</b></td>
+          <td>自然语言指令<br><small>("通过厨房去卧室")</small></td>
+          <td>指令文本<br><small>(instruction_sensor)</small></td>
+          <td>4<br><small>STOP/FWD/LEFT/RIGHT</small></td>
+          <td>MP3D (R2R)</td>
+          <td>success, SPL, nDTW<br><small>(路径相似度)</small></td>
+          <td>⭐⭐⭐⭐⭐</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">关键洞察：从几何到语义的谱系</div>
+      <b>PointNav → ObjectNav → ImageNav → VLN</b> 的演进反映了 Embodied AI 的核心挑战：<br>
+      · PointNav = "走到 (x,y)" — 纯几何，GPS/Compass 告诉你相对位置 → 最简单的 RL 训练<br>
+      · ObjectNav = "找到 chair" — 需要<b>语义理解</b>（chair 长什么样？它通常在哪？）<br>
+      · ImageNav = "到达这里" — 需要<b>视觉匹配</b>（当前视野 vs 目标图片）→ <b>没有 GPS</b><br>
+      · InstanceImageNav = "找到这把特定的椅子" — 需要<b>实例级识别</b>（区分同类的不同个体）<br>
+      · VLN = "按指令去卧室" — 需要<b>语言理解</b> + 视觉匹配 + 路径记忆 → 最接近真实机器人
+    </div>
+
+    <!-- 1.2 PointNav -->
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.2 PointNav — 几何坐标导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐</span></h3>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <b>PointNav</b>（PointGoal Navigation）是 Habitat 中最基础、最成熟的导航任务。
+      智能体接收一个<b>相对目标坐标</b>（距离 ρ 和角度 φ），通过 RGB-D 视觉和运动控制，
+      自主规划路径走到目标点。这是 Embodied AI 的 "Hello World"。
+    </div>
+
+    <div style="margin:14px 0;">
+      <div class="info-title">② 核心配置与关键调用</div>
+
+      <table class="compare-table">
+        <thead>
+          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>任务类型</b></td><td><code>Nav-v0</code></td><td>habitat/tasks/nav/nav.py 中注册的 NavigationTask</td></tr>
+          <tr><td><b>任务配置</b></td><td><code>config/habitat/task/pointnav.yaml</code></td><td>定义 actions, measurements, sensors</td></tr>
+          <tr><td><b>目标传感器</b></td><td><code>pointgoal_with_gps_compass</code></td><td>输出 (ρ, φ) — 当前 agent 相对目标的距离和角度</td></tr>
+          <tr><td><b>基准配置</b></td><td><code>config/benchmark/nav/pointnav/</code></td><td>5 种场景：gibson, mp3d, hm3d, habitat_test, franka</td></tr>
+          <tr><td><b>训练配置</b></td><td><code>habitat_baselines/config/pointnav/</code></td><td>ppo_pointnav.yaml / ddppo_pointnav.yaml</td></tr>
+          <tr><td><b>动作空间</b></td><td>4 个离散动作</td><td>STOP(0), MOVE_FORWARD(1), TURN_LEFT(2), TURN_RIGHT(3)</td></tr>
+          <tr><td><b>观测空间</b></td><td>RGB(256×256×3), Depth(256×256×1),<br>PointGoal(2,)</td><td>视觉为 256×256 分辨率（可调）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-block" style="margin-top:14px;">
+<pre><span class="c"># 用 Gym API 创建 PointNav 环境</span>
+<span class="kn">import</span> gym, habitat.gym  <span class="c"># noqa: F401 — 注册 Habitat-v0</span>
+
+env = gym.make(<span class="s">&quot;Habitat-v0&quot;</span>,
+    cfg_file_path=<span class="s">&quot;benchmark/nav/pointnav/pointnav_habitat_test.yaml&quot;</span>,
+)
+
+obs = env.reset()
+<span class="n">print</span>(obs.keys())
+<span class="c"># dict_keys(['rgb', 'depth', 'pointgoal_with_gps_compass'])</span>
+
+<span class="c"># pointgoal_with_gps_compass = [ρ, φ]</span>
+<span class="c"># ρ = 距离目标（米），φ = 相对目标的偏航角（弧度）</span>
+pg = obs[<span class="s">&quot;pointgoal_with_gps_compass&quot;</span>]
+<span class="n">print</span>(<span class="s">f&quot;距离目标: {pg[0]:.2f}m, 偏航角: {pg[1]:.2f}rad&quot;</span>)
+
+<span class="c"># 执行一个随机动作</span>
+obs, reward, done, info = env.step(<span class="n">env</span>.action_space.sample())
+env.close()
+</pre>
+    </div>
+
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">③ 如何创建和运行</div>
+<pre><span class="c"># PointNav 训练（离线可用 habitat-test 数据）</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=pointnav/ppo_pointnav_example.yaml
+
+<span class="c"># PointNav 评估</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=pointnav/ppo_pointnav_example.yaml \
+    habitat_baselines.evaluate=True
+
+<span class="c"># 快速运行 Demo（环境探索 + 训练 + 推理）</span>
+$ python examples/rl_nav_demo.py --train-steps 50000
+</pre>
+    </div>
+
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">④ 输出结果含义</div>
+      1. <b>pointgoal_with_gps_compass</b>: 这是一个 2 维向量 [ρ, φ]，ρ 是当前 agent 到目标位置的距离（米），φ 是相对偏航角（弧度）<br>
+      2. <b>φ 的正负号</b>: 正值 = 目标在 agent 右侧，负值 = 目标在左侧<br>
+      3. <b>distance_to_goal</b>: 测地距离（沿可行走表面的最短路径），不是欧氏距离<br>
+      4. <b>GPS+Compass 是特权信息</b>: 真实机器人没有完美的 GPS，需要用 SLAM 或视觉里程计来近似<br>
+      5. <b>reward = -(新距离 - 旧距离)</b>: 靠近目标得正奖励，远离目标得负奖励（distance_to_goal_reward 计算）
+    </div>
+
+    <div style="margin:14px 0;">
+      <div class="info-title">⑥ 试试调整这些</div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>调整项</th><th>怎么改</th><th>预期看到什么</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>max_episode_steps</td>
+            <td>在 benchmark yaml 中改为 100 或 1000</td>
+            <td>步数限制影响成功率——短限制迫使策略更高效</td>
+          </tr>
+          <tr>
+            <td>success_distance</td>
+            <td>修改 task.measurements.success.success_distance</td>
+            <td>默认 0.2m；设为 0.1 更严格（更难），设为 0.5 更宽松</td>
+          </tr>
+          <tr>
+            <td>RGB 分辨率</td>
+            <td>修改 rgb_sensor width/height 参数</td>
+            <td>分辨率越高视觉信息越多，但训练更慢</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 1.3 ObjectNav -->
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.3 ObjectNav — 物体类别导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐</span></h3>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <b>ObjectNav</b>（ObjectGoal Navigation）要求智能体在未知环境中找到 <b>指定类别的物体</b>。
+      与 PointNav 不同，ObjectNav 不给你目标坐标，只告诉你目标物体类别（如 "chair"、"bed"），
+      智能体必须<b>自主探索、识别语义</b>，在找到目标物体后决定 STOP。
+    </div>
+
+    <div style="margin:14px 0;">
+      <div class="info-title">② 核心配置与关键调用</div>
+
+      <table class="compare-table">
+        <thead>
+          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>任务类型</b></td><td><code>ObjectNav-v1</code></td><td>object_nav_task.py → <code>@registry.register_task(name="ObjectNav-v1")</code></td></tr>
+          <tr><td><b>任务配置</b></td><td><code>config/habitat/task/objectnav.yaml</code></td><td>6 个动作，GPS+Compass+objectgoal 传感器</td></tr>
+          <tr><td><b>目标传感器</b></td><td><code>objectgoal_sensor</code></td><td>输出目标物体类别 ID（整数索引）</td></tr>
+          <tr><td><b>辅助传感器</b></td><td><code>gps_sensor</code> + <code>compass_sensor</code></td><td>提供绝对位置/朝向（帮助定位）</td></tr>
+          <tr><td><b>额外动作</b></td><td><code>look_up</code> + <code>look_down</code></td><td>上下看（±30°）→ 物体可能在高处或低处</td></tr>
+          <tr><td><b>数据集</b></td><td>HM3D / MP3D / HSSD / ProcTHOR</td><td>每类物体有 6 种（如 6 种椅子），增加泛化难度</td></tr>
+          <tr><td><b>距离指标</b></td><td><code>distance_to: VIEW_POINTS</code></td><td>使用视角点距离（能看到物体的位置），非物体中心距离</td></tr>
+          <tr><td><b>训练配置</b></td><td><code>config/objectnav/ddppo_objectnav_hm3d.yaml</code></td><td>训练步数可达 2.7 亿步（270000 updates × 1000 steps）</td></tr>
+          <tr><td><b>特殊指标</b></td><td><code>soft_spl</code></td><td>即使未 STOP 在物体旁，走到物体附近也有部分分数</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-block" style="margin-top:14px;">
+<pre><span class="kn">import</span> gym, habitat.gym
+
+<span class="c"># ObjectNav 需要下载 HM3D 数据集（或使用 HSSD）</span>
+env = gym.make(<span class="s">&quot;Habitat-v0&quot;</span>,
+    cfg_file_path=<span class="s">&quot;benchmark/nav/objectnav/objectnav_hm3d.yaml&quot;</span>,
+)
+
+obs = env.reset()
+<span class="n">print</span>(obs.keys())
+<span class="c"># dict_keys(['rgb', 'depth', 'objectgoal', 'gps', 'compass'])</span>
+
+<span class="c"># objectgoal = 目标物体类别的整数 ID</span>
+<span class="n">print</span>(<span class="s">f&quot;Target object ID: {obs['objectgoal'].item()}&quot;</span>)
+
+<span class="c"># ObjectNav 有 6 个动作: STOP, MOVE_FORWARD, TURN_LEFT,</span>
+<span class="c">#                            TURN_RIGHT, LOOK_UP, LOOK_DOWN</span>
+<span class="n">print</span>(<span class="s">f&quot;Action space: {env.action_space}&quot;</span>)
+<span class="c"># Discrete(6)</span>
+
+<span class="c"># 执行一个 episode: 随机动作直到 done</span>
+total_reward = <span class="mf">0.0</span>
+<span class="kn">for</span> step <span class="kn">in</span> <span class="n">range</span>(<span class="mf">500</span>):
+    action = env.action_space.sample()
+    obs, reward, done, info = env.step(action)
+    total_reward += reward
+    <span class="kn">if</span> done:
+        <span class="n">print</span>(<span class="s">f&quot;Episode done at step {step+1}, </span>
+              <span class="s">f&quot;success={info.get('success', 0)}, </span>
+              <span class="s">f&quot;distance={info.get('distance_to_goal', '?')}&quot;</span>)
+        <span class="kn">break</span>
+env.close()
+</pre>
+    </div>
+
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">③ 运行命令</div>
+<pre><span class="c"># ObjectNav DD-PPO 训练（需要 HM3D 数据集）</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=objectnav/ddppo_objectnav_hm3d.yaml
+
+<span class="c"># ObjectNav 评估</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=objectnav/ddppo_objectnav_hm3d.yaml \
+    habitat_baselines.evaluate=True \
+    habitat_baselines.eval_ckpt_path_dir=/path/to/checkpoints \
+    habitat_baselines.checkpoint_folder=/path/to/checkpoints
+</pre>
+    </div>
+
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">④ 输出结果含义</div>
+      1. <b>objectgoal</b>: 一个整数，表示目标物体类别的索引。HM3D 定义了 6 种物体类别（chair, bed, plant, toilet, tv_monitor, sofa）<br>
+      2. <b>gps</b>: 2 维向量 [x, y]，agent 在场景中的绝对坐标。注意这是 <b>绝对 GPS</b>，不是 PointNav 中的相对坐标<br>
+      3. <b>compass</b>: [sin(θ), cos(θ)]，agent 当前的朝向角度<br>
+      4. <b>VIEW_POINTS 距离</b>: 计算的是 agent 到能看到目标物体的 <b>最近视点</b> 的距离，而非物体本身的位置（物体位置对 agent 不可见）<br>
+      5. <b>soft_spl</b>: SPL 的 "软" 版本——即使 agent 没有在物体前 STOP，只要它走到了物体附近（按距离分等级），也能得部分分
+    </div>
+
+    <div class="tip-box" style="margin-top:14px;">
+      <div class="tip-title">ObjectNav 为什么比 PointNav 难得多？</div>
+      <b>1. 无目标坐标</b>: 你只知道要找 "chair"，不知道它在哪。必须用视觉探索。<br>
+      <b>2. 语义理解</b>: CNN 需要学习 chair 视觉特征 vs 其他物体。<br>
+      <b>3. 泛化压力</b>: HM3D 有 6 种椅子，测试时可能出现完全不同的椅子。<br>
+      <b>4. 探索-利用</b>: 是继续搜索还是在找到疑似目标时 STOP？这是一个赌博。
+    </div>
+
+    <div style="margin:14px 0;">
+      <div class="info-title">⑥ 试试调整这些</div>
+      <table class="compare-table">
+        <thead>
+          <tr><th>调整项</th><th>怎么改</th><th>预期看到什么</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>数据集</td>
+            <td>切换到 <code>benchmark/nav/objectnav/objectnav_hssd-hab.yaml</code></td>
+            <td>HSSD 数据集 vs HM3D，物体分布和场景风格不同</td>
+          </tr>
+          <tr>
+            <td>success_distance</td>
+            <td>修改 task.measurements.success.success_distance</td>
+            <td>默认 0.1m；ObjectNav 用更严的标准（必须在物体旁 STOP）</td>
+          </tr>
+          <tr>
+            <td>物体类别</td>
+            <td>运行物体类别统计脚本</td>
+            <td>看哪些类别的物体更难找（被遮挡、在角落）</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 1.4 ImageNav -->
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.4 ImageNav — 图片目标导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐</span></h3>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <b>ImageNav</b>（ImageGoal Navigation）给智能体一张<b>目标图片</b>（从目标位置看到的 RGB 画面），
+      智能体必须在到达目标位置时 STOP。智能体<b>没有 GPS 信号</b>，只能靠视觉匹配完成导航。
+      这更接近人类导航方式——"到达这个地方（给你看照片）"。
+    </div>
+
+    <div class="tip-box" style="margin-top:14px;">
+      <div class="tip-title">ImageNav vs PointNav 的关键区别</div>
+      · PointNav: 给你 <b>GPS 坐标</b> → "目标在你的东北方向 5.2 米"<br>
+      · ImageNav: 给你 <b>一张照片</b> → "目标长这样，你来找"<br>
+      → ImageNav <b>没有 GPS 传感器</b>！策略必须通过视觉匹配来逼近目标位置。
+      ImageNav 虽然复用 PointNav 数据集（在目标位置渲染图片），但训练难度远高于 PointNav。
+    </div>
+
+    <div style="margin:14px 0;">
+      <div class="info-title">② 核心配置与关键调用</div>
+
+      <table class="compare-table">
+        <thead>
+          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>任务类型</b></td><td><code>Nav-v0</code></td><td>复用 PointNav 的基础任务类</td></tr>
+          <tr><td><b>任务配置</b></td><td><code>config/habitat/task/imagenav.yaml</code></td><td>4 个动作，只有 imagegoal 传感器</td></tr>
+          <tr><td><b>目标传感器</b></td><td><code>imagegoal_sensor</code></td><td>输出目标位置的 RGB 图像</td></tr>
+          <tr><td><b>基准配置</b></td><td><code>config/benchmark/nav/imagenav/</code></td><td>imagenav_gibson.yaml / imagenav_mp3d.yaml / imagenav_test.yaml</td></tr>
+          <tr><td><b>训练配置</b></td><td><code>habitat_baselines/config/imagenav/</code></td><td>ddppo_imagenav_gibson.yaml (ResNet50 视觉编码器)</td></tr>
+          <tr><td><b>数据集</b></td><td>共用 PointNav 数据集</td><td>运行时在目标位置渲染 RGB 作为 goal image</td></tr>
+          <tr><td><b>动作空间</b></td><td>4 个离散动作</td><td>同 PointNav（STOP/MOVE_FWD/TURN_LEFT/TURN_RIGHT）</td></tr>
+          <tr><td><b>观测空间</b></td><td>RGB + Depth + <b>目标 RGB 图像</b></td><td>目标图像和当前观测的 RGB 需要被联合编码比较</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-block" style="margin-top:14px;">
+<pre><span class="kn">import</span> gym, habitat.gym
+
+env = gym.make(<span class="s">&quot;Habitat-v0&quot;</span>,
+    cfg_file_path=<span class="s">&quot;benchmark/nav/imagenav/imagenav_mp3d.yaml&quot;</span>,
+)
+
+obs = env.reset()
+<span class="n">print</span>(obs.keys())
+<span class="c"># dict_keys(['rgb', 'depth', 'imagegoal'])</span>
+
+<span class="c"># imagegoal = 目标位置看到的 RGB 图片</span>
+goal_img = obs[<span class="s">&quot;imagegoal&quot;</span>]
+<span class="n">print</span>(<span class="s">f&quot;Goal image shape: {goal_img.shape}&quot;</span>)  <span class="c"># (H, W, 3)</span>
+
+<span class="c"># 注意: 没有 GPS/Compass 传感器！</span>
+<span class="c"># 策略唯一知道的就是目标图片 + 当前视觉观测</span>
+env.close()
+</pre>
+    </div>
+
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">③ 运行命令</div>
+<pre><span class="c"># ImageNav 训练（需要 Gibson/MP3D 数据集）</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=imagenav/ddppo_imagenav_gibson.yaml
+
+<span class="c"># ImageNav 评估</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=imagenav/ddppo_imagenav_gibson.yaml \
+    habitat_baselines.evaluate=True
+</pre>
+    </div>
+
+    <div class="warn-box" style="margin-top:14px;">
+      <div class="info-title">ImageNav 的独特挑战</div>
+      1. <b>视觉歧义</b>: 很多位置看起来很像（走廊两端、相似房间）→ 容易走过头<br>
+      2. <b>视点变化</b>: 你从西边走向目标，目标图片是从东边拍的 → 视野完全不同，无法直接匹配<br>
+      3. <b>无定位传感器</b>: 没有任何坐标信号 → 策略必须在脑中建立隐式空间认知<br>
+      4. <b>策略设计</b>: 通常需要 <b>Siamese 网络</b> 或 <b>视觉对比编码器</b> 来比较当前观测和目标图片
+    </div>
+
+    <!-- 1.5 InstanceImageNav -->
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.5 InstanceImageNav — 实例级图像导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐</span></h3>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <b>InstanceImageNav</b> 是 ImageNav 的进阶版：不是找 "任意椅子"，而是找 <b>特定的那把椅子</b>。
+      给你一张 <b>目标实例的图片</b>，你需要找到场景中 <b>特定的物体实例</b>。
+      这比 ObjectNav 更难——你必须区分 "这把棕色皮椅" vs "那把黑色布椅"，而不是笼统地找 "椅子"。
+    </div>
+
+    <div style="margin:14px 0;">
+      <div class="info-title">② 核心配置</div>
+
+      <table class="compare-table">
+        <thead>
+          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>任务类型</b></td><td><code>InstanceImageNav-v1</code></td><td>instance_image_nav_task.py 注册</td></tr>
+          <tr><td><b>传感器</b></td><td>instance_imagegoal + instance_imagegoal_hfov</td><td>目标实例图片 + 不同 FOV 下的目标图片</td></tr>
+          <tr><td><b>辅助传感器</b></td><td>gps + compass</td><td>给一点绝对定位信息（仍然需要实例识别）</td></tr>
+          <tr><td><b>距离指标</b></td><td><code>VIEW_POINTS</code></td><td>同 ObjectNav，到能看到该实例的位置</td></tr>
+          <tr><td><b>训练配置</b></td><td><code>config/instance_imagenav/ddppo_instance_imagenav.yaml</code></td><td>总训练步数 25 亿步！样本效率极低</td></tr>
+          <tr><td><b>数据集</b></td><td>HM3D（semantic 标注）</td><td>需要实例级语义标注</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">③ 运行命令</div>
+<pre><span class="c"># InstanceImageNav 训练（需要 HM3D + 语义标注）</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=instance_imagenav/ddppo_instance_imagenav.yaml
+
+<span class="c"># 注意: total_num_steps=2.5e9，训练成本极高</span>
+</pre>
+    </div>
+
+    <!-- 1.6 VLN -->
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.6 VLN — 视觉语言导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐⭐</span></h3>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <b>VLN</b>（Vision-and-Language Navigation）要求智能体根据 <b>自然语言指令</b>
+      在未知环境中导航到目标。这是 5 种任务中最具挑战性的：需要 <b>语言理解 + 视觉感知 + 决策</b>
+      三者紧密结合。典型指令如 "Go down the hallway, turn left at the bathroom,
+      and stop in front of the bed."
+    </div>
+
+    <div style="margin:14px 0;">
+      <div class="info-title">② 核心配置与关键调用</div>
+
+      <table class="compare-table">
+        <thead>
+          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>任务类型</b></td><td><code>VLN-v0</code></td><td>nav.py 中注册的 VLN 任务变体</td></tr>
+          <tr><td><b>任务配置</b></td><td><code>config/habitat/task/vln_r2r.yaml</code></td><td>4 个动作，instruction_sensor</td></tr>
+          <tr><td><b>目标传感器</b></td><td><code>instruction_sensor</code></td><td>输出自然语言指令文本</td></tr>
+          <tr><td><b>基准配置</b></td><td><code>config/benchmark/nav/vln_r2r.yaml</code></td><td>MP3D 的 R2R 数据集</td></tr>
+          <tr><td><b>数据集</b></td><td>R2R (Room-to-Room) — MP3D 场景</td><td>人类标注的路径+指令对，训练/验证/测试 分集</td></tr>
+          <tr><td><b>动作空间</b></td><td>4 个离散动作</td><td>STOP/MOVE_FWD(0.25m)/TURN_LEFT(15°)/TURN_RIGHT(15°)</td></tr>
+          <tr><td><b>关键指标</b></td><td>nDTW (normalized Dynamic Time Warping)</td><td>衡量 agent 实际路径与参考路径的相似度</td></tr>
+          <tr><td><b>RL 训练支持</b></td><td>⚠️ 无官方 PPO 配置</td><td>baselines 中没有 VLN 的 RL 训练配置，主要用 Imitation Learning</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-block" style="margin-top:14px;">
+<pre><span class="kn">import</span> gym, habitat.gym
+
+env = gym.make(<span class="s">&quot;Habitat-v0&quot;</span>,
+    cfg_file_path=<span class="s">&quot;benchmark/nav/vln_r2r.yaml&quot;</span>,
+)
+
+obs = env.reset()
+<span class="n">print</span>(obs.keys())
+<span class="c"># dict_keys(['rgb', 'depth', 'instruction'])</span>
+
+<span class="c"># instruction = 自然语言导航指令</span>
+instr = obs[<span class="s">&quot;instruction&quot;</span>]
+<span class="n">print</span>(<span class="s">f&quot;Instruction: {instr}&quot;</span>)
+<span class="c"># 例如: "Go down the hallway past the bathroom on your left.</span>
+<span class="c">#         Stop when you reach the bedroom on the right."</span>
+
+<span class="c"># VLN 的核心挑战: 将自然语言转化为时空动作序列</span>
+env.close()
+</pre>
+    </div>
+
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">③ 运行命令</div>
+<pre><span class="c"># VLN 评估（使用 imitation learning 训练的模型）</span>
+<span class="c"># 注意: baselines 中没有 VLN 的 PPO 训练配置</span>
+<span class="c"># VLN 主要通过 Imitation Learning (DAgger / BC) 训练</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=eqa/il_pacman_nav.yaml
+</pre>
+    </div>
+
+    <div class="warn-box" style="margin-top:14px;">
+      <div class="info-title">VLN 的独特挑战与局限</div>
+      1. <b>语言接地 (Language Grounding)</b>: "turn left at the bathroom" → 必须先识别 bathroom，再决定在哪里转弯<br>
+      2. <b>时序推理</b>: 指令是时序的："先走到走廊尽头，然后右转" → 必须按顺序执行<br>
+      3. <b>部分可观测性</b>: 看不到的物体需要记忆或推理<br>
+      5. <b>评估复杂</b>: 除了 success/SPL，还需要 nDTW 来衡量路径与参考路径的相似度
+    </div>
+
+    <div class="warn-box" style="margin-top:10px;border-color:#ef444460;background:#ef444408;">
+      <div class="warn-title" style="color:#f87171;">⚠️ VLN 在这个工程中<b>不是</b>用 RL 训练的</div>
+      Habitat-Baselines 的 PPO Trainer 硬编码了 <code>supported_tasks = ["Nav-v0"]</code>，
+      而 VLN 注册为 <code>VLN-v0</code> → PPO 无法直接用于 VLN。
+      VLN 使用 <b>Imitation Learning</b>（DAgger / 行为克隆）而非 RL。
+      为什么？因为语言指令导航的<b>奖励函数极难定义</b>——"在浴室处左转" 走偏了，
+      无法用简单的距离差来衡量。学术界有少量 RL+IL 混合方案，但 Habitat-Baselines 未收录。
+    </div>
+
+    <!-- 1.7 选择指南 -->
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.7 选择指南：用哪种任务？</h3>
+
+    <table class="compare-table">
+      <thead>
+        <tr><th>你的目标</th><th>推荐任务</th><th>理由</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>学习 RL 导航基础</td>
+          <td>PointNav</td>
+          <td>数据离线可用、训练快、文档最全、Demo 开箱即用</td>
+        </tr>
+        <tr>
+          <td>研究语义视觉搜索</td>
+          <td>ObjectNav</td>
+          <td>需要识别物体类别、有多种数据集和 baseline</td>
+        </tr>
+        <tr>
+          <td>研究纯视觉导航（无 GPS）</td>
+          <td>ImageNav</td>
+          <td>只能用视觉匹配到达目标，是最纯粹的视觉导航</td>
+        </tr>
+        <tr>
+          <td>研究细粒度实例识别</td>
+          <td>InstanceImageNav</td>
+          <td>区分同类的不同个体，但训练成本极高</td>
+        </tr>
+        <tr>
+          <td>研究语言+视觉+导航融合</td>
+          <td>VLN</td>
+          <td>语言指令导航，但 RL 训练支持有限，需自行搭建</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="exercise" style="margin-top:20px;">
+      <h4>🏋️ 导航任务探索练习</h4>
+      <p>
+        <b>1.</b> 用 PointNav 的 <code>rl_nav_demo.py</code> 跑通一次完整训练，理解观测→动作→奖励的闭环。<br>
+        <b>2.</b> 切换到 ObjectNav 配置，打印 observation keys，对比 PointNav 多了哪些传感器。<br>
+        <b>3. (进阶)</b> 想一个应用场景（如 "帮我找遥控器"），判断它属于哪种导航任务类型。<br>
+        <b>4. (进阶)</b> 阅读 <code>habitat/tasks/nav/object_nav_task.py</code>，理解 VIEW_POINTS 距离和 soft_spl 的计算方式。<br>
+        <b>5. (进阶)</b> 尝试将 ImageNav 的 <code>imagegoal_sensor</code> 输出可视化保存为图片，观察目标图像与实际观测的差异。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 2. Policy 网络 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec2"><span class="dot" style="background:#8b5cf6;"></span> 2. Policy 网络结构</h2>
+    <p class="section-subtitle">
+      <code>PointNavResNetPolicy</code> — Habitat 中 PointNav 任务的标准策略网络。
+      理解网络的每一层，才能回答核心问题：<b>RL 到底在训练什么？</b>
+    </p>
+
+    <h3>2.1 网络全景：CNN + RNN + Actor/Critic</h3>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
+          📷 <b>Visual Encoder</b>
+          <small>ResNet18/50 → 压缩空间特征</small>
+        </div>
+        <span style="font-size:1.5rem;color:var(--text-dim);align-self:center;">+</span>
+        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
+          🧭 <b>GPS+Compass</b>
+          <small>PointGoal 传感器 (2维向量)</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ 拼接 → Linear(hidden_size)</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
+          🔄 <b>GRU</b> (可选)
+          <small>hidden_size=512, num_layers=1</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ 隐藏状态</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#ec489920;border:1px solid #ec489940;">
+          🎯 <b>Actor Head</b>
+          <small>Linear → Categorical(4 actions)</small>
+        </div>
+        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
+          💰 <b>Critic Head</b>
+          <small>Linear → 1 (value scalar)</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">💡 为什么要 GPS+Compass？</div>
+      PointNav 任务中，agent 不仅有视觉输入（RGB/Depth），还有 <code>pointgoal_with_gps_compass</code>
+      传感器提供的 <b>目标方向+距离</b>（2维向量）。这是一个关键的"特权信息"——没有它，
+      纯视觉导航会难得多。策略网络将视觉特征和 GPS 向量拼接后一起送入决策头。
+    </div>
+
+    <!-- 2.2 训练对象 -->
+    <h3 style="margin-top:28px;">2.2 "RL 到底训练的是什么？"</h3>
+
+    <div class="info-box">
+      <div class="info-title">一句话回答</div>
+      训练的是<b>整个策略网络的权重参数</b>——不是规则、不是地图、不是规划器，而是一个<b>从像素到动作的端到端映射函数</b>。
+    </div>
+
+    <table class="compare-table" style="margin-top:14px;">
+      <thead>
+        <tr><th style="width:18%;">模块</th><th style="width:18%;">参数量 (ResNet18)</th><th style="width:32%;">学的是什么</th><th style="width:32%;">类比</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>视觉编码器</b><br><small>ResNet18/50</small></td>
+          <td>~11M</td>
+          <td>从 RGB-D 像素中提取空间特征：障碍物在哪、房间结构、物体纹理</td>
+          <td>"眼睛"——把像素变成有意义的结构信息</td>
+        </tr>
+        <tr>
+          <td><b>RNN 状态编码器</b><br><small>GRU/LSTM 512维</small></td>
+          <td>~3M</td>
+          <td>记忆历史观测，形成<b>隐式空间认知</b>：走过的路、看过的角落</td>
+          <td>"海马体"——在脑中维持对空间的动态记忆</td>
+        </tr>
+        <tr>
+          <td><b>Actor 头</b><br><small>Linear → Categorical</small></td>
+          <td>~200K</td>
+          <td>给定当前状态，输出<b>4 个动作的概率分布</b>——哪个动作最可能到达目标</td>
+          <td>"决策者"——看情况选动作</td>
+        </tr>
+        <tr>
+          <td><b>Critic 头</b><br><small>Linear → 1</small></td>
+          <td>~100K</td>
+          <td>估计当前状态的<b>未来预期回报</b>（value）——这个位置有利吗？</td>
+          <td>"评论家"——好坏我来评判</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="key-finding">
+      <b>训练更新的是权重，不是行为规则。</b>
+      对于一张包含走廊和椅子的 RGB 图像，训练后的网络学会给它分配低 value（远离目标）
+      并降低 TURN_LEFT 概率（因为左边是墙）。但这些知识不是被编程进去的——是 CNN 卷积核
+      通过 <b>PPO 梯度更新</b>从数百万步交互中自己浮现出来的。
+    </div>
+
+    <!-- 2.3 基础模型/微调 -->
+    <h3 style="margin-top:28px;">2.3 "RL 需要基础模型吗？是微调吗？"</h3>
+
+    <div class="info-box">
+      <div class="info-title">取决于配置——有三种模式</div>
+      Habitat RL 的支持介于<b>"从零训练"</b>和<b>"预训练迁移"</b>之间，你可以根据任务选择。
+    </div>
+
+    <table class="compare-table" style="margin-top:14px;">
+      <thead>
+        <tr><th style="width:16%;">模式</th><th style="width:22%;">配置开关</th><th style="width:32%;">说明</th><th style="width:30%;">类比</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>A — 从零训练</b></td>
+          <td><code>SimpleCNN</code> 默认</td>
+          <td>所有参数随机初始化，完全从零学。适合小规模实验，收敛慢</td>
+          <td>训练一个全新的 CNN 做图像分类</td>
+        </tr>
+        <tr>
+          <td><b>B — 预训练编码器</b></td>
+          <td><code>pretrained_encoder: True</code><br><code>pretrained_weights: gibson-2plus-resnet50.pth</code></td>
+          <td>从 Gibson 数据集 DD-PPO 训练的 ResNet50 加载视觉编码器权重，<b>其余随机初始化</b>，然后在新数据集（HM3D/MP3D）上继续 PPO</td>
+          <td>NLP 中 "加载 BERT 权重，在新的下游任务上微调"</td>
+        </tr>
+        <tr>
+          <td><b>C — CLIP 特征提取</b></td>
+          <td><code>backbone: resnet50_clip_avgpool</code></td>
+          <td>加载 OpenAI CLIP ResNet50，<b>视觉编码器完全冻结</b>（<code>requires_grad=False</code>）。策略只学如何利用 CLIP 语义特征导航</td>
+          <td>用 GPT 的 embedding 做情感分类——特征提取器不变，只用它的输出</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box" style="margin-top:14px;">
+      <div class="tip-title">Habitat 的 "微调" 与 NLP 的微调有何不同？</div>
+      <table class="compare-table" style="margin:8px 0;">
+        <thead><tr><th></th><th>NLP (BERT → 分类)</th><th>Habitat RL (Gibson → HM3D)</th></tr></thead>
+        <tbody>
+          <tr><td><b>预训练来源</b></td><td>海量文本自监督 (MLM)</td><td>DD-PPO 在 Gibson 上的 RL 训练</td></tr>
+          <tr><td><b>预训练规模</b></td><td>百亿 token</td><td>数亿步交互</td></tr>
+          <tr><td><b>迁移什么</b></td><td>语言理解能力</td><td>视觉特征提取能力</td></tr>
+          <tr><td><b>微调方式</b></td><td>加分类头 + 小 LR 全参数更新</td><td>冻结/解冻编码器 + 继续 PPO 更新</td></tr>
+          <tr><td><b>本质</b></td><td>任务迁移（语言 → 情感分类）</td><td>领域迁移（Gibson 场景 → HM3D 场景）</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- 2.4 环境/设备相关性 -->
+    <h3 style="margin-top:28px;">2.4 "训练好的模型和环境、设备有关吗？"</h3>
+
+    <table class="compare-table">
+      <thead>
+        <tr><th style="width:12%;">因素</th><th style="width:12%;">相关程度</th><th style="width:40%;">说明</th><th style="width:36%;">缓解措施</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>场景几何</b></td>
+          <td><span style="color:#ef4444;">高</span></td>
+          <td>Gibson 训练的模型直接跑 MP3D 测试，成功率可掉 20%+——房间布局、走廊宽度不同</td>
+          <td>预训练编码器 + 目标数据集微调</td>
+        </tr>
+        <tr>
+          <td><b>传感器分辨率</b></td>
+          <td><span style="color:#ef4444;">高</span></td>
+          <td>256×256 训练的模型接收 640×480 输入会出错（FC 层输入维度固定）</td>
+          <td>resize 预处理；或用全卷积网络</td>
+        </tr>
+        <tr>
+          <td><b>动作空间</b></td>
+          <td><span style="color:#ef4444;">高</span></td>
+          <td>4-action (PointNav) 模型<b>不能</b>直接用于 6-action (ObjectNav) 任务——Actor 头维度不同</td>
+          <td>重新训练 Actor/Critic 头</td>
+        </tr>
+        <tr>
+          <td><b>RGB vs 深度</b></td>
+          <td><span style="color:#f59e0b;">中</span></td>
+          <td>有深度的模型迁移到纯 RGB 场景性能下降——深度提供几何信息</td>
+          <td>多任务训练；深度 dropout</td>
+        </tr>
+        <tr>
+          <td><b>数据集 split</b></td>
+          <td><span style="color:#f59e0b;">中</span></td>
+          <td>同一场景的不同 episode（train vs val）泛化通常较好；不同场景则考验泛化能力</td>
+          <td>严格按照 train/val/test 分离</td>
+        </tr>
+        <tr>
+          <td><b>GPU 设备</b></td>
+          <td><span style="color:#10b981;">低</span></td>
+          <td>PyTorch 自动处理 CUDA/CPU 转换；checkpoint 可跨 GPU 加载（<code>map_location</code>）</td>
+          <td>无需特殊处理</td>
+        </tr>
+        <tr>
+          <td><b>Habitat-Sim 版本</b></td>
+          <td><span style="color:#10b981;">低</span></td>
+          <td>传感器输出格式跨版本兼容；极少情况需要重新导出 checkpoint</td>
+          <td>固定版本依赖</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="key-finding" style="margin-top:14px;">
+      <b>本质：Habitat RL 学的是视觉运动策略，不是场景地图。</b>
+      策略编码的是 "看到这样的走廊，应该这样做" 的<b>通用能力</b>，而不是某个特定房间的布局。
+      这就是为什么可以通过预训练编码器跨数据集迁移——视觉特征提取的底层卷积核（边缘、纹理、形状）
+      在不同场景间是可以共享的。
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 3. RL 环境链 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec3"><span class="dot" style="background:#22d3ee;"></span> 3. RL 环境包装链</h2>
+    <p class="section-subtitle">
+      从最内层的 <code>Env</code> 到最外层的 <code>VectorEnv</code>，每一层封装增加一个能力维度。
+    </p>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#0f172a;border:2px solid #f59e0b;">
+          <b>VectorEnv</b> (N 个并行)
+          <small>habitat/core/vector_env.py</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center" style="font-size:0.85rem;color:#fbbf24;">↑ 管理 N 个独立环境实例，合并 batch</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #3b82f6;">
+          <b>GymHabitatEnv</b>
+          <small>habitat/gym/gym_definitions.py</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center" style="font-size:0.85rem;color:#60a5fa;">↑ 将字典 action/obs 转换为 gym 标准空间</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #10b981;">
+          <b>RLEnv</b> (gym.Env)
+          <small>habitat/core/env.py:357</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center" style="font-size:0.85rem;color:#34d399;">↑ step() → (obs, reward, done, info)</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #8b5cf6;">
+          <b>Env</b> (核心)
+          <small>habitat/core/env.py:39</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center" style="font-size:0.85rem;color:#a78bfa;">↑ 组合 Simulator + Task + Dataset</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #64748b;">
+          🏗 Simulator
+          <small>habitat_sim 渲染引擎</small>
+        </div>
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #64748b;">
+          🧠 Task (Nav-v0)
+          <small>reward + success + measurements</small>
+        </div>
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #64748b;">
+          📦 Dataset
+          <small>episodes 迭代器</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">💡 RLEnv 做了什么？</div>
+      原始 <code>Env.step()</code> 返回的是 <code>Observations</code>（字典）。<br>
+      <code>RLEnv.step()</code> 包装后返回标准的 <b><code>(obs, reward, done, info)</code></b> 元组：<br>
+      · <code>reward</code> 来自 <code>task.measurements</code> 中的 <code>reward_measure</code>（如 <code>distance_to_goal_reward</code>）<br>
+      · <code>done</code> 由 <code>task</code> 判断 episode 是否结束（到达目标 / 超步数 / 碰撞）<br>
+      · <code>info</code> 包含 <code>task.get_metrics()</code> 返回的所有指标
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 4. PPO 算法 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec4"><span class="dot" style="background:#ec4899;"></span> 4. PPO 训练算法</h2>
+    <p class="section-subtitle">
+      Proximal Policy Optimization (Schulman et al., 2017) — Habitat 使用的核心 RL 算法。
+    </p>
+
+    <h3>4.1 PPO 训练循环 (PPOTrainer.train)</h3>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#ec489920;border:1px solid #ec489940;">
+          <b>① 初始化</b>
+          <small>创建 VectorEnv → Policy → Updater</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
+          <b>② 收集 Rollout</b>
+          <small>N 个 env × num_steps 步</small>
+        </div>
+        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
+          <b>③ 计算 Returns + Advantages</b>
+          <small>GAE (gamma=0.99, tau=0.95)</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
+          <b>④ PPO Update</b>
+          <small>ppo_epoch=1, num_mini_batch=1</small>
+        </div>
+        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
+          <b>⑤ Clip Gradient + Step</b>
+          <small>clip_param=0.1, max_grad_norm=0.5</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#22d3ee20;border:1px solid #22d3ee40;">
+          <b>⑥ Log + Checkpoint</b>
+          <small>tensorboard / 定期保存</small>
+        </div>
+        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">⟲</span>
+        <div class="arch-layer" style="background:#64748b40;border:1px solid #64748b;">
+          <b>重复 ②-⑥</b>
+          <small>直到 total_num_steps</small>
+        </div>
+      </div>
+    </div>
+
+    <h3>4.2 PPO 核心参数详解</h3>
+    <div class="param-grid">
+      <div class="param-card" style="border-left-color:#f59e0b;">
+        <h4>clip_param = 0.1</h4>
+        <div class="param-val">默认 0.2，示例中用 0.1</div>
+        <div class="param-desc">
+          PPO 的核心创新——限制策略更新的幅度。新策略与旧策略的概率比被裁剪到 <code>[1-ε, 1+ε]</code>。
+          <b>越小越保守</b>，训练更稳定但收敛更慢。
+        </div>
+      </div>
+      <div class="param-card" style="border-left-color:#3b82f6;">
+        <h4>lr = 2.5e-4</h4>
+        <div class="param-val">Adam 优化器学习率</div>
+        <div class="param-desc">
+          标准设置。可配合 <code>use_linear_lr_decay=True</code> 让学习率从初始值线性衰减到 0。
+        </div>
+      </div>
+      <div class="param-card" style="border-left-color:#10b981;">
+        <h4>num_steps = 32</h4>
+        <div class="param-val">每次 rollout 收集的环境步数</div>
+        <div class="param-desc">
+          每次 PPO 更新前，每个环境执行 32 步。batch_size = <code>num_environments × num_steps</code>。
+          更大的值提供更多样本但降低更新频率。
+        </div>
+      </div>
+      <div class="param-card" style="border-left-color:#8b5cf6;">
+        <h4>gamma = 0.99</h4>
+        <div class="param-val">折扣因子</div>
+        <div class="param-desc">
+          未来 reward 的衰减系数。<code>0.99</code> 意味着 100 步后的 reward 权重约为 <code>0.99^100 ≈ 0.37</code>。
+          接近 1.0 表示重视远期奖励。
+        </div>
+      </div>
+      <div class="param-card" style="border-left-color:#ec4899;">
+        <h4>tau = 0.95 (GAE λ)</h4>
+        <div class="param-val">Generalized Advantage Estimation</div>
+        <div class="param-desc">
+          控制 advantage 估计中偏差-方差的权衡。<code>λ=1</code> 等价于 Monte Carlo（无偏但高方差）；
+          <code>λ=0</code> 等价于 TD(0)（有偏但低方差）。0.95 是经验最优值。
+        </div>
+      </div>
+      <div class="param-card" style="border-left-color:#06b6d4;">
+        <h4>entropy_coef = 0.01</h4>
+        <div class="param-val">熵正则化系数</div>
+        <div class="param-desc">
+          鼓励策略保持探索（不收敛到单一动作）。值越大探索越多，可设置
+          <code>use_adaptive_entropy_pen=True</code> 自动调整。
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px;">4.3 DD-PPO (分布式 PPO)</h3>
+    <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
+      当单卡不够时，使用 DD-PPO 在多 GPU/多节点上训练。它与 PPO 共享同一个 <code>PPOTrainer</code> 类，
+      区别在于通过 <code>DecentralizedDistributedMixin</code> 增加了分布式同步。
+    </p>
+    <div class="param-grid">
+      <div class="param-card" style="border-left-color:#f59e0b;">
+        <h4>sync_frac = 0.6</h4>
+        <div class="param-val">每 60% 步数后同步一次梯度</div>
+        <div class="param-desc">不每步同步（那样通信开销太大），而是积累一定步数后平均梯度。</div>
+      </div>
+      <div class="param-card" style="border-left-color:#3b82f6;">
+        <h4>backbone = "resnet18"</h4>
+        <div class="param-val">视觉编码器 (ResNet18/50/101)</div>
+        <div class="param-desc">DD-PPO 默认使用 ResNet18 作为视觉 backbone。支持 <code>pretrained_encoder=True</code> 加载预训练权重。</div>
+      </div>
+      <div class="param-card" style="border-left-color:#10b981;">
+        <h4>num_recurrent_layers = 1</h4>
+        <div class="param-val">GRU 循环层数</div>
+        <div class="param-desc">Policy 在 CNN 特征后接 GRU 层处理序列信息。设为 0 可禁用循环层。</div>
+      </div>
+      <div class="param-card" style="border-left-color:#8b5cf6;">
+        <h4>distrib_backend = "GLOO"</h4>
+        <div class="param-val">PyTorch 分布式后端</div>
+        <div class="param-desc">CPU 训练用 GLOO，GPU 训练可用 NCCL（更快）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 5. 配置体系 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec5"><span class="dot" style="background:#3b82f6;"></span> 5. 训练配置体系</h2>
+    <p class="section-subtitle">
+      训练配置 = <b>Benchmark 配置</b>（环境） + <b>Baselines 配置</b>（算法） ，通过 Hydra <code>defaults</code> 合并。
+    </p>
+
+    <h3>5.1 配置入口 — run.py</h3>
+    <div class="code-block"><span class="cmt"># habitat-baselines/habitat_baselines/run.py</span>
+<span class="kw">@hydra.main</span>(
+    config_path=<span class="str">"config"</span>,
+    config_name=<span class="str">"pointnav/ppo_pointnav_example"</span>,  <span class="cmt">← 默认配置文件</span>
+)
+<span class="kw">def</span> <span class="fn">main</span>(cfg):
+    trainer_init = baseline_registry.<span class="fn">get_trainer</span>(cfg.habitat_baselines.trainer_name)
+    trainer = <span class="fn">trainer_init</span>(cfg)
+    <span class="kw">if</span> run_type == <span class="str">"train"</span>:
+        trainer.<span class="fn">train</span>()       <span class="cmt"># 开始训练</span>
+    <span class="kw">else</span>:
+        trainer.<span class="fn">eval</span>()        <span class="cmt"># 评估模式</span></div>
+
+    <h3>5.2 训练配置文件</h3>
+    <div class="config-tree"><span class="cmt"># habitat_baselines/config/pointnav/ppo_pointnav_example.yaml</span>
+<span class="kw">defaults:</span>
+  - /benchmark/nav/pointnav: pointnav_habitat_test    <span class="cmt">← 环境配置（场景、任务、传感器）</span>
+  - /habitat_baselines: habitat_baselines_rl_config_base  <span class="cmt">← 训练配置（算法、超参）</span>
+  - <span class="warn">_self_</span>
+
+<span class="key">habitat_baselines:</span>
+  <span class="key">trainer_name:</span> <span class="str">"ppo"</span>                  <span class="cmt">← 注册在 baseline_registry 中的 trainer</span>
+  <span class="key">num_environments:</span> <span class="num">1</span>              <span class="cmt">← 并行环境数（DD-PPO 时可设多卡）</span>
+  <span class="key">total_num_steps:</span> <span class="num">1e6</span>               <span class="cmt">← 总训练步数</span>
+  <span class="key">checkpoint_folder:</span> <span class="str">"data/new_checkpoints"</span>
+  <span class="key">num_checkpoints:</span> <span class="num">50</span>               <span class="cmt">← 保存 50 个均匀分布的快照</span>
+
+  <span class="key">rl:</span>
+    <span class="key">ppo:</span>
+      <span class="key">clip_param:</span> <span class="num">0.1</span>                <span class="cmt">← PPO 裁剪范围</span>
+      <span class="key">lr:</span> <span class="num">2.5e-4</span>                     <span class="cmt">← 学习率</span>
+      <span class="key">num_steps:</span> <span class="num">32</span>                   <span class="cmt">← 每次 rollout 收集的环境步数</span>
+      <span class="key">gamma:</span> <span class="num">0.99</span>                      <span class="cmt">← 折扣因子</span>
+      <span class="key">tau:</span> <span class="num">0.95</span>                        <span class="cmt">← GAE λ 参数</span>
+      <span class="key">hidden_size:</span> <span class="num">512</span>                <span class="cmt">← 网络隐藏层维度</span></div>
+
+    <h3>5.3 配置合并结果</h3>
+    <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
+      合并后的 <code>DictConfig</code> 同时包含 <code>habitat</code> 和 <code>habitat_baselines</code> 两个顶层节点，
+      它们的 structured config 类型分别定义在两个文件中。
+    </p>
+    <div class="module-grid">
+      <div class="module" style="border-left-color:#3b82f6;">
+        <h3>cfg.habitat (环境)</h3>
+        <ul>
+          <li><code>habitat.seed</code> — 随机种子</li>
+          <li><code>habitat.environment.max_episode_steps</code></li>
+          <li><code>habitat.simulator.agents.main_agent.sim_sensors</code></li>
+          <li><code>habitat.task.type</code> (Nav-v0)</li>
+          <li><code>habitat.task.measurements</code> (success, spl, distance_to_goal)</li>
+          <li><code>habitat.dataset.split</code> (train/val/test)</li>
+        </ul>
+      </div>
+      <div class="module" style="border-left-color:#f59e0b;">
+        <h3>cfg.habitat_baselines (训练)</h3>
+        <ul>
+          <li><code>trainer_name</code> — "ppo" 或 "ddppo"</li>
+          <li><code>num_environments</code> — 并行环境数</li>
+          <li><code>total_num_steps / num_updates</code></li>
+          <li><code>rl.ppo.clip_param, lr, gamma, tau, ...</code></li>
+          <li><code>rl.ddppo.backbone</code> — "resnet18"</li>
+          <li><code>eval.video_option</code> — ["disk", "tensorboard"]</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 6. RL 导航实战 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec6"><span class="dot" style="background:#f59e0b;"></span> 6. RL 导航实战：观测→动作→奖励</h2>
+    <p class="section-subtitle">
+      在深入 PPO 算法之前，先用一个完整的 Demo 理解 RL 如何让 agent 学会导航。
+      <b>观测什么、输出什么、奖励什么</b>——这三个问题是一切 RL 训练的基础。
+    </p>
+
+    <h3>6.1 传统导航 vs RL 导航</h3>
+    <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
+      RL 导航与传统 ROS Nav2 的根本区别：<b>不分解为独立模块，而是端到端学习</b>。
+    </p>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
+          <b>传统导航 (ROS Nav2)</b>
+          <small>SLAM 建图 → AMCL 定位 → A* 规划 → DWA 控制</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">vs</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
+          <b>RL 导航 (Habitat PointNav)</b>
+          <small>RGB+Depth+GPS → CNN+GRU → (前进|左转|右转|停止)</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">🔑 关键差异</div>
+      RL 用 <b>CNN+GRU 隐状态</b> 替代了显式地图和规划器。
+      GPS+Compass 传感器提供 <b>完美的相对目标向量</b>（距离+角度），
+      这是一种<b>特权信息</b>——它绕过了 SLAM 问题，让策略专注学习"如何从视觉走到目标"。
+      真实机器人需要用视觉里程计或 SLAM 来近似这个信号。
+    </div>
+
+    <h3 style="margin-top:24px;">6.2 Demo 全貌：<code>examples/rl_nav_demo.py</code></h3>
+    <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
+      这是本章配套的 RL 导航 Demo 脚本，分为 4 个 Part，覆盖从环境探索到策略推理的完整流程。
+    </p>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#22d3ee20;border:1px solid #22d3ee40;">
+          <b>Part 1</b> 🎮
+          <small>探索环境：观测空间、动作空间、奖励信号</small>
+        </div>
+        <span style="font-size:1.2rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
+          <b>Part 2</b> 🧠
+          <small>策略架构：CNN+GRU+Actor/Critic</small>
+        </div>
+        <span style="font-size:1.2rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#ec489920;border:1px solid #ec489940;">
+          <b>Part 3</b> 🤖
+          <small>PPO 训练：采样→计算优势→更新策略</small>
+        </div>
+        <span style="font-size:1.2rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
+          <b>Part 4</b> ✅
+          <small>推理评估：加载 checkpoint，看策略表现</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 案例：Part 1 环境探索 ── -->
+    <h3 style="margin-top:28px;">6.3 案例：RL 环境探索（Part 1）</h3>
+
+    <!-- ① 案例含义 -->
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <b>目的</b>：理解 RL agent 在每一步看到了什么、能做什么、得到什么奖励。<br>
+      <b>难度</b>：⭐（纯探索，无需训练）<br>
+      <b>前置条件</b>：habitat-lab 已安装，test 数据集已下载（均就绪）
+    </div>
+
+    <!-- ② 核心代码 -->
+    <h4 style="margin-top:18px;">② 核心代码 & 关键函数调用</h4>
+    <div class="code-block"><span class="cmt"># examples/rl_nav_demo.py — Part 1（简化版）</span>
+<span class="kw">import</span> gym
+<span class="kw">import</span> habitat.gym  <span class="cmt"># 注册 Habitat-v0</span>
+
+env = gym.<span class="fn">make</span>(<span class="str">"Habitat-v0"</span>,
+    cfg_file_path=<span class="str">"benchmark/nav/pointnav/pointnav_habitat_test.yaml"</span>)
+
+<span class="cmt"># 观测空间</span>
+obs = env.<span class="fn">reset</span>()
+<span class="cmt"># obs = {'rgb': (256,256,3), 'depth': (256,256,1),</span>
+<span class="cmt">#        'pointgoal_with_gps_compass': (2,)}</span>
+
+<span class="cmt"># 动作空间: 0=STOP, 1=MOVE_FORWARD, 2=TURN_LEFT, 3=TURN_RIGHT</span>
+action = env.action_space.<span class="fn">sample</span>()  <span class="cmt"># 随机动作</span>
+obs, reward, done, info = env.<span class="fn">step</span>(action)
+<span class="cmt"># reward = -(新距离 - 旧距离)，靠近目标为正</span></div>
+
+    <table class="compare-table" style="margin-top:14px;">
+      <thead><tr><th>函数</th><th>角色</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>gym.make("Habitat-v0")</code></td><td>创建环境</td><td>Gym 标准 API，加载 PointNav benchmark 配置</td></tr>
+        <tr><td><code>env.reset()</code></td><td>重置 episode</td><td>返回观测字典 {rgb, depth, pointgoal_with_gps_compass}</td></tr>
+        <tr><td><code>env.action_space.sample()</code></td><td>随机采样动作</td><td>从 4 个离散动作中均匀随机选择</td></tr>
+        <tr><td><code>env.step(action)</code></td><td>执行动作</td><td>返回 (obs, reward, done, info) 四元组</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ③ 如何运行 -->
+    <h4 style="margin-top:18px;">③ 如何创建和运行</h4>
+    <div class="code-block"><span class="prompt">$</span> python examples/rl_nav_demo.py --explore-only</div>
+
+    <!-- ④ 运行效果 -->
+    <h4 style="margin-top:18px;">④ 运行效果</h4>
+    <div class="code-block"><span class="cmt">=== PART 1: Understanding the RL Environment ===</span>
+
+<span class="cmt">[1.2] Observation Space</span>
+  depth                 shape=<span class="str">(256, 256, 1)</span>         dtype=float32
+  pointgoal_with_gps_compass  shape=<span class="str">(2,)</span>                  dtype=float32
+  rgb                   shape=<span class="str">(256, 256, 3)</span>         dtype=uint8
+
+<span class="cmt">[1.3] Action Space (discrete)</span>
+  [0] STOP
+  [1] MOVE_FORWARD    <span class="cmt">← 前进 0.25m</span>
+  [2] TURN_LEFT       <span class="cmt">← 左转 10°</span>
+  [3] TURN_RIGHT      <span class="cmt">← 右转 10°</span>
+
+<span class="cmt">[1.6] Sample Episode (random actions)</span>
+  Episode ended at step 7
+  Total reward: 0.367
+  Info: {<span class="str">'distance_to_goal'</span>: 1.547, <span class="str">'success'</span>: 0.0, <span class="str">'spl'</span>: 0.0}</div>
+
+    <!-- ⑤ 输出含义 -->
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">⑤ 输出结果的含义</div>
+      <ol style="margin-left:18px;line-height:1.9;">
+        <li><b>rgb / depth</b> — agent 第一视角的视觉输入。RGB 是 0-255 的 uint8 像素，depth 是浮点米值（0-10m）。</li>
+        <li><b>pointgoal_with_gps_compass</b> — <code>[距离 ρ, 角度 φ]</code>。ρ 是 agent 到目标的直线距离（米），φ 是相对偏转角（弧度）。这是 RL 的关键"特权信息"。</li>
+        <li><b>STOP/MOVE_FORWARD/TURN_LEFT/TURN_RIGHT</b> — 离散动作空间，每次只能选一个。turn_angle=10°，意味着转 90° 需要 9 次 TURN 动作。</li>
+        <li><b>reward = -(新距离 - 旧距离)</b> — 靠近目标得正奖励，远离得负奖励。0.367 的总奖励意味着 agent 在 7 步随机移动中总体靠近了目标约 0.37m。</li>
+        <li><b>success=0.0, SPL=0.0</b> — 随机 agent 不可能导航成功，这是 baseline。</li>
+      </ol>
+    </div>
+
+    <!-- ⑥ 试试调整 -->
+    <table class="compare-table" style="margin-top:18px;">
+      <thead><tr><th style="width:25%;">⑥ 调整项</th><th style="width:35%;">怎么改</th><th style="width:40%;">预期看到什么</th></tr></thead>
+      <tbody>
+        <tr><td>增大探索步数</td><td>修改 <code>range(50)</code> → <code>range(200)</code></td><td>更长的随机游走，可能看到更多场景区域</td></tr>
+        <tr><td>固定动作序列</td><td>改 <code>random action</code> 为 <code>action=1</code>（只前进）</td><td>agent 直线前进直到撞墙，reward 持续为负</td></tr>
+        <tr><td>打印每一步的 goal 向量</td><td>step 循环里加 <code>print(obs["pointgoal_with_gps_compass"])</code></td><td>看到目标距离在不断变化（随机动作时增减不定）</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:24px;">6.4 从环境探索到策略推理</h3>
+    <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
+      当理解了环境后，Demo 的 Part 4 展示了完整闭环——加载训练好的策略网络，替代随机动作：
+    </p>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #64748b;">
+          📷 RGB+Depth
+          <small>256×256 像素</small>
+        </div>
+        <span style="font-size:1.2rem;color:var(--text-dim);align-self:center;">+</span>
+        <div class="arch-layer" style="background:#1e293b;border:1px solid #64748b;">
+          🧭 GPS+Compass
+          <small>[距离, 角度]</small>
+        </div>
+        <span style="font-size:1.2rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
+          <b>CNN+GRU</b>
+          <small>~5.8M 参数</small>
+        </div>
+        <span style="font-size:1.2rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
+          <b>动作概率</b>
+          <small>4 分类分布</small>
+        </div>
+      </div>
+    </div>
+    <div class="code-block" style="margin-top:14px;"><span class="cmt"># 策略推理（Part 4 简化版）</span>
+ckpt = torch.<span class="fn">load</span>(<span class="str">"data/new_checkpoints/ckpt.9.pth"</span>, weights_only=False)
+policy.<span class="fn">load_state_dict</span>(ckpt[<span class="str">"state_dict"</span>])
+policy.<span class="fn">eval</span>()
+
+<span class="kw">for</span> step <span class="kw">in</span> <span class="fn">range</span>(200):
+    result = policy.<span class="fn">act</span>(obs_batch, rnn_state, prev_actions, masks, deterministic=True)
+    action = result.actions.<span class="fn">item</span>()      <span class="cmt"># 策略选择的动作</span>
+    obs, reward, done, info = env.<span class="fn">step</span>(action)  <span class="cmt"># 执行</span>
+    <span class="kw">if</span> action == 0:  <span class="cmt"># STOP → 到达目标</span>
+        <span class="kw">break</span></div>
+
+    <div class="tip-box" style="margin-top:14px;">
+      <div class="tip-title">💡 为什么 Demo 里策略只训练了 5000 步？</div>
+      默认 <code>--train-steps 50000</code> 只够验证 pipeline 是否正常。
+      要让策略真正学会导航，需要 <b>数百万甚至上亿步</b>（生产配置用 <code>total_num_steps=7.5e7</code>）。
+      因此 Part 4 输出的 3 个 episode 都会看到 <code>[FAILED]</code> 和 1 步 STOP——策略还没学会如何移动。
+      <b>完整训练后再跑推理，才能看到有效的导航行为。</b>
+    </div>
+
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">🔗 Demo 与本章后续内容的关系</div>
+      · Part 1（环境探索）→ <b>RL 环境包装链</b>（第3节）将解释 <code>Env → RLEnv → VectorEnv</code> 的每一层。<br>
+      · Part 2（策略架构）→ <b>Policy 网络结构</b>（第2节）将展开 CNN+GRU+Actor/Critic 的内部细节。<br>
+      · Part 3（训练）→ <b>PPO 训练算法</b>（第4节）将深入 rollout→GAE→clip update 的数学原理。<br>
+      · Part 4（推理）→ <b>评估与 Benchmark</b>（第7节）将教你怎么科学地衡量模型好坏。<br>
+      · 想知道 PointNav 之外还有什么导航任务？→ <b>导航任务全景</b>（第1节）将讲解 5 种目标类型。
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 7. 评估 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec7"><span class="dot" style="background:#10b981;"></span> 7. 评估与 Benchmark</h2>
+    <p class="section-subtitle">
+      训练完成后，使用 <code>habitat.Benchmark</code> 或 trainer 的 <code>eval()</code> 评估模型性能。
+    </p>
+
+    <h3>7.1 Benchmark 评估流程</h3>
+    <div class="code-block"><span class="cmt"># 方式 1：直接使用 Benchmark</span>
+<span class="kw">from</span> habitat.config.default <span class="kw">import</span> get_config
+<span class="kw">import</span> habitat
+
+cfg = <span class="fn">get_config</span>(<span class="str">'benchmark/nav/pointnav/pointnav_habitat_test.yaml'</span>)
+benchmark = habitat.<span class="fn">Benchmark</span>(cfg)
+metrics = benchmark.<span class="fn">evaluate</span>(agent, num_episodes=<span class="num">100</span>)
+<span class="cmt"># → {'success': 0.42, 'spl': 0.35, 'distance_to_goal': 1.23, ...}</span></div>
+
+    <h3 style="margin-top:20px;">7.2 评估指标详解</h3>
+    <table class="compare-table">
+      <thead>
+        <tr><th style="width:18%;">指标</th><th style="width:15%;">全称</th><th style="width:12%;">范围</th><th style="width:55%;">含义</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>success</b></td>
+          <td>Success Rate</td>
+          <td>[0, 1]</td>
+          <td>Agent 是否在 max_episode_steps 内到达目标（距离 &lt; success_distance）</td>
+        </tr>
+        <tr>
+          <td><b>spl</b></td>
+          <td>Success weighted by (normalized inverse) Path Length</td>
+          <td>[0, 1]</td>
+          <td>成功率 × (最短路径长度 / max(实际路径长度, 最短路径长度))。惩罚绕路</td>
+        </tr>
+        <tr>
+          <td><b>distance_to_goal</b></td>
+          <td>Final Distance to Goal</td>
+          <td>[0, ∞) m</td>
+          <td>Episode 结束时 agent 到目标的欧式距离。越小越好</td>
+        </tr>
+        <tr>
+          <td><b>num_steps</b></td>
+          <td>Episode Steps Taken</td>
+          <td>[0, max_steps]</td>
+          <td>Agent 在 episode 中执行的步数（非 STOP 动作次数）</td>
+        </tr>
+        <tr>
+          <td><b>collisions</b></td>
+          <td>Collision Count</td>
+          <td>[0, ∞)</td>
+          <td>Agent 碰撞墙壁/障碍物的次数（<code>previous_step_collided</code>）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="key-finding">
+      <span class="icon">💡</span>
+      <div>
+        <b>SPL vs Success：</b>Success 只关心"到了没有"，SPL 关心"走了多高效"。
+        两个 agent 可能都有 80% success，但 SPL 更高的那个路径更短。
+        <b>实际项目中 SPL 往往是更重要的指标</b>，因为它反映了导航效率。
+      </div>
+    </div>
+
+    <h3 style="margin-top:20px;">7.3 使用 Trainer 评估已有 Checkpoint</h3>
+    <div class="code-block"><span class="cmt"># 方式 2：命令行评估（通过 run.py）</span>
+<span class="cmt"># 在 habitat-baselines 目录下运行：</span>
+python -u -m habitat_baselines.run \
+  --config-name=<span class="str">pointnav/ppo_pointnav_example</span> \
+  habitat_baselines.evaluate=<span class="warn">True</span> \
+  habitat_baselines.eval_ckpt_path_dir=<span class="str">"data/new_checkpoints/ckpt.50.pth"</span> \
+  habitat_baselines.eval.video_option=<span class="str">'["disk"]'</span></div>
+
+    <div class="tip-box">
+      <div class="tip-title">📹 视频输出</div>
+      设置 <code>eval.video_option: ["disk"]</code> 会在评估时保存 agent 的第一视角视频到 <code>video_dir</code>。
+      设置 <code>["tensorboard"]</code> 会将视频上传到 TensorBoard。
+      视频对于调试和理解 agent 行为非常有帮助。
+    </div>
+
+    <h3 style="margin-top:20px;">7.4 训练 vs 评估的数据集分离</h3>
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
+          <b>Train Split</b>
+          <small>用于训练 RL policy</small>
+        </div>
+        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
+          <b>Val Split</b>
+          <small>用于调超参 + 早停</small>
+        </div>
+        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
+          <b>Test Split</b>
+          <small>最终评测（不用于训练）</small>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem;color:var(--text-dim);margin-top:6px;">
+      在配置文件中通过 <code>habitat.dataset.split: "train"</code> 指定使用哪个 split。
+      训练时用 train split，评估时用 val/test split。这是 ML 的基本实践但在 RL 中容易被忽略。
+    </p>
+  </div>
+</section>
+
+<!-- ═══════════════ 8. 实践指南 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec8"><span class="dot" style="background:#f59e0b;"></span> 8. 实践指南</h2>
+    <p class="section-subtitle">
+      从安装到首次训练成功的步骤清单。
+    </p>
+
+    <h3>8.1 训练前检查清单</h3>
+    <table class="compare-table">
+      <thead><tr><th>#</th><th>检查项</th><th>命令 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>habitat-lab 已安装</td><td><code>pip install -e habitat-lab</code></td></tr>
+        <tr><td>2</td><td>habitat-baselines 已安装</td><td><code>pip install -e habitat-baselines</code></td></tr>
+        <tr><td>3</td><td>场景数据集已下载</td><td><code>data/scene_datasets/</code> 下的 .glb 文件</td></tr>
+        <tr><td>4</td><td>任务数据集已下载</td><td><code>data/datasets/pointnav/</code> 下的 .json.gz 文件</td></tr>
+        <tr><td>5</td><td>GPU 可用</td><td><code>python -c "import torch; print(torch.cuda.is_available())"</code></td></tr>
+        <tr><td>6</td><td>配置文件路径正确</td><td>确认 benchmark YAML 中的 data_path 指向正确路径</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px;">8.2 启动训练</h3>
+    <div class="code-block"><span class="cmt"># 在 habitat-baselines 目录下：</span>
+<span class="kw">cd</span> habitat-baselines
+
+<span class="cmt"># 方式 A：使用示例配置（habitat-test 数据集，快速试跑）</span>
+python -u -m habitat_baselines.run \
+  --config-name=<span class="str">pointnav/ppo_pointnav_example</span>
+
+<span class="cmt"># 方式 B：使用完整 PointNav PPO 配置（Gibson 数据集）</span>
+python -u -m habitat_baselines.run \
+  --config-name=<span class="str">pointnav/ppo_pointnav</span>
+
+<span class="cmt"># 方式 C：DD-PPO 多 GPU 训练</span>
+python -u -m habitat_baselines.run \
+  --config-name=<span class="str">pointnav/ddppo_pointnav</span></div>
+
+    <h3 style="margin-top:20px;">8.3 监控训练进度</h3>
+    <div class="module-grid">
+      <div class="module" style="border-left-color:#f59e0b;">
+        <h3>📊 TensorBoard</h3>
+        <p>训练日志自动写入 <code>tensorboard_dir</code>。启动 TensorBoard 查看：</p>
+        <ul>
+          <li><code>tensorboard --logdir=tb</code></li>
+          <li>查看 reward 曲线（应上升）</li>
+          <li>查看 value_loss / policy_loss</li>
+          <li>查看熵值（不应为 0）</li>
+        </ul>
+      </div>
+      <div class="module" style="border-left-color:#10b981;">
+        <h3>📁 Checkpoint</h3>
+        <p>模型按进度均匀保存到 <code>checkpoint_folder</code>：</p>
+        <ul>
+          <li><code>ckpt.1.pth</code> (2% 进度)</li>
+          <li><code>ckpt.25.pth</code> (50% 进度)</li>
+          <li><code>ckpt.50.pth</code> (100% 进度)</li>
+          <li><code>latest.pth</code> (总是最新)</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 style="margin-top:20px;">8.4 常见问题排查</h3>
+    <table class="compare-table">
+      <thead><tr><th>现象</th><th>可能原因</th><th>解决方法</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>reward 不上升</td>
+          <td>学习率过高/过低、reward 缩放不正确</td>
+          <td>调整 lr (试 1e-4 ~ 1e-3)，检查 reward_measure 定义</td>
+        </tr>
+        <tr>
+          <td>success 始终为 0</td>
+          <td>任务太难、max_episode_steps 太短</td>
+          <td>减小场景复杂度、增大 max_episode_steps</td>
+        </tr>
+        <tr>
+          <td>entropy → 0</td>
+          <td>策略过早收敛到确定性动作</td>
+          <td>增大 entropy_coef 或启用 adaptive entropy</td>
+        </tr>
+        <tr>
+          <td>GPU 显存不足 (OOM)</td>
+          <td>num_environments 太大 / 分辨率太高</td>
+          <td>减小 num_environments 或降低分辨率</td>
+        </tr>
+        <tr>
+          <td>checkpoint 加载失败</td>
+          <td>配置不匹配 / 模型结构变化</td>
+          <td>设置 <code>eval.use_ckpt_config=True</code> 使用保存时的配置</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px;">8.5 训练周期估算</h3>
+    <div class="info-box">
+      <div class="info-title">⚡ 性能参考（单卡 RTX 2070 SUPER，habitat-test 数据集）</div>
+      · <b>1 个环境 + 128×128 RGB</b>：约 100-200 FPS（帧/秒）<br>
+      · <b>total_num_steps = 1e6</b>：约 1.5-3 小时<br>
+      · <b>完整 Gibson 数据集</b>（72 个训练场景）：建议 <b>total_num_steps ≥ 2.5e8</b>，约 3-7 天（单卡）<br>
+      · <b>DD-PPO 8 GPU</b>：可将 Gibson 训练缩短到约 12-24 小时
+    </div>
+
+    <div class="warn-box">
+      <div class="warn-title">⚠️ habitat-test 只适合调试！</div>
+      <code>habitat-test-scenes</code> 只有 1 个小场景，用于验证 pipeline 是否正常。
+      <b>训练有效模型必须使用完整数据集</b>（Gibson、HM3D 或 MP3D）。
+      habitat-test 上 train 出来的 checkpoint 在实际场景中几乎不可用。
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 9. 总结 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec9"><span class="dot" style="background:#64748b;"></span> 9. 本章总结</h2>
+
+    <table class="compare-table">
+      <thead>
+        <tr><th style="width:14%;">主题</th><th style="width:40%;">核心概念</th><th style="width:46%;">你学到了什么</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>导航任务全景</b></td>
+          <td>5 种目标类型：PointNav / ObjectNav / ImageNav / InstanceImageNav / VLN</td>
+          <td>从几何坐标到语言指令，理解 Embodied AI 导航全谱系</td>
+        </tr>
+        <tr>
+          <td><b>Policy 网络结构</b></td>
+          <td>CNN+RNN+Actor/Critic；训练对象；预训练/微调；环境依赖性</td>
+          <td>理解 RL 到底训练什么、是否需要基础模型、模型如何跨场景迁移</td>
+        </tr>
+        <tr>
+          <td><b>环境包装链</b></td>
+          <td>Env → RLEnv → GymHabitatEnv → VectorEnv</td>
+          <td>每层增加一个能力维度，最终输出 (obs, reward, done, info)</td>
+        </tr>
+        <tr>
+          <td><b>PPO 算法</b></td>
+          <td>clip_param + GAE + actor-critic</td>
+          <td>Rollout → Compute Returns → PPO Update 循环</td>
+        </tr>
+        <tr>
+          <td><b>训练配置体系</b></td>
+          <td>Hydra defaults 合并 benchmark + baselines</td>
+          <td><code>run.py</code> → Hydra 加载 → 统一的 DictConfig</td>
+        </tr>
+        <tr>
+          <td><b>RL 导航实战</b></td>
+          <td>观测→动作→奖励循环；传统导航 vs RL 导航</td>
+          <td>用 <code>rl_nav_demo.py</code> 跑通完整的探索→训练→推理流程</td>
+        </tr>
+        <tr>
+          <td><b>评估体系</b></td>
+          <td>Benchmark.evaluate() / trainer.eval()</td>
+          <td>success, SPL, distance_to_goal 三项核心指标</td>
+        </tr>
+        <tr>
+          <td><b>实践</b></td>
+          <td>训练命令 + 监控 + 排查</td>
+          <td>从 pip install 到 tensorboard 的完整流程</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="exercise">
+      <h4>🏋️ 课后练习</h4>
+      <p>
+        <b>0.</b> 运行 RL 导航 Demo：<code>python examples/rl_nav_demo.py --explore-only</code>，
+        理解观测空间、动作空间和奖励信号的设计。<br>
+        <b>1.</b> 用 habitat-test 数据集跑一次完整的 PPO 训练（<code>total_num_steps=50000</code>），
+        观察 TensorBoard 中的 reward 和 entropy 曲线。<br>
+        <b>2.</b> 修改 <code>entropy_coef</code> 从 0.01 到 0.05，重新训练，对比 exploration 行为的差异。<br>
+        <b>3.</b> 对比 <code>clip_param=0.1</code> 和 <code>clip_param=0.3</code> 的训练曲线，
+        理解 "保守更新 vs 激进更新" 的差异。<br>
+        <b>4.</b> 训练完成后，对同一个 checkpoint 用不同的 <code>success_distance</code> (0.1/0.2/0.5) 评估，
+        观察成功率的变化（提示：评估时修改 <code>task.measurements.success.success_distance</code>）。<br>
+        <b>5. (进阶)</b> 注册一个自定义 <code>reward_measure</code>（如 collision_penalty），
+        训练一个学会避障的 agent。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE NAV ═══════════════ -->
+<section>
+  <div class="container">
+    <div class="page-nav">
+      <a href="habitat-textbook-step4.html" class="prev">← 第4步：改配置实验</a>
+      <a href="habitat-textbook-step6.html" class="next">第6步：自定义扩展 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+  <p>
+    <a href="index.html">门户</a> ·
+    <a href="habitat-textbook.html">教科书</a> ·
+    <a href="habitat-textbook-step1.html">第1步</a> ·
+    <a href="habitat-textbook-step2.html">第2步</a> ·
+    <a href="habitat-textbook-step3.html">第3步</a> ·
+    <a href="habitat-textbook-step4.html">第4步</a> ·
+    <a href="habitat-textbook-step5.html">第5步</a>
+  </p>
+  <p style="margin-top:6px;">基于 Habitat-Lab v0.2.5 + habitat-baselines · PPO 论文: Schulman et al., 2017</p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+
+
+</body>

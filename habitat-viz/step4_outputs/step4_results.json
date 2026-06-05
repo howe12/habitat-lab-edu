@@ -1,0 +1,99 @@
+{
+  "4-1": {
+    "title": "修改 RGB 分辨率",
+    "observations": {
+      "128x128": {
+        "rgb_shape": "(128,128,3)",
+        "mem_kb": 48,
+        "screenshot": "4-1_rgb_128x128.png"
+      },
+      "256x256": {
+        "rgb_shape": "(256,256,3)",
+        "mem_kb": 192,
+        "screenshot": "4-1_rgb_256x256.png"
+      },
+      "512x512": {
+        "rgb_shape": "(512,512,3)",
+        "mem_kb": 768,
+        "screenshot": "4-1_rgb_512x512.png"
+      }
+    },
+    "key_finding": "分辨率每翻倍，RGB 内存占用变为 4 倍（宽×高×3通道）。深度图为 1 通道，占用为 RGB 的 1/3。"
+  },
+  "4-2": {
+    "title": "传感器组合对比",
+    "sim_sensors": {
+      "说明": "simulator 级别，agent 身上挂载的物理传感器",
+      "默认": [
+        "rgb_sensor",
+        "depth_sensor"
+      ],
+      "控制": "渲染分辨率、视野等"
+    },
+    "lab_sensors": {
+      "说明": "task 级别，任务相关的逻辑传感器",
+      "默认": [
+        "pointgoal_with_gps_compass_sensor"
+      ],
+      "特点": "与具体任务绑定"
+    },
+    "observation_keys": {
+      "rgbd": [
+        "rgb",
+        "depth",
+        "pointgoal_with_gps_compass"
+      ],
+      "rgb_only": [
+        "rgb",
+        "pointgoal_with_gps_compass"
+      ]
+    }
+  },
+  "4-3": {
+    "title": "注册自定义传感器 SimpleLidarSensor",
+    "registry_name": "SimpleLidarSensor",
+    "uuid": "simple_lidar",
+    "obs_shape": "(8,)",
+    "num_rays": 8,
+    "code_highlights": [
+      "@registry.register_sensor(name=\"SimpleLidarSensor\")",
+      "继承 Sensor 基类，实现 5 个接口方法",
+      "_get_observation_space → gym.spaces.Box(shape=(8,))",
+      "get_observation → 使用 habitat_sim.geo.Ray 做 8 方向射线检测"
+    ],
+    "usage": "在 YAML lab_sensors 中添加 {type: SimpleLidarSensor, num_rays: 8, max_range: 5.0}"
+  },
+  "4-4": {
+    "title": "创建自定义 YAML 配置",
+    "config_file": "step4_outputs/my_custom_pointnav.yaml",
+    "changes": {
+      "resolution": "128x128 (原 256x256)",
+      "max_episode_steps": "200 (原 500)",
+      "success_distance": "0.5 (原 0.1)"
+    },
+    "inheritance": "defaults → pointnav_base → habitat_test → _self_ (override)",
+    "yaml_content": "# @package _global_\n# 自定义 PointNav 配置 — 降低分辨率 + 减少步数 + 放宽成功条件\ndefaults:\n  - /benchmark/nav/pointnav: pointnav_base\n  - /habitat/dataset/pointnav: habitat_test\n  - _self_\n\nhabitat:\n  environment:\n    max_episode_steps: 200\n  simulator:\n    agents:\n      main_agent:\n        sim_sensors:\n          rgb_sensor:\n            width: 128\n            height: 128\n          depth_sensor:\n            width: 128\n            height: 128\n  task:\n    measurements:\n      success:\n        success_distance: 0.5\n"
+  },
+  "4-5": {
+    "title": "对比 success_distance 阈值",
+    "metrics": {
+      "严格 0.1m (默认)": {
+        "avg_final_distance": 9.01,
+        "success_rate": 0.0
+      },
+      "中等 0.2m": {
+        "avg_final_distance": 9.01,
+        "success_rate": 0.0
+      },
+      "宽松 0.5m": {
+        "avg_final_distance": 9.01,
+        "success_rate": 0.0
+      },
+      "极宽 1.0m": {
+        "avg_final_distance": 9.01,
+        "success_rate": 0.0
+      }
+    },
+    "key_finding": "success_distance 越大，成功条件越宽松。0.1m 要求 agent 精确到达，1.0m 只需大致在目标附近即可判定成功。"
+  }
+}

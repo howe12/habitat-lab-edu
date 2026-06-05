@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第1步：安装环境 — Habitat 从零理解</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+
+</head>
+<body>
+
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="topnav">
+  <a href="index.html">🏠 门户</a>
+  <span class="sep">|</span>
+  <a href="habitat-textbook.html">📗 教科书</a>
+  <span class="sep">/</span>
+  <span class="current">第1步：安装环境</span>
+  <span class="sep" style="margin-left:auto;"></span>
+  <a href="vln.html">🧭 VLN</a>
+  <span class="sep">|</span>
+  <a href="architecture.html">🔌 架构</a>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="step-badge">第 1 步 · 预计 1-2 天</div>
+  <h1>安装环境</h1>
+  <p class="subtitle">
+    从零开始，在你的机器上搭建一个可以运行的 Habitat 开发环境。
+    本章假设你有一台 Linux 机器（或 WSL2），并且可以联网。
+  </p>
+</header>
+
+<!-- ═══════════════ 前置条件 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> 0. 开始之前 — 你需要什么</h2>
+    <p class="section-subtitle">先确认你的环境满足这些条件，跳过这一步是后续所有报错的根源。</p>
+
+    <table class="compare-table">
+      <thead><tr><th style="width:25%;">需求</th><th style="width:25%;">最低要求</th><th style="width:50%;">如何检查</th></tr></thead>
+      <tbody>
+        <tr><td><b>操作系统</b></td><td>Ubuntu 20.04+ / WSL2</td><td><code>lsb_release -a</code> 或 <code>uname -a</code></td></tr>
+        <tr><td><b>GPU 驱动</b></td><td>NVIDIA driver ≥ 450</td><td><code>nvidia-smi</code></td></tr>
+        <tr><td><b>Conda</b></td><td>Miniconda 或 Anaconda</td><td><code>conda --version</code></td></tr>
+        <tr><td><b>磁盘空间</b></td><td>≥ 20 GB 空闲</td><td><code>df -h</code>（场景数据需 10-15G）</td></tr>
+        <tr><td><b>内存</b></td><td>≥ 16 GB</td><td><code>free -h</code></td></tr>
+        <tr><td><b>网络</b></td><td>能访问 conda-forge / GitHub</td><td><code>curl -I https://conda.anaconda.org</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="warn-box">
+      <div class="warn-title">如果你在非 Linux 环境</div>
+      <p>
+        Habitat-Sim 官方只提供 <b>Linux conda 包</b>。macOS 用户需要通过源码编译 habitat-sim（高级操作，不推荐小白）。
+        Windows 用户建议使用 <b>WSL2 + Ubuntu 22.04</b>，体验与原生 Linux 基本一致。
+        如果你是在远程服务器上操作，确认有 sudo 或 conda 已在用户目录安装。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 安装流程总览 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 安装流程总览</h2>
+    <p class="section-subtitle">整个安装流程分为 5 个阶段。每完成一个，勾选对应的复选框。</p>
+
+    <div class="flow-box">
+      <div class="flow-step" style="border-top:3px solid #64748b;">
+        <b>1. Conda 环境</b>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;">python=3.9<br>cmake=3.14</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #f59e0b;">
+        <b>2. 配置代理</b>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;">conda proxy<br>channel 精简</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #3b82f6;">
+        <b>3. habitat-sim</b>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;">仿真引擎<br>conda install</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+        <b>4. habitat-lab</b>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;">任务框架<br>pip install -e</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #10b981;">
+        <b>5. 验证 + 数据</b>
+        <p style="font-size:0.75rem;color:var(--text-dim);margin-top:4px;">import 测试<br>下载场景</p>
+      </div>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-section">
+      <div class="progress-label"><span>安装进度</span><span id="progress-text">0 / 5 阶段完成</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
+    </div>
+
+    <!-- Checklist -->
+    <ul class="checklist" id="checklist">
+      <li>
+        <div class="checkbox" onclick="toggleCheck(this, 1)"></div>
+        <div class="task-text"><b>阶段 1：</b>创建 conda 环境，Python 3.9 + cmake 3.14</div>
+      </li>
+      <li>
+        <div class="checkbox" onclick="toggleCheck(this, 2)"></div>
+        <div class="task-text"><b>阶段 2：</b>配置 conda 代理和 channel（网络畅通可跳过）</div>
+      </li>
+      <li>
+        <div class="checkbox" onclick="toggleCheck(this, 3)"></div>
+        <div class="task-text"><b>阶段 3：</b>安装 habitat-sim，验证 <code>import habitat_sim</code></div>
+      </li>
+      <li>
+        <div class="checkbox" onclick="toggleCheck(this, 4)"></div>
+        <div class="task-text"><b>阶段 4：</b>pip install -e habitat-lab，验证 <code>import habitat</code></div>
+      </li>
+      <li>
+        <div class="checkbox" onclick="toggleCheck(this, 5)"></div>
+        <div class="task-text"><b>阶段 5：</b>下载测试数据，跑通 <code>example.py</code></div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- ═══════════════ 阶段1：Conda ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> 阶段 1：创建 Conda 环境</h2>
+    <p class="section-subtitle">
+      Habitat 对 Python 版本<b>非常敏感</b> — 必须使用 Python 3.9。3.10+ 会导致 habitat-sim 的 conda 包安装失败。
+    </p>
+
+    <h3 style="font-size:1rem; margin-bottom:8px; color:#cbd5e1;">安装 Miniconda（如果还没有）</h3>
+    <div class="code-block"><span class="cmt"># 下载 Miniconda 安装脚本</span>
+<span class="prompt">$</span> wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+
+<span class="cmt"># 运行安装（一路回车 + yes）</span>
+<span class="prompt">$</span> bash Miniconda3-latest-Linux-x86_64.sh
+
+<span class="cmt"># 重新加载 shell 配置</span>
+<span class="prompt">$</span> <span class="kw">source</span> ~/.bashrc
+<span class="prompt">$</span> conda --version  <span class="cmt"># 应输出: conda 24.x.x</span></div>
+
+    <h3 style="font-size:1rem; margin:20px 0 8px; color:#cbd5e1;">创建 Habitat 专用环境</h3>
+    <div class="code-block"><span class="cmt"># 创建名为 "habitat" 的环境，同时装好 cmake</span>
+<span class="prompt">$</span> conda create -n habitat <span class="kw">python=3.9</span> cmake=3.14.0 <span class="kw">-y</span>
+
+<span class="cmt"># 激活环境 — 后续所有操作都在这个环境下</span>
+<span class="prompt">$</span> conda activate habitat
+
+<span class="cmt"># 验证</span>
+<span class="prompt">(habitat) $</span> python --version  <span class="cmt"># Python 3.9.x ✓</span>
+<span class="prompt">(habitat) $</span> cmake --version    <span class="cmt"># cmake 3.14.0 ✓</span></div>
+
+    <div class="info-box">
+      <div class="info-title">为什么要 cmake？</div>
+      <p>
+        <code>cmake</code> 只在<b>从源码编译</b> habitat-sim 时才需要。如果你只用 conda 安装预编译包，可以跳过 cmake。
+        但预装 cmake 不会增加任何负担，推荐保留。
+      </p>
+    </div>
+
+    <div class="warn-box">
+      <div class="warn-title">Python 3.9 是硬性要求</div>
+      <p>
+        habitat-sim 的 conda 包 (<code>aihabitat/habitat-sim</code>) 目前只提供 Python 3.9 版本。
+        如果你尝试 <code>python=3.10</code> 或更高，conda 会报依赖冲突。
+        <b>不要试图绕过这个限制</b> — 这不是 bug，是当前的兼容性边界。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 阶段2：代理 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#f59e0b;"></span> 阶段 2：配置代理与 Channel</h2>
+    <p class="section-subtitle">
+      如果你在境外服务器上操作，可以跳过本章。如果你在大陆环境，这是<b>最容易卡住的环节</b>。
+    </p>
+
+    <h3 style="font-size:1rem; margin-bottom:8px; color:#cbd5e1;">为什么 conda 需要单独配代理？</h3>
+    <p style="font-size:0.88rem; color:var(--text-dim); margin-bottom:16px; line-height:1.7;">
+      conda 的底层网络库不会自动读取系统的 <code>HTTP_PROXY</code> 环境变量。
+      你即使 export 了 <code>HTTP_PROXY=http://127.0.0.1:7897</code>，conda 仍然直连 —
+      这在有代理的环境中会导致 SSL EOF 或连接超时。必须<b>显式在 conda 配置中写入代理</b>。
+    </p>
+
+    <div class="dual-panel">
+      <div class="panel" style="border-top: 3px solid #f59e0b;">
+        <h4>如果你有 Clash / V2Ray</h4>
+        <div class="code-block" style="font-size:0.78rem;"><span class="prompt">$</span> conda config --set proxy_servers.http \
+	    <span class="str">http://127.0.0.1:7897</span>
+<span class="prompt">$</span> conda config --set proxy_servers.https \
+	    <span class="str">http://127.0.0.1:7897</span>
+
+<span class="cmt"># 验证</span>
+<span class="prompt">$</span> conda config --show proxy_servers</div>
+        <p style="font-size:0.75rem; color:#64748b; margin-top:8px;">
+          端口号根据你的代理软件调整（Clash 默认 7897，V2Ray 默认 10809）
+        </p>
+      </div>
+      <div class="panel" style="border-top: 3px solid #10b981;">
+        <h4>精简 Channel 列表</h4>
+        <div class="code-block" style="font-size:0.78rem;"><span class="cmt"># 先清空再添加 → 避免混用多个源</span>
+<span class="prompt">$</span> conda config --remove-key channels
+<span class="prompt">$</span> conda config --add channels conda-forge
+<span class="prompt">$</span> conda config --add channels aihabitat
+
+<span class="cmt"># 查看最终 channel 列表</span>
+<span class="prompt">$</span> conda config --show channels</div>
+        <p style="font-size:0.75rem; color:#64748b; margin-top:8px;">
+          只保留 conda-forge + aihabitat 两个 channel，避免连接数爆炸
+        </p>
+      </div>
+    </div>
+
+    <div class="warn-box">
+      <div class="warn-title">常见坑：清华镜像混用导致 SSL EOF</div>
+      <p>
+        很多教程推荐用清华 tuna 镜像，但如果你同时保留了 conda-forge 和 aihabitat 的境外源，
+        三个源的 TLS 实现差异会导致 SSL EOF 错误。<b>要么全用境外源（配代理），要么全用镜像源。</b>
+        混用是大多数网络问题的根源。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 阶段3：habitat-sim ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-core);"></span> 阶段 3：安装 habitat-sim</h2>
+    <p class="section-subtitle">
+      habitat-sim 是底层 3D 仿真引擎。它不在 PyPI 上，<b>必须通过 conda 安装</b>。
+    </p>
+
+    <div class="code-block"><span class="cmt"># 核心安装命令 — 选择适合你的版本</span>
+
+<span class="cmt"># 选项 A：服务器版本（无 GUI，最常见）</span>
+<span class="prompt">$</span> conda install <span class="kw">habitat-sim=0.2.5</span> withbullet headless \
+    <span class="kw">-c</span> conda-forge <span class="kw">-c</span> aihabitat <span class="kw">-y</span>
+
+<span class="cmt"># 选项 B：桌面版本（有 3D 窗口，需要显示器）</span>
+<span class="prompt">$</span> conda install <span class="kw">habitat-sim=0.2.5</span> withbullet \
+    <span class="kw">-c</span> conda-forge <span class="kw">-c</span> aihabitat <span class="kw">-y</span></div>
+
+    <table class="compare-table" style="margin-top:18px;">
+      <thead><tr><th>参数</th><th>含义</th><th>适合场景</th></tr></thead>
+      <tbody>
+        <tr><td><code>withbullet</code></td><td>带 Bullet 物理引擎（碰撞检测）</td><td>几乎所有任务都需要</td></tr>
+        <tr><td><code>headless</code></td><td>不渲染 GUI 窗口，纯 GPU 离屏渲染</td><td>服务器 / SSH 无显示器 / 训练时</td></tr>
+        <tr><td><code>=0.2.5</code></td><td>与 habitat-lab v0.2.5 匹配的版本</td><td>保持与仓库一致</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block" style="margin-top:16px;"><span class="cmt"># 验证安装</span>
+<span class="prompt">$</span> python -c <span class="str">"import habitat_sim; print('habitat-sim', habitat_sim.__version__)"</span>
+<span class="cmt"># 期望输出: habitat-sim 0.2.5</span>
+
+<span class="cmt"># 更进一步：验证渲染管线</span>
+<span class="prompt">$</span> python -c <span class="str">"</span>
+<span class="str">import habitat_sim</span>
+<span class="str">sim_cfg = habitat_sim.SimulatorConfiguration()</span>
+<span class="str">print('Simulator config created — GPU rendering is ready')</span>
+<span class="str">"</span></div>
+
+    <div class="tip-box">
+      <div class="tip-title">如果你需要源码编译（macOS 或自定义版本）</div>
+      <p>
+        conda 包只有 Linux 版。macOS 或 ARM 架构需要用 <code>build.sh</code> 从源码编译 —
+        这需要安装大量依赖（包括 Bullet Physics、Assimp、GLFW 等），预计额外需要半天到一天。
+        如果你是初学者且用 macOS，建议先在云 GPU 服务器上跑通，再考虑本地编译。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 阶段4：habitat-lab ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-task);"></span> 阶段 4：安装 habitat-lab</h2>
+    <p class="section-subtitle">
+      habitat-lab 是纯 Python 包，安装简单。关键是用 <code>-e</code>（editable 模式），方便修改源码后即时生效。
+    </p>
+
+    <div class="code-block"><span class="cmt"># 确认你在 habitat-lab 仓库根目录</span>
+<span class="prompt">$</span> <span class="kw">cd</span> /develop/habitat-lab
+
+<span class="cmt"># 以可编辑模式安装核心包</span>
+<span class="prompt">$</span> pip install <span class="kw">-e</span> habitat-lab
+
+<span class="cmt"># (可选) 安装基线算法包 — 需要训练时再装</span>
+<span class="prompt">$</span> pip install <span class="kw">-e</span> habitat-baselines
+
+<span class="cmt"># 验证</span>
+<span class="prompt">$</span> python -c <span class="str">"import habitat; print('habitat-lab ready')"</span></div>
+
+    <div class="info-box">
+      <div class="info-title"><code>pip install -e</code> 是什么意思？</div>
+      <p>
+        <code>-e</code>（editable，可编辑模式）不会把代码复制到 site-packages，而是创建一个指向源码目录的符号链接。
+        这意味着你修改 <code>habitat/core/env.py</code> 之后，<b>不需要重新 pip install</b>，改动即时生效。
+        这是研究和开发的标准做法 — 你会频繁地修改、调试、添加打印语句。
+      </p>
+    </div>
+
+    <div class="warn-box">
+      <div class="warn-title">必须先装 habitat-sim 再装 habitat-lab</div>
+      <p>
+        如果先 pip install habitat-lab，pip 可能尝试从 PyPI 安装一个名为 <code>habitat-sim</code> 的包（不存在），导致混乱。
+        正确的顺序：<b>conda install habitat-sim → pip install -e habitat-lab</b>。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 阶段5：验证 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 阶段 5：下载测试数据 &amp; 跑通验证</h2>
+    <p class="section-subtitle">
+      安装完成 ≠ 可以使用。你需要下载最小测试场景来验证整个安装链路。
+    </p>
+
+    <div class="code-block"><span class="cmt"># 方法 1 (推荐)：用 habitat-sim 内置下载工具</span>
+<span class="prompt">$</span> python -m habitat_sim.utils.datasets_download \
+    --uids <span class="str">habitat_test_scenes</span> <span class="str">habitat_test_pointnav_dataset</span> \
+    --data-path data/
+
+<span class="cmt"># 方法 2：查看所有可用数据集</span>
+<span class="prompt">$</span> python -m habitat_sim.utils.datasets_download <span class="kw">--list</span>
+
+<span class="cmt"># 方法 3 (备选)：如果下载脚本遇到网络问题，手动下载</span>
+<span class="cmt"># 从 https://dl.fbaipublicfiles.com/habitat/ 下载对应 .tar.gz 解压到 data/</span></div>
+
+    <h3 style="font-size:1rem; margin:20px 0 10px; color:#cbd5e1;">终极验证：跑通 example.py</h3>
+    <div class="code-block"><span class="cmt"># 这是你的"Hello World" — 跑通它，环境就装好了</span>
+<span class="prompt">$</span> <span class="kw">cd</span> /develop/habitat-lab
+<span class="prompt">$</span> python examples/example.py
+
+<span class="cmt"># 期望输出（不含报错）：</span>
+<span class="cmt"># Episode 0: agent moving...</span>
+<span class="cmt"># Episode 1: agent moving...</span>
+<span class="cmt"># ...</span>
+<span class="cmt"># 程序正常结束，exit code = 0</span></div>
+
+    <div class="tip-box">
+      <div class="tip-title">如果你看到 3D 窗口（非 headless 模式）</div>
+      <p>
+        如果你安装的是不带 <code>headless</code> 的版本，<code>example.py</code> 会弹出一个 3D 窗口显示 Agent 的视角。
+        按 ESC 退出。服务器用户（SSH 连接）不会有这个窗口，只能看到终端输出 — 这是正常的。
+      </p>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">安装成功后，你的环境里有什么？</div>
+      <p>
+        <code>conda list | grep habitat</code> 应该显示：<br>
+        · <b>habitat-sim</b> 0.2.5（C++ 渲染引擎，conda 包）<br>
+        · <b>habitat-lab</b>（Python 任务框架，pip editable 安装）<br>
+        · <b>habitat-baselines</b>（可选，算法训练包）
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 常见问题 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-warn);"></span> 常见问题排查</h2>
+    <p class="section-subtitle">这些是我在实践中遇到的真实错误。按症状查找你的问题。</p>
+
+    <div class="trouble-grid">
+      <div class="trouble-card">
+        <h4>SSL EOF / CONNECTION FAILED</h4>
+        <p>
+          <b>症状：</b>conda install 过程中报 <code>SSL EOF</code> 或 <code>Connection reset</code><br>
+          <span class="fix">修复：</span>检查 conda proxy 设置 + 精简 channel 列表（见阶段 2）。<br>
+          <b>关键：</b>conda 不会用 <code>HTTP_PROXY</code> 环境变量，必须 <code>conda config --set proxy_servers</code>。
+        </p>
+      </div>
+      <div class="trouble-card">
+        <h4>Solving environment: failed</h4>
+        <p>
+          <b>症状：</b><code>conda install habitat-sim</code> 依赖解析失败<br>
+          <span class="fix">修复：</span>确认 Python 版本 = 3.9（不是 3.10/3.11）。<br>
+          试用 <code>conda install habitat-sim=0.2.5 withbullet headless -c conda-forge -c aihabitat --strict-channel-priority</code>
+        </p>
+      </div>
+      <div class="trouble-card">
+        <h4>ImportError: libCURL.so</h4>
+        <p>
+          <b>症状：</b><code>import habitat_sim</code> 报 libCURL.so 找不到<br>
+          <span class="fix">修复：</span><code>conda install curl -c conda-forge</code> —
+          habitat-sim 的渲染管线依赖特定的 libcurl 版本。
+        </p>
+      </div>
+      <div class="trouble-card">
+        <h4>ImportError: No module named 'habitat'</h4>
+        <p>
+          <b>症状：</b><code>import habitat</code> 失败<br>
+          <span class="fix">修复：</span>确认：① conda activate habitat ② 在 habitat-lab 目录下 ③ pip install -e habitat-lab 执行成功。<br>
+          运行 <code>pip list | grep habitat</code> 确认 habitat-lab 在列表中。
+        </p>
+      </div>
+      <div class="trouble-card">
+        <h4>CUDA / OpenGL 渲染失败</h4>
+        <p>
+          <b>症状：</b>example.py 运行时报 <code>EGL / GLX error</code> 或 <code>CUDA out of memory</code><br>
+          <span class="fix">修复：</span>headless 模式下，确认安装了 EGL 库：<br>
+          <code>sudo apt install libegl1-mesa-dev libgles2-mesa-dev</code><br>
+          GPU 内存不足：减小 RGB 分辨率或 batch size。
+        </p>
+      </div>
+      <div class="trouble-card">
+        <h4>数据集下载中断 / 极慢</h4>
+        <p>
+          <b>症状：</b><code>datasets_download</code> 卡住或报网络错误<br>
+          <span class="fix">修复：</span>该脚本用系统 <code>curl</code>，走的是 <code>HTTP_PROXY</code> 环境变量。<br>
+          对 Matterport 域名可临时绕过代理：<br>
+          <code>no_proxy="api.matterport.com" python -m habitat_sim.utils.datasets_download ...</code>
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════ 你学到了什么 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 学后自检 — 你掌握了什么</h2>
+    <p class="section-subtitle">如果你能独立回答以下 5 个问题，说明安装阶段已经扎实掌握了。</p>
+
+    <div class="trouble-grid">
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q1：为什么要用 conda 而不是 pip 装 habitat-sim？</h4>
+        <p>
+          habitat-sim 是 C++ 项目，需要编译渲染管线（Magnum 引擎 + Bullet 物理）。conda 提供了预编译的二进制包，
+          避免了长达数小时的源码编译。PyPI 上没有 habitat-sim 的包。
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q2：headless vs 非 headless 的区别是什么？</h4>
+        <p>
+          headless = GPU 渲染到内存（帧缓冲），不显示窗口。训练 / 服务器用 headless。
+          非 headless = 弹出一个 3D 窗口实时显示。调试 / 演示用。两者计算结果完全一致。
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q3：pip install -e 中的 -e 有什么作用？</h4>
+        <p>
+          editable 模式 — 源码修改无需重新安装即生效。研究开发的标准做法。没有 -e 的话每次改一行代码都要重装。
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q4：conda 代理失败时，你的排查顺序是什么？</h4>
+        <p>
+          ① <code>conda config --show proxy_servers</code> 确认已配 → ② <code>conda config --show channels</code> 确认只有 conda-forge + aihabitat → ③ 用 <code>curl</code> 测试代理端口是否可达。
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q5：安装完成后，你运行哪条命令验证一切正常？</h4>
+        <p>
+          <code>python examples/example.py</code> — 这条命令涵盖了 habitat-sim 渲染 + habitat-lab Env 创建 + step() 交互，是最全面的集成测试。
+        </p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════ Page Nav ═══════════════ -->
+<section>
+  <div class="container">
+    <div class="page-nav">
+      <a href="habitat-textbook.html" class="prev">← 返回教科书目录</a>
+      <a href="habitat-textbook-step2.html" class="next">第2步：跑通示例 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ Footer ═══════════════ -->
+<footer class="footer">
+  <p><a href="index.html">门户首页</a> · <a href="habitat-textbook.html">教科书</a> · <b>第1步：安装环境</b> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
+  <p style="margin-top:4px;">仅供学习参考</p>
+</footer>
+
+<script>
+// Checklist interactive behavior
+window.totalStages = 5;
+function toggleCheck(el, stage) {
+  el.classList.toggle('checked');
+  updateProgress();
+}
+
+function updateProgress() {
+  const checked = document.querySelectorAll('.checkbox.checked').length;
+  document.getElementById('progress-fill').style.width = (checked / totalStages * 100) + '%';
+  document.getElementById('progress-text').textContent = checked + ' / ' + totalStages + ' 阶段完成';
+}
+</script>
+
+<script src="assets/js/site.js"></script>
+
+
+</body>
+</html>
