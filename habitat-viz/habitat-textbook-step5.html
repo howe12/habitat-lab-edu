@@ -115,6 +115,8 @@
     <a href="#sec6" class="toc-item"><span class="toc-num">6</span><span class="toc-dot" style="background:#f59e0b;"></span> RL 导航实战</a>
     <a href="#sec7" class="toc-item"><span class="toc-num">7</span><span class="toc-dot" style="background:#10b981;"></span> 评估与 Benchmark</a>
     <a href="#sec8" class="toc-item"><span class="toc-num">8</span><span class="toc-dot" style="background:#f59e0b;"></span> 实践指南</a>
+    <a href="#sec10" class="toc-item"><span class="toc-num">10</span><span class="toc-dot" style="background:#ec4899;"></span> HRL 分层学习</a>
+    <a href="#sec10b" class="toc-item"><span class="toc-num">10b</span><span class="toc-dot" style="background:#10b981;"></span> VER 异步训练</a>
     <a href="#sec9" class="toc-item"><span class="toc-num">9</span><span class="toc-dot" style="background:#64748b;"></span> 本章总结</a>
   </div>
 </div>
@@ -718,6 +720,53 @@ $ python -u -m habitat_baselines.run \
       </tbody>
     </table>
 
+    <!-- ── 1.7 EQA 问答导航 ── -->
+    <h3 style="margin-top:28px;">1.7 问答导航：EQA (Embodied Question Answering)</h3>
+    <p style="font-size:0.88rem; color:var(--text-dim); margin-bottom:10px;">
+      EQA 是唯一需要<b>语言理解 + 视觉 + 导航</b>三者融合的任务。Agent 在 MP3D 场景中导航，被问到关于场景的问题
+      （如 "What color is the car in the garage?"），需要找到目标、观察、然后<b>用自然语言回答</b>。
+      注册为 <code>EQA-v0</code>，使用 <code>MP3DEQA-v1</code> 数据集（819 个问答对）。
+    </p>
+
+    <table class="compare-table" style="margin-top:10px;">
+      <thead><tr><th style="width:25%;">组件</th><th style="width:25%;">类型</th><th style="width:50%;">说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>QuestionSensor</code></td><td>lab sensor</td><td>返回问题文本的 <b>token ID 序列</b>（变长序列），观测量类型为 <code>TOKEN_IDS</code></td></tr>
+        <tr><td><code>AnswerAction</code></td><td>task action</td><td>从答案词汇表选择一个词作为最终回答，action_args = <code>{"answer_id": int}</code></td></tr>
+        <tr><td><code>EQAEpisode</code></td><td>episode</td><td>包含 <code>question_tokens</code> + <code>answer_token</code> + 导航起点/目标，扩展自 NavigationEpisode</td></tr>
+        <tr><td><code>MP3DEQA-v1</code></td><td>dataset</td><td>MP3D 场景 + 819 个问答对（train + val），json.gz 格式</td></tr>
+        <tr><td><code>AnswerAccuracy</code></td><td>measure</td><td>0/1 指标：agent 选择的 answer_id 是否等于正确的 answer_token</td></tr>
+        <tr><td><code>VocabDict</code></td><td>工具类</td><td>问题/答案的词汇表映射，存储于 dataset 的 question_vocab / answer_vocab 中</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block" style="margin-top:14px;">
+      <div class="code-label">EQA 任务的基本使用</div>
+      <pre><span class="kw">import</span> habitat
+<span class="kw">from</span> habitat.tasks.eqa.eqa <span class="kw">import</span> AnswerAction
+
+config = habitat.get_config(<span class="str">"benchmark/nav/eqa_mp3d.yaml"</span>)
+env = habitat.Env(config)
+obs = env.reset()
+<span class="cmt"># obs 包含: rgb, depth, semantic, question（token IDs 列表）</span>
+<span class="kw">print</span>(<span class="str">"Question:"</span>, env.current_episode.question.question_text)
+<span class="kw">print</span>(<span class="str">"Question tokens:"</span>, obs[<span class="str">"question"</span>])
+
+<span class="cmt"># 导航若干步后，提交答案</span>
+correct_id = env.current_episode.question.answer_token
+env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str">"action_args"</span>: {<span class="str">"answer_id"</span>: correct_id}})
+<span class="kw">print</span>(env.get_metrics())  <span class="cmt"># answer_accuracy = 1.0</span></pre>
+    </div>
+
+    <div class="tip-box" style="margin-top:12px;">
+      <div class="tip-title">EQA 与其他导航任务的关键区别</div>
+      <p>
+        EQA 的 episode 不会在到达导航目标时自动终止 — agent <b>必须主动发出 AnswerAction</b> 才会结束。
+        如果 agent 只导航不回答，会一直运行直到 <code>max_episode_steps</code>（默认 500）。
+        这也是为什么 EQA 比 PointNav/ObjectNav 更难：agent 需要学会<b>何时停止导航并开始回答</b>。
+      </p>
+    </div>
+
     <div class="exercise" style="margin-top:20px;">
       <h4>🏋️ 导航任务探索练习</h4>
       <p>
@@ -725,7 +774,8 @@ $ python -u -m habitat_baselines.run \
         <b>2.</b> 切换到 ObjectNav 配置，打印 observation keys，对比 PointNav 多了哪些传感器。<br>
         <b>3. (进阶)</b> 想一个应用场景（如 "帮我找遥控器"），判断它属于哪种导航任务类型。<br>
         <b>4. (进阶)</b> 阅读 <code>habitat/tasks/nav/object_nav_task.py</code>，理解 VIEW_POINTS 距离和 soft_spl 的计算方式。<br>
-        <b>5. (进阶)</b> 尝试将 ImageNav 的 <code>imagegoal_sensor</code> 输出可视化保存为图片，观察目标图像与实际观测的差异。
+        <b>5. (进阶)</b> 尝试将 ImageNav 的 <code>imagegoal_sensor</code> 输出可视化保存为图片，观察目标图像与实际观测的差异。<br>
+        <b>6. (进阶)</b> 查看 EQA 数据集的 question_vocab 和 answer_vocab 大小，思考为什么 answer 词汇表比 question 小得多。
       </p>
     </div>
   </div>
@@ -1640,6 +1690,114 @@ python -u -m habitat_baselines.run \
   </div>
 </section>
 
+<!-- ═══════════════ 10. HRL 分层强化学习 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec10"><span class="dot" style="background:#ec4899;"></span> 10. HRL 分层强化学习</h2>
+    <p class="section-subtitle">
+      Hierarchical RL 将复杂长周期任务分解为<b>两级策略</b>：High-Level (HL) 决策层选择技能 → Low-Level (LL) 技能层执行。
+      适用于 Rearrange 等需要多阶段操作的任务。
+    </p>
+
+    <div class="info-box">
+      <div class="info-title">HRL 两层架构</div>
+      <p>
+        <b>HL Policy（高层策略）</b>：观察环境全局状态 → 从 7 种技能中选择一个 → 传递给 LL 层执行。
+        HL 可以是 <b>FixedHighLevelPolicy</b>（按 PDDL solution 脚本化执行，无需训练）或
+        <b>NeuralHighLevelPolicy</b>（ResNet+LSTM 编码器 → CategoricalNet，需要训练）。
+        <br><br>
+        <b>LL Skills（低层技能）</b>：每个 Skill 是一个独立的策略模块，执行固定数量的 step 直到满足终止条件
+        （例如物体被抓起、到达导航目标）或超时。控制权在技能终止后归还 HL 层。
+        <br><br>
+        <b>关键设计</b>：loss 只在 HL 决策步计算（非每步），实现长周期信用分配。这称为 <b>Options Framework / Semi-MDP</b>。
+      </p>
+    </div>
+
+    <table class="compare-table" style="margin-top:14px;">
+      <thead><tr><th style="width:16%;">技能名称</th><th style="width:28%;">作用</th><th style="width:56%;">说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>Nav</b></td><td>导航到目标物体</td><td>基于预训练 Navigation policy 的 NN 技能，由 PDDL action 参数指定目标</td></tr>
+        <tr><td><b>Pick</b></td><td>抓取物体</td><td>控制 Fetch 手臂靠近物体 → 激活吸盘抓取 → 抬起手臂</td></tr>
+        <tr><td><b>Place</b></td><td>放置物体</td><td>将持有的物体移动到目标位置 → 释放吸盘</td></tr>
+        <tr><td><b>ArtObj</b></td><td>关节物体操作</td><td>打开/关闭抽屉、冰箱门等（通过 marker 交互点控制关节角度）</td></tr>
+        <tr><td><b>ResetArm</b></td><td>手臂复位</td><td>脚本化技能：将手臂恢复到初始位姿（不涉及神经网络）</td></tr>
+        <tr><td><b>Wait</b></td><td>等待</td><td>脚本化技能：原地不动若干步</td></tr>
+        <tr><td><b>Noop</b></td><td>透传</td><td>不改变动作空间，将底层动作原样传递（用于不需要技能包装的场景）</td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block" style="margin-top:16px;">
+      <div class="code-label">HRL 训练配置关键参数</div>
+      <pre><span class="cmt"># config: rearrange/rl_hierarchical.yaml</span>
+habitat_baselines:
+  <span class="kw">trainer_name</span>: ddppo          <span class="cmt"># DD-PPO 做分布式采样</span>
+  <span class="kw">updater_name</span>: HRLPPO          <span class="cmt"># 只对 HL 决策步计算 loss</span>
+  <span class="kw">rollout_storage_name</span>: HrlRolloutStorage  <span class="cmt"># 支持 skill 边界的特殊 buffer</span>
+  rl:
+    policy:
+      <span class="kw">name</span>: HierarchicalPolicy   <span class="cmt"># 顶层策略，管理 HL + LL 技能组</span>
+      hierarchical_policy:
+        <span class="kw">high_level_policy</span>:
+          name: NeuralHighLevelPolicy  <span class="cmt"># 可学习 HL 或 FixedHighLevelPolicy</span>
+        <span class="kw">defined_skills</span>: nn_skills      <span class="cmt"># 使用预训练 + 微调的技能集</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 10b. VER 异步分布式训练 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec10b"><span class="dot" style="background:#10b981;"></span> 10b. VER 异步分布式训练</h2>
+    <p class="section-subtitle">
+      Variable Experience Rollout — 将环境步进、推理、学习<b>解耦为独立进程</b>，通过共享内存通信。
+      每个环境收集可变长度的经验，用重要性采样 (IS) 修正采样偏差。
+    </p>
+
+    <div class="info-box">
+      <div class="info-title">VER 四进程架构</div>
+      <p>
+        <b>1. Environment Workers</b>（每个 env 一个进程）：执行 simulator step，将 <code>(obs, reward, done)</code> 写入 CPU 共享内存<br>
+        <b>2. Inference Workers</b>（可配数量）：轮询共享内存，批量运行 policy forward pass，将 action 写回，将完整 experience tuples 写入 GPU 共享内存<br>
+        <b>3. Learner</b>（主进程）：当 rollout buffer 满时，计算 GAE → 生成 mini-batches → PPO update → 复制最新权重到共享张量<br>
+        <b>4. Report Worker</b>（独立进程）：异步接收指标写入 TensorBoard/WandB，不阻塞训练
+      </p>
+    </div>
+
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-title">Variable-Length Rollouts 的代价与修正</div>
+      <p>
+        在标准 PPO 中，N 个环境每个采集固定 T 步，产生 <code>(T, N, ...)</code> 张量。最慢的环境拖慢所有人。
+        VER 让每个环境在固定时间窗口内采集尽可能多的步数 — 快环境贡献更多步，慢环境贡献更少步。
+        这导致每个环境对 loss 的贡献不均，因此 VER 用 <b>重要性采样系数</b> <code>(T+1) / samples_per_env</code> 修正采样偏差。
+        每步经验还打上 <code>policy_version</code> 标签，stale steps 保留旧的 return 值，防止使用过期的 value 估计。
+      </p>
+    </div>
+
+    <table class="compare-table" style="margin-top:14px;">
+      <thead><tr><th style="width:18%;">维度</th><th style="width:27%;">PPO</th><th style="width:27%;">DD-PPO</th><th style="width:28%;">VER</th></tr></thead>
+      <tbody>
+        <tr><td><b>并行方式</b></td><td>单机多 env（VectorEnv）</td><td>多 GPU 数据并行 + 梯度 all-reduce</td><td>多进程异步：env / inference / learn 解耦</td></tr>
+        <tr><td><b>每 env 步数</b></td><td>固定 T 步</td><td>固定 T 步（preemption 后截断）</td><td>可变步数（时间窗口内尽可能多）</td></tr>
+        <tr><td><b>瓶颈</b></td><td>CPU 核心数 × env 复杂度</td><td>慢 GPU worker（straggler）</td><td>共享内存带宽 + inference worker 吞吐</td></tr>
+        <tr><td><b>同步机制</b></td><td>barrier（等所有 env 完成）</td><td>sync_frac preemption</td><td>无 barrier — 完全异步</td></tr>
+        <tr><td><b>配置复杂度</b></td><td>低</td><td>中</td><td>低 — 只需 <code>trainer_name: ver</code></td></tr>
+        <tr><td><b>适用场景</b></td><td>开发调试、小规模实验</td><td>单机多卡、需要线性加速</td><td>大规模异步训练、env 步长时间不均</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box" style="margin-top:12px;">
+      <div class="tip-title">如何选择训练方法</div>
+      <p>
+        <b>单卡开发</b> → PPO（配置最简单，TensorBoard 反馈最快）<br>
+        <b>单机多卡加速</b> → DD-PPO（几乎线性加速，与 PPO 同配置，改 <code>trainer_name</code> 即可）<br>
+        <b>大规模集群 / env 步长不均</b> → VER（异步架构，解耦 env/inference/learn）<br>
+        <b>长周期复合任务</b> → HRL（两级策略 + PDDL 规划，适用于 Rearrange 系列）<br>
+        以上方法可组合使用：DD-PPO 与 HRL 兼容（<code>updater_name: HRLPPO</code>），VER 也与 HRL 兼容。
+      </p>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════ 9. 总结 ═══════════════ -->
 <section>
   <div class="container">
@@ -1652,8 +1810,8 @@ python -u -m habitat_baselines.run \
       <tbody>
         <tr>
           <td><b>导航任务全景</b></td>
-          <td>5 种目标类型：PointNav / ObjectNav / ImageNav / InstanceImageNav / VLN</td>
-          <td>从几何坐标到语言指令，理解 Embodied AI 导航全谱系</td>
+          <td>6 种任务类型：PointNav / ObjectNav / ImageNav / InstanceImageNav / VLN / EQA</td>
+          <td>从几何坐标到语言问答，理解 Embodied AI 导航全谱系</td>
         </tr>
         <tr>
           <td><b>Policy 网络结构</b></td>

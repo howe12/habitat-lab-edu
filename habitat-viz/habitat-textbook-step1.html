@@ -368,6 +368,67 @@
   </div>
 </section>
 
+<!-- ═══════════════ Docker 容器化部署（可选方案） ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#06b6d4;"></span> Docker 容器化部署（可选方案）</h2>
+    <p class="section-subtitle">
+      如果你的环境不方便直接安装 conda 和 habitat-sim，可以使用 Docker 容器方案。
+      官方镜像预装了完整的 Habitat 环境，一条命令就能跑。
+    </p>
+
+    <div class="info-box">
+      <div class="info-title">方案对比：Conda 安装 vs Docker 容器</div>
+      <table class="compare-table" style="margin-top:10px;">
+        <thead><tr><th style="width:20%;">维度</th><th style="width:40%;">Conda 安装（推荐）</th><th style="width:40%;">Docker 容器</th></tr></thead>
+        <tbody>
+          <tr><td><b>适用场景</b></td><td>日常开发、训练、调试</td><td>快速验证、CI/CD、环境隔离</td></tr>
+          <tr><td><b>安装难度</b></td><td>中等（需配置 conda + proxy）</td><td>低（docker pull + run）</td></tr>
+          <tr><td><b>GUI 支持</b></td><td>✅ 完整（可弹出渲染窗口）</td><td>⚠️ 需额外配置 X11 forward</td></tr>
+          <tr><td><b>磁盘占用</b></td><td>~3GB（conda env）</td><td>~15GB（Docker 镜像）</td></tr>
+          <tr><td><b>GPU 支持</b></td><td>✅ 直接使用</td><td>✅ 需要 nvidia-container-runtime</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="code-block" style="margin-top:18px;">
+      <div class="code-label">Docker 部署三步骤</div>
+      <pre><span class="cmt"># 步骤 1：拉取官方镜像（约 15GB，仅首次）</span>
+$ <span class="kw">docker pull</span> fairembodied/habitat-challenge:testing_2022_habitat_base_docker
+
+<span class="cmt"># 步骤 2：启动容器（挂载 data 目录以复用数据集）</span>
+$ <span class="kw">docker run</span> --runtime=nvidia -it --rm \
+    -v <span class="str">$(pwd)/data:/data</span> \
+    fairembodied/habitat-challenge:testing_2022_habitat_base_docker \
+    /bin/bash
+
+<span class="cmt"># 步骤 3：容器内激活 conda 环境并验证</span>
+$ <span class="kw">conda</span> init; <span class="kw">source</span> ~/.bashrc; <span class="kw">source</span> activate habitat
+$ <span class="kw">python</span> -c <span class="str">"import habitat_sim; import habitat; print('Docker OK')"</span></pre>
+    </div>
+
+    <div class="warn-box" style="margin-top:16px;">
+      <div class="warn-title">Docker 方案的注意事项</div>
+      <p>
+        · <b>镜像更新频率低</b>：官方镜像约每年更新一次（最新 tag 为 2022），版本可能落后于 pip 安装<br>
+        · <b>需要 nvidia-container-runtime</b>：<code>apt install nvidia-container-runtime</code>，否则 GPU 不可用<br>
+        · <b>数据挂载</b>：用 <code>-v</code> 将宿主机的 <code>data/</code> 目录挂入容器，避免每个容器内部重复下载<br>
+        · <b>无 GUI</b>：默认 headless 模式，如需渲染窗口需额外配置 X11 forward (<code>-e DISPLAY</code> + <code>-v /tmp/.X11-unix</code>)<br>
+        · <b>仓库根目录的 <code>Dockerfile</code></b> 展示了完整构建过程（基于 nvidia/cudagl:10.1 + Miniconda + cmake 3.14）
+      </p>
+    </div>
+
+    <div class="tip-box" style="margin-top:14px;">
+      <div class="tip-title">实用建议</div>
+      <p>
+        <b>学习阶段用 Conda</b>（前面阶段1-5）— 方便改代码、调试、看渲染窗口。
+        <b>批量训练 / CI 用 Docker</b> — 环境一致性好，可复现，适合服务器端。
+        两种方案可共存，共享 <code>data/</code> 目录。
+      </p>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════ 常见问题 ═══════════════ -->
 <section>
   <div class="container">

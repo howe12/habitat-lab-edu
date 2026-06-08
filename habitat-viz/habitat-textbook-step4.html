@@ -462,11 +462,142 @@
   </div>
 </section>
 
+<!-- ═══════════════ 实验 4-6：语义传感器实操 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#8b5cf6;"></span> 实验 4-6：语义传感器实操</h2>
+    <p class="section-subtitle">加载 Semantic Sensor，理解每个像素值的含义，用 semantic_annotations() 查询物体名称。</p>
+
+    <div class="info-box">
+      <div class="info-title">Semantic 传感器原理</div>
+      <p>
+        Semantic 传感器返回 <b>物体实例 ID 图</b>，每个像素值不是颜色而是<b>该位置可见物体的实例编号</b>。
+        数据类型是 <code>int32</code>，shape 为 <code>(H, W, 1)</code>。0 表示背景（无物体），1+ 表示不同的物体实例。
+        <b>Semantic 传感器零额外渲染成本</b> — 渲染器在生成 RGB 的同时输出语义信息。
+      </p>
+    </div>
+
+    <div class="code-block" style="margin-top:16px;">
+      <div class="code-label">加载语义传感器并解读观测</div>
+      <pre><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> habitat
+<span class="kw">from</span> habitat.config.default <span class="kw">import</span> get_config
+
+<span class="cmt"># ObjectNav semantic 配置自带 Semantic Sensor</span>
+config = get_config(<span class="str">"benchmark/nav/objectnav/objectnav_hm3d_with_semantic.yaml"</span>)
+env = habitat.Env(config)
+obs = env.reset()
+
+sem = obs[<span class="str">"semantic"</span>]
+<span class="kw">print</span>(<span class="str">"shape:"</span>, sem.shape)   <span class="cmt"># (480, 640, 1) — 取决于 config 的 width/height</span>
+<span class="kw">print</span>(<span class="str">"dtype:"</span>, sem.dtype)   <span class="cmt"># int32</span>
+<span class="kw">print</span>(<span class="str">"unique IDs:"</span>, np.unique(sem))  <span class="cmt"># [0, 1, 3, 5, 12, ...] 场景中的物体实例</span>
+
+<span class="cmt"># 查询物体类别：用 semantic_annotations() 映射 ID → 名称</span>
+sim = env.sim
+sem_scene = sim.semantic_annotations()
+<span class="kw">for</span> obj <span class="kw">in</span> sem_scene.objects:
+    <span class="kw">print</span>(<span class="str">f"ID={obj.id:3d}  category={obj.category.name():20s}  bbox={obj.aabb}"</span>)</pre>
+    </div>
+
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">Semantic 传感器在哪里配置？</div>
+      <p>
+        Semantic 传感器通过 agent YAML 添加。两种方式：<br>
+        · <b>专用 agent</b>：<code>semantic_agent.yaml</code> — 只有 semantic 传感器，无 RGB/Depth<br>
+        · <b>组合 agent</b>：<code>rgbds_agent.yaml</code> — RGB + Depth + Semantic 四通道（推荐）<br>
+        配置文件中通过 <code>defaults → /habitat/simulator/agents@...</code> 选择 agent 类型。
+      </p>
+    </div>
+
+    <div class="tip-box" style="margin-top:12px;">
+      <div class="tip-title">实操技巧</div>
+      <p>
+        如果你的测试场景没有 semantic 标注，返回的是全零数组。
+        可以用 <code>habitat-test-scenes</code>（van-gogh-room）或 MP3D/HM3D 完整场景测试。
+        用 <code>np.bincount(sem.flatten())</code> 可以统计每个物体 ID 在画面中的像素占比。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 实验 4-7：自定义Measure指标 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#f59e0b;"></span> 实验 4-7：自定义 Measure 指标教程</h2>
+    <p class="section-subtitle">用 @registry.register_measure 注册自定义指标，理解 Measure 生命周期，实现碰撞计数器。</p>
+
+    <div class="info-box">
+      <div class="info-title">Measure 的三个生命周期方法</div>
+      <p>
+        每个 Measure 必须实现 3 个方法，由 <code>EmbodiedTask</code> 在 episode 的不同时刻调用：<br>
+        · <code>_get_uuid()</code> — 返回字符串（如 <code>"collision_count"</code>），作为 metrics dict 的 key<br>
+        · <code>reset_metric(*, episode, task)</code> — episode 开始时重置，初始化 <code>self._metric</code><br>
+        · <code>update_metric(*, episode, task, action)</code> — 每个 step 后更新，修改 <code>self._metric</code><br>
+        用 <code>@registry.register_measure</code> 装饰器注册，类名即为注册 key。
+      </p>
+    </div>
+
+    <div class="code-block" style="margin-top:16px;">
+      <div class="code-label">自定义碰撞计数器 Measure</div>
+      <pre><span class="kw">from</span> habitat.core.registry <span class="kw">import</span> registry
+<span class="kw">from</span> habitat.core.embodied_task <span class="kw">import</span> Measure
+
+<span class="kw">@registry.register_measure</span>
+<span class="kw">class</span> CollisionCount(Measure):
+    <span class="str">"""统计每个 episode 中 agent 碰撞到障碍物的次数"""</span>
+    cls_uuid = <span class="str">"collision_count"</span>
+
+    <span class="kw">def</span> __init__(self, sim, config, *args, **kwargs):
+        <span class="kw">self</span>._sim = sim
+        <span class="kw">super</span>().__init__()
+
+    <span class="kw">def</span> _get_uuid(self, *args, **kwargs):
+        <span class="kw">return</span> <span class="kw">self</span>.cls_uuid
+
+    <span class="kw">def</span> reset_metric(self, episode, *args, **kwargs):
+        <span class="kw">self</span>._metric = {<span class="str">"count"</span>: 0, <span class="str">"is_collision"</span>: False}
+
+    <span class="kw">def</span> update_metric(self, episode, action, *args, **kwargs):
+        <span class="kw">self</span>._metric[<span class="str">"is_collision"</span>] = False
+        <span class="kw">if</span> <span class="kw">self</span>._sim.previous_step_collided:
+            <span class="kw">self</span>._metric[<span class="str">"count"</span>] += 1
+            <span class="kw">self</span>._metric[<span class="str">"is_collision"</span>] = True</pre>
+    </div>
+
+    <div class="code-block" style="margin-top:14px;">
+      <div class="code-label">在配置中启用自定义 Measure</div>
+      <pre><span class="cmt"># 方法 1：通过代码动态添加</span>
+<span class="kw">from</span> habitat.config.default <span class="kw">import</span> get_config
+config = get_config(<span class="str">"benchmark/nav/pointnav/pointnav_habitat_test.yaml"</span>)
+<span class="kw">with</span> habitat.config.read_write(config):
+    config.habitat.task.measurements[<span class="str">"collision_count"</span>] = {
+        <span class="str">"type"</span>: <span class="str">"CollisionCount"</span>
+    }
+
+env = habitat.Env(config)
+env.reset()
+<span class="kw">for</span> _ <span class="kw">in</span> range(50):
+    env.step(env.action_space.sample())
+<span class="kw">print</span>(env.get_metrics())  <span class="cmt"># {'collision_count': {'count': 12, 'is_collision': True}, ...}</span></pre>
+    </div>
+
+    <div class="warn-box" style="margin-top:14px;">
+      <div class="warn-title">注册时机</div>
+      <p>
+        <code>@registry.register_measure</code> 是模块级装饰器，Python 在 <code>import</code> 时执行。
+        <b>自定义 Measure 的 .py 文件必须在创建 Env 之前被导入</b>，否则 registry 中找不到这个类。
+        官方的 20+ Measure 实例在 <code>habitat/tasks/nav/nav.py</code> 和 <code>habitat/tasks/rearrange/rearrange_sensors.py</code> 中。
+      </p>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════ 7. 总结 ═══════════════ -->
 <section>
   <div class="container">
     <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> 📝 本章总结</h2>
-    <p class="section-subtitle">5 个实验覆盖了 config 修改的主要维度：传感器、任务、指标。</p>
+    <p class="section-subtitle">7 个实验覆盖了 config 修改的主要维度：传感器、任务、指标。</p>
 
     <table class="compare-table">
       <thead>
@@ -502,6 +633,18 @@
           <td>success_distance</td>
           <td><code>task.measurements.success</code></td>
           <td>评测指标 vs 训练信号的区别</td>
+        </tr>
+        <tr>
+          <td><b>4-6</b></td>
+          <td>Semantic 传感器</td>
+          <td><code>sim_sensors.semantic_sensor</code></td>
+          <td>物体实例 ID 图、semantic_annotations() 查询类别名</td>
+        </tr>
+        <tr>
+          <td><b>4-7</b></td>
+          <td>自定义 Measure</td>
+          <td><code>@registry.register_measure</code></td>
+          <td>实现碰撞计数器、理解 Measure 生命周期</td>
         </tr>
       </tbody>
     </table>

@@ -219,6 +219,40 @@ count_steps = <span class="num">0</span>
       </tbody>
     </table>
 
+    <!-- ── Habitat Gym 完整注册表 ── -->
+    <div class="info-box" style="margin-top:16px;">
+      <div class="info-title">Habitat Gym 完整注册表 (<code>gym_definitions.py</code>)</div>
+      <p style="font-size:0.85rem; line-height:1.7;">
+        共 <b>30 个</b>已注册 Gym ID：<b>2 个通用</b> + <b>16 个 Skill 任务</b>（含 Render 变体）+ <b>12 个 Home Assistant Benchmark 任务</b>。
+        注册逻辑在 <code>habitat/gym/gym_definitions.py</code>，导入 <code>habitat.gym</code> 时自动触发。
+      </p>
+      <table class="compare-table" style="margin-top:10px; font-size:0.82rem;">
+        <thead><tr><th>类别</th><th>Gym ID（Performance）</th><th>Render 变体</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td rowspan="2" style="text-align:center;"><b>通用</b></td>
+            <td><code>Habitat-v0</code></td><td><code>HabitatRender-v0</code></td>
+            <td>接受 <code>cfg_file_path=...</code> 参数，可加载任意 YAML 配置</td></tr>
+          <tr><td colspan="3" style="color:var(--text-dim);">用于 PointNav / ObjectNav 等导航任务，或自定义 config。</td></tr>
+          <tr style="border-top:2px solid var(--border);"><td rowspan="8" style="text-align:center;"><b>Skill<br>任务</b></td>
+            <td><code>HabitatPick-v0</code></td><td><code>HabitatRenderPick-v0</code></td><td>抓取物体（Fetch 机器人 + 吸盘）</td></tr>
+          <tr><td><code>HabitatPlace-v0</code></td><td><code>HabitatRenderPlace-v0</code></td><td>放置物体到目标位置</td></tr>
+          <tr><td><code>HabitatNavToObj-v0</code></td><td><code>HabitatRenderNavToObj-v0</code></td><td>纯导航到目标物体附近</td></tr>
+          <tr><td><code>HabitatOpenCab-v0</code></td><td><code>HabitatRenderOpenCab-v0</code></td><td>打开柜门（关节物体交互）</td></tr>
+          <tr><td><code>HabitatCloseCab-v0</code></td><td><code>HabitatRenderCloseCab-v0</code></td><td>关闭柜门</td></tr>
+          <tr><td><code>HabitatOpenFridge-v0</code></td><td><code>HabitatRenderOpenFridge-v0</code></td><td>打开冰箱门</td></tr>
+          <tr><td><code>HabitatCloseFridge-v0</code></td><td><code>HabitatRenderCloseFridge-v0</code></td><td>关闭冰箱门</td></tr>
+          <tr><td><code>HabitatReachState-v0</code></td><td><code>HabitatRenderReachState-v0</code></td><td>控制手臂到达指定位姿</td></tr>
+          <tr style="border-top:2px solid var(--border);"><td rowspan="6" style="text-align:center;"><b>HAB<br>Benchmark</b></td>
+            <td><code>HabitatTidyHouse-v0</code></td><td><code>HabitatRenderTidyHouse-v0</code></td><td>整理房间（PDDL 复合任务）</td></tr>
+          <tr><td><code>HabitatPrepareGroceries-v0</code></td><td><code>HabitatRenderPrepareGroceries-v0</code></td><td>准备食材</td></tr>
+          <tr><td><code>HabitatSetTable-v0</code></td><td><code>HabitatRenderSetTable-v0</code></td><td>布置餐桌</td></tr>
+          <tr><td><code>HabitatRearrange-v0</code></td><td><code>HabitatRenderRearrange-v0</code></td><td>通用重排任务（无 solution）</td></tr>
+          <tr><td><code>HabitatRearrangeEasy-v0</code></td><td><code>HabitatRenderRearrangeEasy-v0</code></td><td>简化重排（PDDL solution 已知）</td></tr>
+          <tr><td><code>HabitatRearrangeEasyMultiAgent-v0</code></td><td><code>HabitatRenderRearrangeEasyMultiAgent-v0</code></td><td>多智能体协作重排</td></tr>
+        </tbody>
+      </table>
+    </div>
+
     <!-- ── 代码差异：教学版 vs 工程文件 ── -->
     <div class="info-box" style="border-color:#f59e0b30; background:#f59e0b08; margin-top:20px;">
       <div class="info-title" style="color:#fbbf24;">注意：上面展示的代码 ≠ 工程文件 <code>example_pointnav.py</code></div>
