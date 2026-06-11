@@ -1301,6 +1301,22 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
       真实机器人需要用视觉里程计或 SLAM 来近似这个信号。
     </div>
 
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">为什么要用强化学习？</div>
+      <p style="line-height:1.9;">
+        <b>1. 学「看」→「走」，不需要人类标注</b><br>
+        传统导航需要人工设计 SLAM、定位、规划、控制每个模块。RL 只需要定义<b>奖励函数</b>（"靠近目标加分"），
+        策略网络自己从几百万次试错中学会从像素到动作的端到端映射。没有人类告诉它「这里该左转」— 奖励信号自动指引。<br><br>
+        <b>2. 泛化到未见过的场景</b><br>
+        RL 训练的策略不是背地图 — 它学的是「看到什么样的视觉模式该做什么动作」。
+        在 Gibson 场景集上训练的策略，可以在从未见过的 MP3D 场景中导航（zero-shot），因为 CNN 提取的是<b>通用视觉特征</b>而非特定场景坐标。<br><br>
+        <b>3. 这是 Sim-to-Real 的基础</b><br>
+        GPS+Compass 在仿真中是完美特权信息，但在真实机器人上只能用视觉里程计近似。
+        RL 策略可以逐步去掉 GPS 依赖（从 PointNav → ImageNav → VLN），最终变成纯视觉导航 —
+        这就是 Habitat 作为<b>具身智能研究平台</b>的核心使命：在仿真中训练，向真实世界迁移。
+      </p>
+    </div>
+
     <h3 style="margin-top:24px;">6.2 Demo 全貌：<code>examples/rl_nav_demo.py</code></h3>
     <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
       这是本章配套的 RL 导航 Demo 脚本，分为 4 个 Part，覆盖从环境探索到策略推理的完整流程。
@@ -1403,6 +1419,65 @@ obs, reward, done, info = env.<span class="fn">step</span>(action)
         <li><b>reward = -(新距离 - 旧距离)</b> — 靠近目标得正奖励，远离得负奖励。0.367 的总奖励意味着 agent 在 7 步随机移动中总体靠近了目标约 0.37m。</li>
         <li><b>success=0.0, SPL=0.0</b> — 随机 agent 不可能导航成功，这是 baseline。</li>
       </ol>
+    </div>
+
+    <!-- ── 奖励深入：三层公式 ── -->
+    <div class="info-box" style="margin-top:16px; border-left: 3px solid #f59e0b;">
+      <div class="info-title">🔍 深入：奖励的三层组装公式</div>
+      <p style="line-height:1.9;">
+        上面第 4 点的 <code>reward = -(新距离 - 旧距离)</code> 只是<b>核心部分</b>。
+        <code>RLTaskEnv.get_reward()</code>（源码 <code>habitat/core/environments.py:73</code>）实际返回的是<b>三层叠加</b>：
+      </p>
+      <table class="compare-table" style="margin-top:12px;">
+        <thead><tr><th style="width:22%;">层次</th><th style="width:18%;">默认值</th><th style="width:60%;">含义</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>slack_reward</b><br><small>每步固定</small></td>
+            <td><code>-0.01</code></td>
+            <td><b>「效率惩罚」</b> — agent 每走一步就扣 0.01 分，逼迫它走最短路径。如果 agent 原地转圈，slack 持续扣分，总 reward 永远上不去</td>
+          </tr>
+          <tr>
+            <td><b>reward_measure</b><br><small>每步动态</small></td>
+            <td><code>distance_to_goal_reward</code></td>
+            <td><b>「核心信号」</b> — 这就是上面第 4 点的 <code>-(新距离 - 旧距离)</code>。向目标靠近 1 米 ≈ +1.0 分，远离 1 米 ≈ -1.0 分</td>
+          </tr>
+          <tr>
+            <td><b>success_reward</b><br><small>终点一次性</small></td>
+            <td><code>+2.5</code></td>
+            <td><b>「成功大奖」</b> — 只在 episode 成功时发放一次（<code>end_on_success: True</code> 时到达目标后 episode 立即终止，不会再扣 slack）</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="code-block" style="margin-top:14px;">
+        <div class="code-label">源码中的奖励组装（habitat/core/environments.py:73）</div>
+        <pre><span class="kw">def</span> <span class="fn">get_reward</span>(self, observations):
+    current_measure = self._env.get_metrics()[self._reward_measure_name]
+    reward = self._slack_reward          <span class="cmt"># -0.01</span>
+    reward += current_measure            <span class="cmt"># +(旧距离 - 新距离)</span>
+    <span class="kw">if</span> self._episode_success():
+        reward += self._success_reward   <span class="cmt"># +2.5</span>
+    <span class="kw">return</span> reward</pre>
+      </div>
+
+      <p style="margin-top:12px; line-height:1.9;">
+        <b>一个成功 episode 的典型奖励轨迹：</b><br>
+        设起点距离目标 5 米，agent 用 50 步到达（成功）：<br>
+        · slack 贡献：<code>50 × (-0.01) = -0.5</code>（走了 50 步，扣 0.5 分）<br>
+        · distance 贡献：从 5m 逐步减到 0m，累积约 <code>+5.0</code>（每步靠近一点就加分）<br>
+        · success 贡献：到达那一刻 <code>+2.5</code><br>
+        · <b>episode 总奖励 ≈ +7.0</b> — 这个正值告诉 PPO：「做得好，多做这种事」
+      </p>
+
+      <div class="tip-box" style="margin-top:12px;">
+        <div class="tip-title">这些值在哪配置？</div>
+        <p>
+          <code>pointnav.yaml</code> 的 <code>reward_measure: "distance_to_goal_reward"</code> 指定用哪个 Measure 做奖励；
+          <code>slack_reward</code> 和 <code>success_reward</code> 是 <code>TaskConfig</code> 的字段（Structured Config），默认值
+          分别为 <code>-0.01</code> 和 <code>2.5</code>。你可以通过 Hydra 覆盖：<br>
+          <code>python -m habitat_baselines.run ... habitat.task.slack_reward=-0.001 habitat.task.success_reward=5.0</code>
+        </p>
+      </div>
     </div>
 
     <!-- ⑥ 试试调整 -->
