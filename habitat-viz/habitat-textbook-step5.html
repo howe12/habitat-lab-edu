@@ -115,6 +115,9 @@
     <a href="#sec6" class="toc-item"><span class="toc-num">6</span><span class="toc-dot" style="background:#f59e0b;"></span> RL 导航实战</a>
     <a href="#sec7" class="toc-item"><span class="toc-num">7</span><span class="toc-dot" style="background:#10b981;"></span> 评估与 Benchmark</a>
     <a href="#sec8" class="toc-item"><span class="toc-num">8</span><span class="toc-dot" style="background:#f59e0b;"></span> 实践指南</a>
+    <a href="#sec8-flow" class="toc-item" style="font-size:0.78rem;padding-left:22px;"><span class="toc-num">8B</span><span class="toc-dot" style="background:#3b82f6;"></span> 训练流程分析</a>
+    <a href="#sec8-params" class="toc-item" style="font-size:0.78rem;padding-left:22px;"><span class="toc-num">8C</span><span class="toc-dot" style="background:#10b981;"></span> 关键参数调优</a>
+    <a href="#sec8-curves" class="toc-item" style="font-size:0.78rem;padding-left:22px;"><span class="toc-num">8E</span><span class="toc-dot" style="background:#fbbf24;"></span> 训练过程分析</a>
     <a href="#sec10" class="toc-item"><span class="toc-num">10</span><span class="toc-dot" style="background:#ec4899;"></span> HRL 分层学习</a>
     <a href="#sec10b" class="toc-item"><span class="toc-num">10b</span><span class="toc-dot" style="background:#10b981;"></span> VER 异步训练</a>
     <a href="#sec9" class="toc-item"><span class="toc-num">9</span><span class="toc-dot" style="background:#64748b;"></span> 本章总结</a>
@@ -1690,6 +1693,259 @@ python -u -m habitat_baselines.run \
 <span class="cmt"># 方式 C：DD-PPO 多 GPU 训练</span>
 python -u -m habitat_baselines.run \
   --config-name=<span class="str">pointnav/ddppo_pointnav</span></div>
+
+    <div class="info-box" style="margin-top:16px; border-left: 3px solid #ec4899;">
+      <div class="info-title">训练的最终目的是什么？</div>
+      <p style="line-height:1.9;">
+        <b>不是跑通命令，而是让策略网络学会"看→走"。</b> 每个配置项都为这个目标服务：<br>
+        · <code>total_num_steps</code> — 给策略多长时间的试错机会（越多越好，受限于时间和算力）<br>
+        · <code>lr</code> — 每次试错后更新多大的步子（太大发散，太小收敛太慢）<br>
+        · <code>num_environments</code> — 同时跑多少个并行环境（更多=样本更多样=训练更稳定）<br>
+        · <code>reward_measure</code> — 定义"什么是做得好"（distance_to_goal_reward = "靠近目标加分"）<br>
+        · 最终输出：一批 <code>.pth</code> checkpoint 文件，加载后可推理导航
+      </p>
+    </div>
+
+    <h3 style="margin-top:24px;" id="sec8-flow">8.2B 程序执行流程分析</h3>
+    <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
+      当你执行 <code>python -u -m habitat_baselines.run</code> 时，Habitat 内部发生了以下事情：
+    </p>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
+          <b>① Hydra 配置加载</b>
+          <small>habitat_baselines/run.py:main()</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ 读取 <code>pointnav/ppo_pointnav_example.yaml</code> → 组合 lab + baselines 配置</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
+          <b>② 创建 Trainer</b>
+          <small>baseline_registry.get_trainer(config)</small>
+        </div>
+        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
+        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
+          <b>③ 创建 VectorEnv</b>
+          <small>construct_envs() → N 个并行 env</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ VectorEnv 自动分派：每个子进程运行一个独立的 Habitat Env</div>
+      <div class="arch-row">
+        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
+          <b>④ 训练循环</b>
+          <small>trainer.train() → PPOTrainer._collect_rollout()</small>
+        </div>
+      </div>
+      <div class="arch-arrow-center">↓ 循环 num_updates 次，每次：</div>
+    </div>
+
+    <table class="compare-table" style="margin-top:14px;">
+      <thead><tr><th style="width:8%;">步骤</th><th style="width:18%;">操作</th><th style="width:20%;">对应代码</th><th style="width:54%;">说明</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>4a</td><td><b>收集 Rollout</b></td>
+          <td><code>_collect_rollout_step()</code></td>
+          <td>每个 env 执行 <code>num_steps</code> 步（默认 32）。总共收集 <code>num_environments × num_steps</code> 个 (obs, action, reward, next_obs, done) 元组</td>
+        </tr>
+        <tr>
+          <td>4b</td><td><b>计算 Returns</b></td>
+          <td><code>RolloutStorage.compute_returns()</code></td>
+          <td>用 GAE (Generalized Advantage Estimation) 从每个 step 的 reward 反向计算 advantage 和 return。<code>gamma=0.99</code> 控制远期奖励权重，<code>tau=0.95</code> 控制偏差-方差权衡</td>
+        </tr>
+        <tr>
+          <td>4c</td><td><b>PPO Update</b></td>
+          <td><code>PPOUpdater.update()</code></td>
+          <td>用 clipped surrogate objective 更新策略网络：限制新旧策略的概率比在 <code>[1-ε, 1+ε]</code> 区间，防止单次更新过大导致训练崩溃</td>
+        </tr>
+        <tr>
+          <td>4d</td><td><b>日志记录</b></td>
+          <td><code>log_interval</code> 控制</td>
+          <td>每隔 <code>log_interval</code> 次 update 打印一次终端日志 + 写入 TensorBoard（reward, success, SPL, losses, entropy）</td>
+        </tr>
+        <tr>
+          <td>4e</td><td><b>Checkpoint</b></td>
+          <td><code>checkpoint_interval</code> 控制</td>
+          <td>每隔 <code>checkpoint_interval</code> 次 update 保存一次模型（<code>ckpt.{N}.pth</code>），保存 optimizer/scheduler 状态以支持 resume</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box" style="margin-top:14px;">
+      <div class="tip-title">关键源码路径</div>
+      <p>
+        · <code>habitat_baselines/run.py</code> — Hydra main 入口，解析配置 → 创建 trainer → 调用 train()<br>
+        · <code>habitat_baselines/rl/ppo/ppo_trainer.py</code> — PPOTrainer 类，<code>train()</code> 主循环（约 1200 行）<br>
+        · <code>habitat_baselines/common/rollout_storage.py</code> — RolloutStorage, GAE 计算<br>
+        · <code>habitat_baselines/rl/ppo/ppo_updater.py</code> — PPO clip objective + 梯度更新
+      </p>
+    </div>
+
+    <h3 style="margin-top:24px;" id="sec8-params">8.2C 关键训练参数调优建议</h3>
+
+    <table class="compare-table">
+      <thead><tr><th style="width:20%;">参数</th><th style="width:12%;">默认值</th><th style="width:15%;">Hydra 覆盖方式</th><th style="width:53%;">调优建议</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>total_num_steps</b><br><small>总训练步数</small></td>
+          <td>1e6 (示例)<br>7.5e7 (生产)</td>
+          <td><code>habitat_baselines.total_num_steps=5e6</code></td>
+          <td>示例配置仅 100 万步（约 10 分钟），策略不会学会导航。要看到有效的导航行为<b>至少设 500 万步</b>（500 万 ~ 1 小时）。生产级训练建议 7500 万步以上（3-7 天）<br>· 快速验证 pipeline：<code>1e5</code>（5 分钟）<br>· 观察学习趋势：<code>5e6</code>（30-60 分钟）<br>· 获得可用模型：<code>≥ 2.5e7</code>（半天-1天）</td>
+        </tr>
+        <tr>
+          <td><b>num_environments</b><br><small>并行环境数</small></td>
+          <td>4 (示例)<br>16-32 (生产)</td>
+          <td><code>habitat_baselines.num_environments=8</code></td>
+          <td>每个 update 的 batch size = <code>num_environments × num_steps</code>。增大会让训练更稳定（更多样本估计梯度），但 GPU 显存和 CPU 内存线性增长<br>· 8GB 显存：4-6 env<br>· 16GB 显存：8-12 env<br>· 24GB+ 显存：16-32 env</td>
+        </tr>
+        <tr>
+          <td><b>num_steps</b><br><small>每 update 步数</small></td>
+          <td>32 (示例)<br>128 (生产)</td>
+          <td><code>habitat_baselines.num_steps=64</code></td>
+          <td>更大的 num_steps 让每个 update 包含更长的时间序列，有助于学习长期依赖。但 batch 内存 = <code>num_envs × num_steps × obs_size</code><br>· PointNav 简单任务：32-64 足够<br>· ObjectNav/VLN 复杂任务：128-256</td>
+        </tr>
+        <tr>
+          <td><b>lr</b><br><small>学习率</small></td>
+          <td>2.5e-4</td>
+          <td><code>habitat_baselines.lr=1e-4</code></td>
+          <td><b>这与 PPO 的 clip_param 耦合。</b> 如果 reward 震荡剧烈，先降 lr（试试 1e-4 或 5e-5）；如果 reward 始终不上升，试试增大 lr (5e-4)。配合 <code>use_linear_lr_decay=True</code> 使用更佳</td>
+        </tr>
+        <tr>
+          <td><b>clip_param</b><br><small>PPO 裁剪参数</small></td>
+          <td>0.1 (示例)<br>0.2 (标准)</td>
+          <td><code>habitat_baselines.clip_param=0.2</code></td>
+          <td>越小越保守（训练稳定但收敛慢），越大越激进（收敛快但可能发散）。0.1-0.2 是安全区间<br>· 如果你看到 loss 频繁出现 NaN，减小到 0.05<br>· 如果 reward 上升太慢，增大到 0.3</td>
+        </tr>
+        <tr>
+          <td><b>entropy_coef</b><br><small>熵正则化</small></td>
+          <td>0.01</td>
+          <td><code>habitat_baselines.entropy_coef=0.02</code></td>
+          <td>防止策略过早收敛到单一动作。观察 TensorBoard：如果 <code>entropy</code> 快速降到 0，增大此值（0.02-0.05）。如果策略完全不学习，减小此值</td>
+        </tr>
+        <tr>
+          <td><b>max_episode_steps</b><br><small>episode 最大步数</small></td>
+          <td>500</td>
+          <td><code>habitat.environment.max_episode_steps=200</code></td>
+          <td>限制每个 episode 的步数上限。太短会导致 agent 来不及到达目标就超时（影响成功率），太长会浪费训练时间<br>· 小场景（test）：100-200<br>· 中等场景（Gibson）：300-500<br>· 大场景（MP3D/HM3D）：500-1000</td>
+        </tr>
+        <tr>
+          <td><b>eval_interval</b><br><small>评估间隔</small></td>
+          <td>25 (updates)</td>
+          <td><code>habitat_baselines.eval_interval=10</code></td>
+          <td>每隔多少步 evaluation 一次（在验证集上运行，不更新策略）。频繁评估会拖慢训练<br>· 快速实验：10<br>· 长周期训练：50-100</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="code-block" style="margin-top:14px;">
+      <div class="code-label">一个完整的「快速有效训练」命令示例</div>
+      <pre><span class="c"># 合并参数覆盖：更多步数 + 更多并行环境 + 小学习率</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=pointnav/ppo_pointnav_example \
+    <span class="s">habitat_baselines.total_num_steps</span>=<span class="n">5000000</span> \
+    <span class="s">habitat_baselines.num_environments</span>=<span class="n">8</span> \
+    <span class="s">habitat_baselines.num_steps</span>=<span class="n">64</span> \
+    <span class="s">habitat_baselines.lr</span>=<span class="n">1e-4</span> \
+    <span class="s">habitat_baselines.clip_param</span>=<span class="n">0.1</span> \
+    <span class="s">habitat_baselines.use_linear_lr_decay</span>=<span class="n">True</span></pre>
+    </div>
+
+    <h3 style="margin-top:24px;" id="sec8-output">8.2D 训练过程的终端输出详解</h3>
+    <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
+      训练时终端会周期性打印状态。第一次看到时可能不知所措——下面是每条输出逐字段的解读。
+    </p>
+
+    <div class="code-block">
+      <div class="code-label">训练启动信息</div>
+<pre><span class="c"># 启动时会看到类似以下的信息（这是 ppo_pointnav_example 的典型输出）</span>
+2026-06-11 10:15:23,456 Initializing dataset PointNav-v1
+2026-06-11 10:15:23,512 initializing sim Sim-v0
+<span class="c"># ── 关键信息：数据集大小、训练步数、环境数 ──</span>
+<span class="s">Number of training episodes:</span> 1  <span class="c"># habitat-test 只有 1 个训练 episode（用于快速测试）</span>
+<span class="s">Total number of updates:</span> 2441     <span class="c"># = total_num_steps / (num_envs × num_steps)，示例配置共 ~2441 次 update</span>
+<span class="s">Number of environments:</span> 4         <span class="c"># 4 个并行环境</span>
+<span class="s">Number of steps per env:</span> 32       <span class="c"># 每个 update 前每个 env 执行 32 步</span></pre>
+    </div>
+
+    <div class="code-block" style="margin-top:10px;">
+      <div class="code-label">训练中每隔 log_interval 次 update 的输出（简化示例）</div>
+<pre>update: 100   fps: 1580.3   total reward: -0.42   success: 0.00   spl: 0.00
+  distance_to_goal: 3.24   entropy: 1.38   value_loss: 0.15   policy_loss: 0.003  lr: 2.5e-4</pre>
+    </div>
+
+    <table class="compare-table" style="margin-top:12px;">
+      <thead><tr><th style="width:16%;">字段</th><th style="width:10%;">期望走势</th><th style="width:74%;">含义</th></tr></thead>
+      <tbody>
+        <tr><td><code>update: 100</code></td><td>递增</td><td>第 100 次 PPO 更新。总共会有 ~2441 次 update。如果这个数字卡住不动，说明 rollout 收集卡死了</td></tr>
+        <tr><td><code>fps: 1580</code></td><td>稳定</td><td>Frame Per Second — 每秒处理的仿真帧数。受场景复杂度、RGB 分辨率、env 数量影响。如果 fps 异常低（<100），检查 GPU 是否被其他进程占用</td></tr>
+        <tr><td><code>total reward: -0.42</code></td><td style="color:#4ade80;">↑ 上升</td><td>最近一个 rollout 的平均 episode 总奖励。初始为负值是正常的（agent 随机移动碰不到目标，只收 slack penalty）。训练成功的标志是从负数逐渐上升，最终转正</td></tr>
+        <tr><td><code>success: 0.00</code></td><td style="color:#4ade80;">↑ 上升</td><td>最近 rollout 中成功到达目标的 episode 比例（= success_rate）。前几百步通常为 0 — agent 还没学会如何移动。这是<b>最重要的指标</b>。如果 20% 总更新后 success 还是 0，检查参数</td></tr>
+        <tr><td><code>spl: 0.00</code></td><td style="color:#4ade80;">↑ 上升</td><td>Success weighted by Path Length。考虑路径效率的成功率：<code>SPL = 1/N Σ S_i × (l_i_opt / max(l_i, l_i_opt))</code>。agent 不仅到达目标，而且走了接近最短路径</td></tr>
+        <tr><td><code>distance_to_goal: 3.24</code></td><td style="color:#f87171;">↓ 下降</td><td>episode 结束时的平均剩余距离。训练初期 agent 原地转圈，距离维持不变甚至增大。学会导航后这个值会持续下降</td></tr>
+        <tr><td><code>entropy: 1.38</code></td><td>缓慢下降</td><td>策略的动作分布熵。<code>ln(4)≈1.39</code> 是最大值（4 个动作完全均匀随机）。如果快速跌到 ~0.01，说明策略过早崩溃为确定性（只选一个动作），需增大 <code>entropy_coef</code></td></tr>
+        <tr><td><code>value_loss: 0.15</code></td><td>下降后稳定</td><td>Value function 的 MSE loss。帮助判断 Critic 是否在改善对 future reward 的估计。如果持续上升说明策略更新太大，降低 lr</td></tr>
+        <tr><td><code>policy_loss: 0.003</code></td><td>波动</td><td>PPO clipped surrogate loss。这个值的大小没有绝对标准，重要的是它<b>不出现 NaN 或 ±∞</b></td></tr>
+        <tr><td><code>lr: 2.5e-4</code></td><td>不变或线性衰减</td><td>当前 learning rate。如果启用了 <code>use_linear_lr_decay=True</code>，会从初始值线性衰减到 0</td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:24px;" id="sec8-curves">8.2E 训练过程分析：什么样的曲线是健康的？</h3>
+
+    <div class="info-box">
+      <div class="info-title">从随机到收敛的三个阶段</div>
+      <p style="line-height:1.9;">
+        一个典型的 PPO PointNav 训练会经历以下阶段（以 <code>total_num_steps=5e6</code> 为例）：
+      </p>
+      <table class="compare-table" style="margin-top:10px;">
+        <thead><tr><th style="width:15%;">阶段</th><th style="width:15%;">updates 范围</th><th style="width:25%;">特征</th><th style="width:45%;">你应该看到的现象</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><b>1. 随机探索</b></td>
+            <td>0 ~ 10%</td>
+            <td>reward 为负，success = 0</td>
+            <td>total reward 在 -2 到 -0.5 之间波动。entropy ~1.38。策略还在随机试错，碰巧靠近目标时 reward 短暂为正但很快又被随机动作冲掉。这是正常的——耐心等</td>
+          </tr>
+          <tr>
+            <td><b>2. 初步学习</b></td>
+            <td>10% ~ 30%</td>
+            <td>reward 开始上升，occasional success</td>
+            <td>total reward 从 -0.5 向 0 靠近。success 不再恒为 0，偶尔出现 0.05-0.15。entropy 开始缓慢下降（~1.2-1.3）。策略开始理解"向 target direction 走有用"</td>
+          </tr>
+          <tr>
+            <td><b>3. 稳定收敛</b></td>
+            <td>30% ~ 100%</td>
+            <td>success 持续上升，entropy 趋于稳定</td>
+            <td>reward 转为正（+2 到 +5），success 达到 0.4-0.6+。SPL 从 0 上升到 0.3+（路径开始优化）。entropy 稳定在 0.3-0.8。如果 success 在某个值停滞不前且 entropy 接近 0，说明策略已经"满足"于局部最优</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="warn-box" style="margin-top:14px;">
+      <div class="warn-title">需要警惕的危险信号</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:22%;">现象</th><th style="width:38%;">可能原因</th><th style="width:40%;">修复方法</th></tr></thead>
+        <tbody>
+          <tr><td>reward 完全不变（波动幅度 < 0.01）</td><td>学习率太小或 reward scale 问题</td><td>增大 lr → 5e-4；检查 reward_measure 配置是否生效</td></tr>
+          <tr><td>reward 剧烈震荡（相邻 update 之间跳 ±5+）</td><td>学习率太大、batch size 太小</td><td>降 lr → 5e-5；增大 num_environments → 16</td></tr>
+          <tr><td>entropy 在 5% 进度内降到 < 0.01</td><td>策略过早崩溃（entropy collapse）</td><td>增大 entropy_coef → 0.05；减小 clip_param → 0.05</td></tr>
+          <tr><td>policy_loss 出现 NaN</td><td>数值不稳定（梯度爆炸或 advantage 异常）</td><td>减小 clip_param → 0.05；检查 max_grad_norm (设为 0.5)；降低 lr</td></tr>
+          <tr><td>success 上升到 0.3 后突然跌回 0</td><td>策略"忘记"了已学会的行为（catastrophic forgetting）</td><td>减小 lr；增大 num_mini_batch；降低 clip_param</td></tr>
+          <tr><td>fps 在训练中途从 ~1500 掉到 ~100</td><td>某个 env 子进程卡住或 GPU 显存泄漏</td><td>检查 GPU 显存使用（nvidia-smi）；减少 num_environments；降低 RGB 分辨率</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tip-box" style="margin-top:14px;">
+      <div class="tip-title">推荐查看 TensorBoard 的 4 个关键面板</div>
+      <p>
+        <code>tensorboard --logdir=tb</code> 启动后在浏览器打开 <code>http://localhost:6006</code>：<br>
+        · <b>SCALARS → reward</b> — 窗口大小改为 100，观察平滑后的上升趋势<br>
+        · <b>SCALARS → success</b> — 这是最终目标指标，关注最终收敛值（> 0.5 才算有效训练）<br>
+        · <b>SCALARS → entropy</b> — 不应为 0（为 0 = 策略死了），不应维持 1.38 不变（= 没学到任何东西）<br>
+        · <b>SCALARS → value_loss + policy_loss</b> — 两者都不应出现 NaN 或持续增大
+      </p>
+    </div>
 
     <h3 style="margin-top:20px;">8.3 监控训练进度</h3>
     <div class="module-grid">

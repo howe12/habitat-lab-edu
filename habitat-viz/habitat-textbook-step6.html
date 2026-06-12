@@ -100,6 +100,101 @@
 </div>
 </section>
 
+<!-- ═══════════════ 前置：MP3D 与 VLN 的必要关系 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-warn);"></span> 为什么 VLN 必须依赖 Matterport3D？</h2>
+  <p class="section-subtitle">
+    这不是 Habitat 的限制，而是 VLN 任务本身的定义方式决定的。
+  </p>
+
+  <div class="info-box">
+    <div class="info-title">R2R —— VLN 领域的"ImageNet"</div>
+    <p>
+      R2R (Room-to-Room) 是 CVPR 2018 提出的视觉语言导航基准数据集，至今<b>每篇 VLN 论文都以它为评测标准</b>。
+      它的采集方式是：人类标注者在 <b>90 栋 Matterport3D 建筑</b>中行走，用自然语言写下导航指令，
+      例如 <em>"Walk down the hallway, turn left at the painting, and stop in front of the bed."</em>
+      <br><br>
+      <b>这决定了：语言指令和 MP3D 场景是绑定的。</b> 换一栋建筑，"绘画"和"走廊"都不同了，指令不再有意义。
+      正因为如此，VLN 任务无法像 PointNav 那样在不同场景数据集间切换。
+    </p>
+  </div>
+
+  <h3 style="margin-top:20px;color:var(--text-dim);">数据依赖链</h3>
+
+  <div class="arch-diagram">
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#ef444420;border:2px solid #ef4444;min-width:220px;">
+        R2R 数据集<br><small>10,819 条导航指令</small>
+      </div>
+      <div style="margin:0 12px;color:var(--text-dim);align-self:center;">引用</div>
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:220px;">
+        MP3D 场景 ID<br><small>90 栋建筑的 .glb 文件</small>
+      </div>
+      <div style="margin:0 12px;color:var(--text-dim);align-self:center;">运行时</div>
+      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;min-width:220px;">
+        VLN 仿真器<br><small>Instruction → Action → SR/SPL/nDTW</small>
+      </div>
+    </div>
+  </div>
+
+  <p style="margin-top:16px;">
+    Habitat 的 VLN 代码（<code>VLNDatasetV1</code> / <code>VLNTask</code>）本身是<b>场景无关的</b>。
+    但整个 Habitat-Lab 中只注册了 <code>R2RVLN-v1</code> 这一个 VLN 数据集，
+    它的配置硬编码指向 <code>data/datasets/vln/mp3d/r2r/</code>，而其中的 episodes 引用的都是 MP3D 场景。
+  </p>
+
+  <h3 style="margin-top:20px;color:var(--text-dim);">无需认证的获取方案</h3>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>文件</th><th>大小</th><th>来源</th><th>覆盖</th><th>需要认证？</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>vln_r2r_mp3d_v1.zip</code></td>
+        <td>2.7 MB</td>
+        <td>Facebook CDN（<code>dl.fbaipublicfiles.com</code>）</td>
+        <td>10,819 训练 + 1,020 验证 episodes</td>
+        <td style="color:#4ade80;">否</td>
+      </tr>
+      <tr>
+        <td><code>MatterPort3D.zip</code></td>
+        <td>665 MB</td>
+        <td>清华大学云盘</td>
+        <td>11 个场景（val_unseen 全集）</td>
+        <td style="color:#4ade80;">否</td>
+      </tr>
+      <tr>
+        <td><code>mp3d_example</code></td>
+        <td>93 MB</td>
+        <td>Habitat 内置（<code>datasets_download</code>）</td>
+        <td>1 个场景（17DRP5sb8fy）</td>
+        <td style="color:#4ade80;">否</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:16px;">
+    <div class="tip-title">当前状态：12 个场景，可完整走通 VLN 流程</div>
+    <p>
+      以上三样合计 <b>&lt; 800 MB</b>，全部免除认证。覆盖：
+      <br>• <b>训练</b>：17DRP5sb8fy 在 R2R train 中有 75 条指令，足够演示训练流程
+      <br>• <b>评估</b>：11 个 val_unseen 场景覆盖 1,839 条指令，可直接跑标准 val_unseen 评估
+      <br>• 如需完整 90 场景（训练出可发表级 VLN 模型），才需要官方申请 Matterport3D
+    </p>
+  </div>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">有其他数据集可以替代吗？</div>
+    <p>
+      <b>严格来说，没有。</b> 虽然存在 RxR（多语言 R2R）、REVERIE、SOON 等扩展 VLN 数据集，
+      但它们全部基于 MP3D 场景采集。HM3D 和 Gibson 都<b>没有</b>对应的 VLN 指令数据集。
+      如果你将来想对比发表的 VLN 模型或参加 Habitat Challenge，MP3D 是必经之路。
+    </p>
+  </div>
+
+</div>
+</section>
+
 <!-- ═══════════════ 6-1: 配置 VLN 任务 ═══════════════ -->
 <section id="case6-1">
 <div class="container">
@@ -112,7 +207,7 @@
       使用 <code>habitat.get_config()</code> 加载 VLN 基准配置，创建一个 VLN 环境并验证它能正常
       <code>reset()</code>。这是 VLN 训练的<b>最小验证单元</b>——如果这步不通过，后面的训练无从谈起。
       <br><br>
-      <b>前置条件：</b>已安装 habitat-lab + habitat-sim，已下载 R2R 数据集和 Matterport3D 场景。
+      <b>前置条件：</b>已安装 habitat-lab + habitat-sim。R2R 数据集和 MP3D 场景的获取方式见上方"为什么 VLN 必须依赖 Matterport3D"（无需认证，合计 &lt; 800MB）。
     </p>
   </div>
 
@@ -138,7 +233,7 @@ obs = env.reset()
 
 <span class="cmt"># VLN 的 observation 包含语言指令</span>
 <span class="kw">print</span>(<span class="str">"观测键:"</span>, <span class="kw">list</span>(obs.keys()))
-<span class="kw">print</span>(<span class="str">"指令:"</span>, obs[<span class="str">"instruction"</span>][:80], <span class="str">"..."</span>)
+<span class="kw">print</span>(<span class="str">"指令:"</span>, obs[<span class="str">"instruction"</span>][<span class="str">"text"</span>][:80], <span class="str">"..."</span>)
 <span class="kw">print</span>(<span class="str">"RGB shape:"</span>, obs[<span class="str">"rgb"</span>].shape)
 env.close()</div>
   </div>
