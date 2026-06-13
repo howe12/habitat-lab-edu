@@ -890,88 +890,314 @@ $ python -u -m habitat_baselines.run \
     </div>
 
 <!-- 1.4 ImageNav -->
-    <h3 style="color:var(--text);margin:30px 0 12px;">1.4 ImageNav — 图片目标导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐</span></h3>
+    <h3 style="color:var(--text);margin:30px 0 12px;" id="sec-imagenav">1.4 ImageNav — 图片目标导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐</span></h3>
 
-    <div class="info-box">
-      <div class="info-title">① 案例含义</div>
-      <b>ImageNav</b>（ImageGoal Navigation）给智能体一张<b>目标图片</b>（从目标位置看到的 RGB 画面），
-      智能体必须在到达目标位置时 STOP。智能体<b>没有 GPS 信号</b>，只能靠视觉匹配完成导航。
-      这更接近人类导航方式——"到达这个地方（给你看照片）"。
+    <!-- Section TOC -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;font-size:0.82rem;color:#94a3b8;">
+      <span>📌 <a href="#inav-goal" style="color:#60a5fa;">本节目标</a></span>
+      <span>📖 <a href="#inav-what" style="color:#60a5fa;">是什么</a></span>
+      <span>💻 <a href="#inav-practice" style="color:#60a5fa;">实操</a></span>
+      <span>🛠 <a href="#inav-errors" style="color:#60a5fa;">常见错误</a></span>
+      <span>📖 <a href="#inav-api" style="color:#60a5fa;">API 详解</a></span>
+      <span>🏋 <a href="#inav-train" style="color:#60a5fa;">训练</a></span>
     </div>
 
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">ImageNav vs PointNav 的关键区别</div>
-      · PointNav: 给你 <b>GPS 坐标</b> → "目标在你的东北方向 5.2 米"<br>
-      · ImageNav: 给你 <b>一张照片</b> → "目标长这样，你来找"<br>
-      → ImageNav <b>没有 GPS 传感器</b>！策略必须通过视觉匹配来逼近目标位置。
-      ImageNav 虽然复用 PointNav 数据集（在目标位置渲染图片），但训练难度远高于 PointNav。
+    <!-- 📌 本节目标 -->
+    <div class="info-box" id="inav-goal">
+      <div class="info-title">📌 学完本节你将能够</div>
+      用 Gym API 创建 ImageNav 环境，理解 <code>imagegoal</code> 传感器的作用<br>
+      对比 ImageNav 与 PointNav / ObjectNav 在目标表示方式上的根本区别<br>
+      理解「视觉匹配」在完全无 GPS 条件下的挑战与策略设计思路
     </div>
 
-    <div style="margin:14px 0;">
-      <div class="info-title">② 核心配置与关键调用</div>
+    <!-- 🤔 场景驱动问题 -->
+    <div style="margin:14px 0;padding:14px 18px;background:#1e293b;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;">
+      <span style="font-size:1.1rem;">🤔</span>
+      <span style="color:#e2e8f0;font-size:0.88rem;">
+        假设你到一个陌生的城市旅游。当地人没有告诉你<b style="color:#fbbf24;">坐标</b>，也没有说<b>「去找沙发」</b>——<br>
+        他只是掏出一张<b style="color:#60a5fa;">照片</b>：一个喷泉广场，夕阳打在石柱上。<br><br>
+        他说：「我要你去的就是<b style="color:#fbbf24;">这个地方</b>。」<br><br>
+        你现在没有任何 GPS 信号（手机没电了），没有指南针。你只记得那张照片的样子。<br>
+        你走着走着，看到一条街有点像照片里的——但角度不同，光线也不同。<br>
+        <b style="color:#34d399;">你怎么判断"就是这里"？</b><br><br>
+        这就是 ImageNav——任务说明是一张图片，而非坐标或类别标签。
+      </span>
+    </div>
 
-      <table class="compare-table">
-        <thead>
-          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
-        </thead>
+    <!-- 📖 ImageNav 是什么 -->
+    <div class="info-box" id="inav-what" style="margin-top:14px;">
+      <div class="info-title">📖 ImageNav 是什么</div>
+      <b>ImageNav</b>（ImageGoal Navigation）给智能体一张从<b>目标位置拍摄的 RGB 照片</b>作为导航目标。<br><br>
+      <b>关键区别</b>：PointNav 给坐标（定量），ObjectNav 给类别标签（语义）。ImageNav 给的是<b>纯视觉信号</b>——没有文字、没有位置、没有语义。<br>
+      智能体唯一的任务就是：<b>把当前看到的画面，和那张目标照片做匹配</b>，然后朝匹配度更高的方向走。<br><br>
+      这听起来像是「看图找地方」——但你走的路和目标照片的拍摄角度可能<b>完全不同</b>（你从西边来，目标照片是从东边拍的）。策略必须学会<b>跨视点匹配</b>。
+    </div>
+
+    <!-- 📊 核心概念速查 -->
+    <table class="compare-table" style="margin-top:14px;">
+      <thead><tr><th style="width:12%;">对比维度</th><th style="width:22%;">PointNav</th><th style="width:22%;">ObjectNav</th><th style="width:22%;">ImageNav</th><th style="width:22%;">这意味着什么</th></tr></thead>
+      <tbody>
+        <tr><td><b>目标表示</b></td><td>坐标 (ρ, φ)</td><td>类别 ID</td><td>RGB 图片</td><td>纯视觉匹配——最难的目标形式</td></tr>
+        <tr><td><b>动作数</b></td><td>4</td><td>6</td><td>4</td><td>无 LOOK_UP/DOWN，专注水平探索</td></tr>
+        <tr><td><b>传感器</b></td><td>RGB+Depth+GPS+Compass</td><td>RGB+Depth+objectgoal+GPS+Compass</td><td>RGB+Depth+<b style="color:#fbbf24;">imagegoal</b></td><td><b>无 GPS！</b> 完全靠视觉</td></tr>
+        <tr><td><b>奖励</b></td><td>distance_to_goal</td><td>VIEW_POINTS 距离</td><td>distance_to_goal</td><td>到目标点的欧氏距离</td></tr>
+        <tr><td><b>Stop 依赖</b></td><td>GPS 离目标<0.36m</td><td>看到物体→STOP</td><td>视觉匹配→STOP</td><td>最容易出 false positive</td></tr>
+        <tr><td><b>数据集</b></td><td>MP3D/Gibson</td><td>HM3D/MP3D</td><td>复用 PointNav</td><td><b style="color:#34d399;">云端 PointNav MP3D 可用</b></td></tr>
+      </tbody>
+    </table>
+
+    <!-- 💻 实操 -->
+    <h4 id="inav-practice" style="color:var(--text);margin:24px 0 10px;">💻 实操：创建 ImageNav 环境</h4>
+
+    <!-- 设计理论 -->
+    <div style="margin-bottom:12px;">
+      <div style="color:#60a5fa;font-weight:600;font-size:0.85rem;margin-bottom:6px;">设计理论</div>
+      <p style="font-size:0.85rem;color:var(--text-dim);line-height:1.7;">
+        <b>核心任务</b>：创建 ImageNav 环境 → 读取 imagegoal（目标位置 RGB）→ 对比与 PointNav 缺失了哪些传感器。<br>
+        <b>关键点</b>：ImageNav 复用 PointNav 数据集（运行时在目标位置渲染图片），<b>不设置 GPS/Compass 传感器</b>——这是它与 PointNav 最本质的区别。<br>
+        <b>策略设计挑战</b>：你需要比较两张来自不同视点的 RGB 图（当前观测 vs 目标图像），通常用 <b>Siamese 网络</b> 编码两张图后计算相似度。
+      </p>
+    </div>
+
+    <!-- 模块化分析表 -->
+    <table class="compare-table" style="margin-top:10px;">
+      <thead><tr><th style="width:25%;">代码段</th><th style="width:35%;">作用</th><th style="width:40%;">关键点</th></tr></thead>
+      <tbody>
+        <tr><td><code>gym.make("Habitat-v0", cfg="imagenav_mp3d.yaml")</code></td><td>创建 ImageNav 环境</td><td>4 动作 + imagegoal + 无 GPS/Compass</td></tr>
+        <tr><td><code>obs["imagegoal"]</code></td><td>获取目标位置 RGB</td><td>shape (H, W, 3)——与 obs["rgb"] 同结构，但来自目标位置</td></tr>
+        <tr><td><code>obs["rgb"]</code></td><td>当前观测 RGB</td><td>策略需将其与 imagegoal 做比较</td></tr>
+        <tr><td><code>env.current_episode.goal_position</code></td><td>目标位置坐标</td><td>仅用于"内部分数计算"——不暴露给 agent</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 完整代码 -->
+    <div class="code-block" style="margin-top:14px;">
+      <div class="info-title">完整代码</div>
+<pre><span class="kn">import</span> gym, habitat.gym  <span class="c"># 注册 Habitat-v0</span>
+
+<span class="c"># 1. 创建 ImageNav 环境 — 复用 PointNav MP3D 数据集</span>
+env = gym.make(<span class="s">"Habitat-v0"</span>,
+    cfg_file_path=<span class="s">"benchmark/nav/imagenav/imagenav_mp3d.yaml"</span>)
+
+<span class="c"># 2. 重置环境 — 随机场景 + 随机目标（目标位置渲染为 imagegoal）</span>
+obs = env.reset()
+<span class="n">print</span>(obs.keys())
+<span class="c"># 输出: dict_keys(['rgb', 'depth', 'imagegoal'])</span>
+<span class="c"># 注意: 没有 'gps' 和 'compass' — agent 完全没有定位信息！</span>
+
+<span class="c"># 3. 读取目标图片 — imagegoal 是从目标位置看的 RGB</span>
+goal_img = obs[<span class="s">"imagegoal"</span>]
+<span class="n">print</span>(<span class="s">f"Goal image shape: {goal_img.shape}"</span>)
+<span class="c"># 输出: Goal image shape: (256, 256, 3)</span>
+
+<span class="c"># 4. 对比观察空间 — 比 PointNav 少了什么？</span>
+<span class="n">print</span>(<span class="s">f"Action space: {env.action_space}"</span>)
+<span class="c"># 输出: Discrete(4) — 4 个动作，同 PointNav</span>
+
+<span class="c"># 5. 查看目标坐标（仅供内部使用——不暴露给策略）</span>
+ep = env.current_episode
+<span class="n">print</span>(<span class="s">f"Target position: {ep.goal_position}"</span>)
+<span class="c"># 输出: Target position: [3.14, -2.71]  (agent 看不到这个!)</span>
+
+<span class="c"># 6. 尝试随机导航 — 靠视觉匹配找到目标</span>
+total_reward = <span class="mf">0.0</span>
+<span class="kn">for</span> step <span class="kn">in</span> <span class="n">range</span>(<span class="mf">500</span>):
+    action = env.action_space.sample()  <span class="c"># 随机动作</span>
+    obs, reward, done, info = env.step(action)
+    total_reward += reward
+    <span class="kn">if</span> done:
+        <span class="n">print</span>(<span class="s">f"Episode done at step {step+1} — "</span>
+              <span class="s">f"success={info.get('success', 0)}"</span>)
+        <span class="kn">break</span>
+env.close()  <span class="c"># 释放 GPU 资源</span>
+</pre>
+    </div>
+
+    <!-- 运行流程 -->
+    <h4 style="font-size:0.9rem;margin:16px 0 6px;color:#93c5fd;">程序运行流程图</h4>
+    <div class="flow-box">
+      <div class="flow-step" style="border-top:3px solid #64748b;">
+        <b>① import habitat.gym</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">注册 Habitat-v0<br>Gym 环境入口</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #3b82f6;">
+        <b>② gym.make()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">加载 imagenav_mp3d.yaml<br>4 动作 + imagegoal + 无 GPS</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+        <b>③ env.reset()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">随机 MP3D 场景<br>目标点渲染为 RGB</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #f59e0b;">
+        <b>④ 读取 imagegoal</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">(256, 256, 3) 张量<br>目标位置的视角</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #10b981;">
+        <b>⑤ 循环 step()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">策略比较 obs["rgb"] vs<br>imagegoal → 决定动作</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #ec4899;">
+        <b>⑥ env.close()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">释放 GPU 显存<br>清理渲染上下文</p>
+      </div>
+    </div>
+
+    <!-- 运行命令 + 效果截图 -->
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">运行命令</div>
+<pre><span class="c"># 运行上面的 Python 代码</span>
+$ python3 imagenav_env.py</pre>
+    </div>
+
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <img src="images/imagenav_mp3d_goal.png" alt="ImageNav MP3D Goal" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">
+        <span style="color:#60a5fa;font-weight:600;">📋 运行上面代码的实际输出</span><br>
+        ImageNav 环境 — 左: Agent 当前 RGB 观测 — 右: 目标位置 RGB (imagegoal) — <b>无 GPS！</b> 全靠视觉匹配 — 复用 PointNav MP3D 数据集，云端可直接运行
+      </p>
+    </div>
+
+    <!-- 🛠 常见错误 -->
+    <div class="warn-box" id="inav-errors" style="margin-top:18px;">
+      <div class="warn-title">🛠 常见错误</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:35%;">错误信息</th><th style="width:25%;">可能原因</th><th style="width:40%;">解决方法</th></tr></thead>
         <tbody>
-          <tr><td><b>任务类型</b></td><td><code>Nav-v0</code></td><td>复用 PointNav 的基础任务类</td></tr>
-          <tr><td><b>任务配置</b></td><td><code>config/habitat/task/imagenav.yaml</code></td><td>4 个动作，只有 imagegoal 传感器</td></tr>
-          <tr><td><b>目标传感器</b></td><td><code>imagegoal_sensor</code></td><td>输出目标位置的 RGB 图像</td></tr>
-          <tr><td><b>基准配置</b></td><td><code>config/benchmark/nav/imagenav/</code></td><td>imagenav_gibson.yaml / imagenav_mp3d.yaml / imagenav_test.yaml</td></tr>
-          <tr><td><b>训练配置</b></td><td><code>habitat_baselines/config/imagenav/</code></td><td>ddppo_imagenav_gibson.yaml (ResNet50 视觉编码器)</td></tr>
-          <tr><td><b>数据集</b></td><td>共用 PointNav 数据集</td><td>运行时在目标位置渲染 RGB 作为 goal image</td></tr>
-          <tr><td><b>动作空间</b></td><td>4 个离散动作</td><td>同 PointNav（STOP/MOVE_FWD/TURN_LEFT/TURN_RIGHT）</td></tr>
-          <tr><td><b>观测空间</b></td><td>RGB + Depth + <b>目标 RGB 图像</b></td><td>目标图像和当前观测的 RGB 需要被联合编码比较</td></tr>
+          <tr><td><code>KeyError: 'imagegoal'</code></td><td>配置文件未启用 imagegoal_sensor</td><td>确认 yaml 中 <code>imagegoal_sensor</code> 段存在</td></tr>
+          <tr><td><code>ImportError: cannot import name 'ImageGoalSensor'</code></td><td>habitat-lab 版本过旧</td><td>更新 habitat-lab，ImageNav 在 v0.1.5 后引入</td></tr>
+          <tr><td><code>FileNotFoundError: .../mp3d/...</code></td><td>MP3D 数据集缺失</td><td>切换为 <code>imagenav_gibson.yaml</code> 或下载 MP3D 场景</td></tr>
+          <tr><td><code>assert goal_shape == (256, 256, 3)</code></td><td>配置中分辨率不一致</td><td>检查 <code>goal_sensor_uuid</code> 和 <code>hfov</code> 参数</td></tr>
         </tbody>
       </table>
     </div>
 
-    <div class="code-block" style="margin-top:14px;">
-<pre><span class="kn">import</span> gym, habitat.gym
+    <!-- 📖 API 详解 -->
+    <h4 id="inav-api" style="color:var(--text);margin:24px 0 10px;">📖 核心 API 详解</h4>
 
-env = gym.make(<span class="s">&quot;Habitat-v0&quot;</span>,
-    cfg_file_path=<span class="s">&quot;benchmark/nav/imagenav/imagenav_mp3d.yaml&quot;</span>,
-)
-
-obs = env.reset()
-<span class="n">print</span>(obs.keys())
-<span class="c"># dict_keys(['rgb', 'depth', 'imagegoal'])</span>
-
-<span class="c"># imagegoal = 目标位置看到的 RGB 图片</span>
-goal_img = obs[<span class="s">&quot;imagegoal&quot;</span>]
-<span class="n">print</span>(<span class="s">f&quot;Goal image shape: {goal_img.shape}&quot;</span>)  <span class="c"># (H, W, 3)</span>
-
-<span class="c"># 注意: 没有 GPS/Compass 传感器！</span>
-<span class="c"># 策略唯一知道的就是目标图片 + 当前视觉观测</span>
-env.close()
-</pre>
-
-    <div class="screenshot-frame" style="margin:14px 0;">
-      <img src="images/imagenav_mp3d_goal.png" alt="ImageNav Goal Match" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.4 代码: obs["rgb"] (左) 和 obs["imagegoal"] (右) — 无 GPS，纯视觉匹配</span><br>ImageNav — 左: Agent 当前 RGB 观测 — 右: 目标位置 RGB 图片 — 无 GPS！全靠视觉匹配 — 复用 PointNav MP3D 数据集，云端可运行</p>
-    </div>
+    <div class="info-box">
+      <div class="info-title">imagegoal — 目标位置的 RGB 图像</div>
+      <code>obs["imagegoal"]</code> 返回一个 <b>(H, W, 3)</b> 的 NumPy 数组（默认 256×256），从目标坐标渲染。<br><br>
+      <b>与 obs["rgb"] 的比较</b>：两者结构完全相同（都是 RGB 图像），但观察点不同。<br>
+      <b>策略的核心任务</b>：编码这两张图像为向量，计算相似度，选择让相似度增大的动作。<br>
+      通常使用 <b>Siamese 网络</b>（两个共享权重的 CNN + 差异度量）而非简单的像素差——因为视点不同时像素差没有任何意义。
     </div>
 
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">为什么不在 yaml 中配置 GPS/Compass？</div>
+      ImageNav 的设计哲学：你只需要一张目标照片。<br><br>
+      如果在环境中添加 GPS/Compass 传感器，任务就退化为 PointNav——因为策略会直接依赖坐标信号而<b>忽略视觉匹配</b>。<br>
+      ImageNav 强制策略通过视觉推理来定位，而不是走「偷看答案」的捷径。<br>
+      这也意味着 ImageNav 的策略需要比 PointNav <b>更多的视觉表示能力</b>——通常需要 ResNet50 或更强的视觉 backbone。
+    </div>
+
+    <div class="tip-box" style="margin-top:10px;">
+      <div class="tip-title">ImageNav 为什么比 PointNav 难得多？</div>
+      <b>1. 视点变化 (Viewpoint Variation)</b>: 策略从西边走来，目标照片从东边拍摄——相同位置，完全不同的画面。<br>
+      <b>2. 感知混叠 (Perceptual Aliasing)</b>: 走廊两端看起来几乎一样——策略可能走到「看起来像」但实际不对的位置。<br>
+      <b>3. 没有捷径</b>: PointNav 的 GPS 是「作弊器」——远离目标时 reward 减少，靠近时增加。ImageNav 只能靠视觉匹配信号（更稀疏）。<br>
+      <b>4. 图片≠三维场景</b>: 一张 2D 照片缺失深度信息——你不知道「像」的墙在 2 米外还是 20 米外。
+    </div>
+
+    <!-- 🏋 训练 -->
+    <h4 id="inav-train" style="color:var(--text);margin:24px 0 10px;">🏋 训练：启动 ImageNav 训练</h4>
+
+    <!-- 为什么要训练 -->
+    <div style="margin-bottom:12px;padding:12px 16px;background:#1e293b;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;">
+      <span style="font-size:1.1rem;">🤔</span>
+      <span style="color:#e2e8f0;font-size:0.88rem;">
+        随机策略在 ImageNav 里几乎<b>完全无效</b>——它没有 GPS 信号辅助，不知道「往左走更接近目标」。<br>
+        纯随机走 500 步的成功率 ≈ <b style="color:#fbbf24;">0%（基本不可能随机走到目标点附近然后恰好 STOP）</b>。<br><br>
+        <b>训练的目的</b>：让 CNN 学会编码视觉特征，让策略学会从「当前观测 vs 目标照片」的差异中提取导航信号。<br>
+        最简单的做法：用 <b>Siamese 网络</b>（共享权重的双分支 CNN）编码两张图 → 计算特征差异 → 策略根据差异决定动作。
+      </span>
+    </div>
+
+    <!-- 📖 训练方法 -->
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">📖 ImageNav 用什么训练？</div>
+      ImageNav 使用 <b>DD-PPO + ResNet50 视觉 backbone</b> 配置。<br>
+      视觉编码器需要处理<b>双路输入</b>（当前观测 + 目标图片），通常用 Siamese 网络结构。<br>
+      PPO 的核心思想：通过 clipped objective 限制策略每次更新的幅度——详见 <a href="#sec4" style="color:#60a5fa;">§4 PPO 训练算法</a>。<br>
+      ImageNav 训练收敛比 PointNav 慢 5-10 倍——因为视觉匹配信号远不如 GPS 信号精确。
+    </div>
+
+    <!-- 🧱 模块分析表 -->
+    <table class="compare-table" style="margin-top:12px;">
+      <thead><tr><th style="width:22%;">模块</th><th style="width:18%;">文件</th><th style="width:60%;">作用</th></tr></thead>
+      <tbody>
+        <tr><td><b>训练入口</b></td><td><code>habitat_baselines/run.py</code></td><td>Hydra 加载 DD-PPO ImageNav 配置 → 构建 Trainer</td></tr>
+        <tr><td><b>PPO Trainer</b></td><td><code>habitat_baselines/rl/ppo/ppo_trainer.py</code></td><td>管理 Policy + RolloutStorage + PPO 更新循环</td></tr>
+        <tr><td><b>视觉编码器</b></td><td><code>habitat_baselines/rl/models/rnn_state_encoder.py</code></td><td>编码双路 RGB（当前观测 + 目标图片）为特征向量</td></tr>
+        <tr><td><b>VectorEnv</b></td><td><code>habitat/core/vector_env.py</code></td><td>并行管理多个 MP3D/Gibson 场景 env</td></tr>
+        <tr><td><b>Checkpoint</b></td><td><code>data/new_checkpoints/ckpt.{N}.pth</code></td><td>保存 model state_dict + 训练步数</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 📊 流程图 -->
+    <h4 style="font-size:0.9rem;margin:16px 0 6px;color:#93c5fd;">训练流程图</h4>
+    <div class="flow-box">
+      <div class="flow-step" style="border-top:3px solid #64748b;">
+        <b>① Hydra 加载配置</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">imagenav/ddppo_imagenav.yaml<br>+ ResNet50 backbone</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #3b82f6;">
+        <b>② 创建 PPO Trainer</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">Policy(Siamese CNN)<br>+ RolloutStorage</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+        <b>③ 创建 VectorEnv</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">1-4 个 MP3D 环境<br>并行采样</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #f59e0b;">
+        <b>④ Rollout 采样</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">num_steps × envs 步<br>收集 (obs,action,reward)</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #10b981;">
+        <b>⑤ PPO Update</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">GAE → clip → gradient<br>更新 Policy 权重</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #ec4899;">
+        <b>⑥ 保存 Checkpoint</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">data/new_checkpoints/<br>ckpt.{N}.pth</p>
+      </div>
+    </div>
+
+    <!-- 💻 训练命令 -->
     <div class="code-block" style="margin-top:10px;">
-      <div class="info-title">③ 运行命令</div>
-<pre><span class="c"># ImageNav 训练（需要 Gibson/MP3D 数据集）</span>
-$ python -u -m habitat_baselines.run \
-    --config-name=imagenav/ddppo_imagenav_gibson.yaml
-
-<span class="c"># ImageNav 评估</span>
+      <div class="info-title">训练命令</div>
+<pre><span class="c"># ImageNav DD-PPO 训练（需 MP3D 数据集 — 云端已有）</span>
+<span class="c"># 单 GPU 模式: 添加 trainer_name=ppo 覆盖</span>
 $ python -u -m habitat_baselines.run \
     --config-name=imagenav/ddppo_imagenav_gibson.yaml \
-    habitat_baselines.evaluate=True
-</pre>
+    habitat_baselines.trainer_name=ppo \
+    habitat_baselines.num_environments=1 \
+    habitat_baselines.total_num_steps=1e6
+
+<span class="c"># 评估</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=imagenav/ddppo_imagenav_gibson.yaml \
+    habitat_baselines.trainer_name=ppo \
+    habitat_baselines.evaluate=True \
+    habitat_baselines.eval_ckpt_path_dir=data/new_checkpoints</pre>
     </div>
 
-    <div class="warn-box" style="margin-top:14px;">
-      <div class="info-title">ImageNav 的独特挑战</div>
-      1. <b>视觉歧义</b>: 很多位置看起来很像（走廊两端、相似房间）→ 容易走过头<br>
-      2. <b>视点变化</b>: 你从西边走向目标，目标图片是从东边拍的 → 视野完全不同，无法直接匹配<br>
-      3. <b>无定位传感器</b>: 没有任何坐标信号 → 策略必须在脑中建立隐式空间认知<br>
-      4. <b>策略设计</b>: 通常需要 <b>Siamese 网络</b> 或 <b>视觉对比编码器</b> 来比较当前观测和目标图片
+    <!-- 📋 输出解读 -->
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">📋 训练输出解读</div>
+      <b>reward</b>：distance_to_goal_reward（靠近目标 + 分，远离 − 分），但你<b>不知道</b>目标在哪——只能通过视觉匹配间接推断<br>
+      <b>success</b>：前 100 万步 Success ~0-1% 是<b>完全正常</b>的——ImageNav 收敛极慢，因为缺少 GPS 的「对齐信号」<br>
+      <b>fps</b>：相比 PointNav 会慢 20-30%——双路 RGB 编码计算量翻倍（当前观测 + 目标图片）<br>
+      <b>完整训练</b>：需 3-5 亿步（PointNav 的 3-5 倍），Success 可达 30-40%（Gibson 简单场景下）
     </div>
 
     <!-- 1.5 InstanceImageNav -->
