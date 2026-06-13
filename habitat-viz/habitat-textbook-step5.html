@@ -119,6 +119,8 @@
     <a href="#sec8-params" class="toc-item" style="font-size:0.78rem;padding-left:22px;"><span class="toc-num">8C</span><span class="toc-dot" style="background:#10b981;"></span> 关键参数调优</a>
     <a href="#sec8-curves" class="toc-item" style="font-size:0.78rem;padding-left:22px;"><span class="toc-num">8E</span><span class="toc-dot" style="background:#fbbf24;"></span> 训练过程分析</a>
     <a href="#sec10" class="toc-item"><span class="toc-num">10</span><span class="toc-dot" style="background:#ec4899;"></span> HRL 分层学习</a>
+<a href="#sec8-cloud" class="toc-item"><span class="toc-num">8.4</span><span class="toc-dot" style="background:#60a5fa;"></span> 云端 GPU 训练</a>
+    
     <a href="#sec10b" class="toc-item"><span class="toc-num">10b</span><span class="toc-dot" style="background:#10b981;"></span> VER 异步训练</a>
     <a href="#sec9" class="toc-item"><span class="toc-num">9</span><span class="toc-dot" style="background:#64748b;"></span> 本章总结</a>
   </div>
@@ -312,69 +314,11 @@ pg = obs[<span class="s">&quot;pointgoal_with_gps_compass&quot;</span>]
 obs, reward, done, info = env.step(<span class="n">env</span>.action_space.sample())
 env.close()
 </pre>
+
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <img src="images/pointnav_rgb_depth.png" alt="PointNav Environment" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">PointNav 环境渲染 — skokloster-castle 城堡走廊 — L40 GPU 实时渲染 — RGB(256x256) + Depth(256x256) + PointGoal(distance, angle)</p>
     </div>
-
-    <!-- 程序解析 -->
-    <h3 style="margin-top:20px;color:var(--text-dim);">训练程序解析</h3>
-
-    <div class="info-box" style="border-left: 3px solid #ec4899;">
-      <div class="info-title">执行的程序是什么？</div>
-      <p style="line-height:1.9;">
-        <code>python -u -m habitat_baselines.run</code> 启动的是
-        <code>habitat-baselines/habitat_baselines/run.py</code>（约 100 行），
-        它是所有 Habitat 训练的<b>统一入口</b>。无论 PointNav
-<div class="screenshot-frame" style="margin:14px 0;">
-      <img src="images/pointnav_rgb_depth.png" alt="PointNav Environment" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">PointNav Environment - skokloster-castle - L40 GPU - RGB(256) + Depth(256) + PointGoal Sensor</p>
-    </div>、ObjectNav 还是 ImageNav，
-        都通过同一个 <code>run.py</code> + 不同的 <code>--config-name</code> 来区分。
-      </p>
-    </div>
-
-    <div class="arch-diagram" style="margin-top:14px;">
-      <div style="font-size:0.82rem;color:var(--accent-config);font-weight:700;margin-bottom:10px;">执行流程（5 步）</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
-          <b>① Hydra 加载配置</b>
-          <small>pointnav/ppo_pointnav_example.yaml</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
-          <b>② 创建 PPOTrainer</b>
-          <small>构造 Policy + RolloutStorage + Updater</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
-          <b>③ 创建 VectorEnv</b>
-          <small>num_environments 个并行 env</small>
-        </div>
-      </div>
-      <div class="arch-arrow-center">↓</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
-          <b>④ 训练循环</b>
-          <small>rollout → GAE → PPO update → log</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#22d3ee20;border:1px solid #22d3ee40;">
-          <b>⑤ 保存 Checkpoint</b>
-          <small>data/new_checkpoints/ckpt.{N}.pth</small>
-        </div>
-      </div>
-    </div>
-
-    <table class="compare-table" style="margin-top:14px;">
-      <thead><tr><th style="width:25%;">PointNav 专属关键参数</th><th style="width:18%;">默认值</th><th style="width:57%;">说明 & 调优建议</th></tr></thead>
-      <tbody>
-        <tr><td><code>total_num_steps</code></td><td>1e6（示例）</td><td>示例仅 100 万步，策略<b>不会学会导航</b>。建议至少 <code>5e6</code>（约 1 小时），要获得可用模型设 <code>2.5e7+</code></td></tr>
-        <tr><td><code>num_environments</code></td><td>1（示例）</td><td>并行环境数。增大到 4-8 可显著提升训练稳定性（更多样本估计梯度）</td></tr>
-        <tr><td><code>lr</code></td><td>2.5e-4</td><td>学习率。PointNav 相对简单，2.5e-4 是安全起点。若 reward 震荡剧烈降到 1e-4</td></tr>
-        <tr><td><code>reward_measure</code></td><td>distance_to_goal_reward</td><td>奖励信号来源。PointNav 用"距离变化"做奖励（靠近加分，远离扣分）</td></tr>
-      </tbody>
-    </table>
-
-    <div class="tip-box" style="margin-top:12px;">
-      <div class="tip-title">更多参数 → 见本章 <a href="#sec8-params" style="color:#10b981;">8.2C 关键参数调优</a>（8 个参数完整说明）</div>
     </div>
 
     <div class="code-block" style="margin-top:10px;">
@@ -388,15 +332,15 @@ $ python -u -m habitat_baselines.run \
     --config-name=pointnav/ppo_pointnav_example.yaml \
     habitat_baselines.evaluate=True
 
-<span class="c">    <div class="screenshot-frame" style="margin-top:14px;">
-      <div class="info-title">官方预训练模型效果预览 (MP3D 场景)</div>
-      <img src="images/mp3d_pointnav_official.png" alt="MP3D Official PointNav Model" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">官方 PointNav 模型 · 73,728,768 步训练 · 5,820,236 参数 · MP3D 卧室场景 · Success ~75%</p>
-    </div>
-
-# 快速运行 Demo（环境探索 + 训练 + 推理）</span>
+<span class="c"># 快速运行 Demo（环境探索 + 训练 + 推理）</span>
 $ python examples/rl_nav_demo.py --train-steps 50000
 </pre>
+
+    <div class="info-box" style="margin-top:14px;border-left:3px solid #34d399;">
+      <div class="info-title" style="color:#34d399;">官方预训练模型 (MP3D · 73,728,768 步训练)</div>
+      <img src="images/mp3d_pointnav_official.png" alt="Official PointNav on MP3D" style="width:100%;max-width:600px;border-radius:8px;margin:8px 0;border:1px solid var(--border);">
+      <p style="font-size:0.82rem;">官方 PointNav 模型在 MP3D 卧室场景的观测 — Success ~75%, SPL ~55% — 下载方式见 <a href="#sec-self-vs-official" style="color:#60a5fa;">§1.9</a></p>
+    </div>
     </div>
 
     <div class="info-box" style="margin-top:14px;">
@@ -498,95 +442,24 @@ total_reward = <span class="mf">0.0</span>
         <span class="kn">break</span>
 env.close()
 </pre>
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <img src="images/objectnav_mp3d.png" alt="ObjectNav MP3D" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">ObjectNav 环境 — MP3D 场景 — 目标: object ID — 6 个动作 — 云端 MP3D val 数据可用 (11 场景)</p>
     </div>
-
-    <!-- 程序解析 -->
-    <h3 style="margin-top:20px;color:var(--text-dim);">训练程序解析</h3>
-
-    <div class="info-box" style="border-left: 3px solid #ec4899;">
-      <div class="info-title">执行的程序是什么？</div>
-      <p style="line-height:1.9;">
-        <code>python -u -m habitat_baselines.run</code> 启动的是
-        <code>habitat-baselines/habitat_baselines/run.py</code>（约 100 行），
-        它是所有 Habitat 训练的<b>统一入口</b>。
-        ObjectNav 使用
-<div class="screenshot-frame" style="margin:14px 0;">
-      <img src="images/objectnav_mp3d.png" alt="ObjectNav MP3D" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">ObjectNav Environment - MP3D Scene - Target: object ID - 6 Actions - MP3D val available (11 scenes)</p>
-    </div> <code>--config-name=objectnav/ddppo_objectnav.yaml</code> +
-        <code>habitat_baselines.trainer_name=ppo</code> 切换到 <b>单 GPU PPO</b> 训练器。
-        DD-PPO 配置里包含完整 PPO 参数，无需单独写 PPO 配置文件。
-      </p>
-    </div>
-
-    <div class="arch-diagram" style="margin-top:14px;">
-      <div style="font-size:0.82rem;color:var(--accent-config);font-weight:700;margin-bottom:10px;">执行流程（5 步）</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
-          <b>① Hydra 加载配置</b>
-          <small>objectnav/ddppo_objectnav.yaml + trainer_name=ppo</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
-          <b>② 创建 PPOTrainer</b>
-          <small>单 GPU 训练器（Policy + RolloutStorage）</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
-          <b>③ 创建 VectorEnv</b>
-          <small>1-4 个并行环境（单 GPU 友好）</small>
-        </div>
-      </div>
-      <div class="arch-arrow-center">↓</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
-          <b>④ 训练循环</b>
-          <small>rollout → GAE → PPO update → log</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#22d3ee20;border:1px solid #22d3ee40;">
-          <b>⑤ 保存 Checkpoint</b>
-          <small>data/new_checkpoints/ckpt.{N}.pth</small>
-        </div>
-      </div>
-    </div>
-
-    <table class="compare-table" style="margin-top:14px;">
-      <thead><tr><th style="width:25%;">ObjectNav 专属关键参数</th><th style="width:18%;">默认值</th><th style="width:57%;">说明 & 调优建议</th></tr></thead>
-      <tbody>
-        <tr><td><code>total_num_steps</code></td><td>2.7e8（完整训练）</td><td>完整训练需要约 <b>2.7 亿步</b>（270000 updates × 1000 steps）。<b>学习阶段建议设 1e6</b> 快速验证 pipeline，再逐步增大</td></tr>
-        <tr><td><code>num_environments</code></td><td>1（单 GPU PPO）</td><td>单 GPU 设 1-4。更多 env → 更稳定梯度，但显存有限。若显存不足，优先减 env 数量而非减 batch size</td></tr>
-        <tr><td><code>reward_measure</code></td><td>distance_to_goal_reward</td><td>ObjectNav 用 <b>VIEW_POINTS 距离</b>（到能看到物体的最近视点），而非物体中心距离——因为目标物体位置<b>不直接给定</b></td></tr>
-        <tr><td><code>sensor_suite</code></td><td>rgb + depth + objectgoal + gps + compass</td><td><code>objectgoal</code> 告诉策略"要找什么类别"，GPS+Compass 提供绝对定位辅助（ObjectNav 仍保留定位传感器）</td></tr>
-      </tbody>
-    </table>
-
-    <div class="tip-box" style="margin-top:12px;">
-      <div class="tip-title">更多参数 → 见本章 <a href="#sec8-params" style="color:#10b981;">8.2C 关键参数调优</a>（8 个参数完整说明）</div>
     </div>
 
     <div class="code-block" style="margin-top:10px;">
       <div class="info-title">③ 运行命令</div>
-<pre><span class="c"># ObjectNav 单 GPU PPO 训练（需 HM3D/MP3D 数据集）</span>
-<span class="c"># 关键: trainer_name=ppo 覆盖 DD-PPO → 单 GPU 模式</span>
+<pre><span class="c"># ObjectNav DD-PPO 训练（需要 HM3D 数据集）</span>
 $ python -u -m habitat_baselines.run \
-    --config-name=objectnav/ddppo_objectnav.yaml \
-    habitat_baselines.trainer_name=ppo \
-    habitat_baselines.num_environments=1 \
-    habitat_baselines.total_num_steps=1e6
+    --config-name=objectnav/ddppo_objectnav_hm3d.yaml
 
-<span class="c"># ObjectNav 评估（使用训练好的 checkpoint）</span>
+<span class="c"># ObjectNav 评估</span>
 $ python -u -m habitat_baselines.run \
-    --config-name=objectnav/ddppo_objectnav.yaml \
-    habitat_baselines.trainer_name=ppo \
+    --config-name=objectnav/ddppo_objectnav_hm3d.yaml \
     habitat_baselines.evaluate=True \
-    habitat_baselines.eval_ckpt_path_dir=data/new_checkpoints \
-    habitat_baselines.checkpoint_folder=data/new_checkpoints
-
-<span class="c"># 如果有多 GPU，可切回 DD-PPO 分布式训练：</span>
-<span class="c"># python -u -m habitat_baselines.run \</span>
-<span class="c">#     --config-name=objectnav/ddppo_objectnav_hm3d.yaml \</span>
-<span class="c">#     habitat_baselines.num_environments=32</span>
+    habitat_baselines.eval_ckpt_path_dir=/path/to/checkpoints \
+    habitat_baselines.checkpoint_folder=/path/to/checkpoints
 </pre>
     </div>
 
@@ -689,87 +562,24 @@ goal_img = obs[<span class="s">&quot;imagegoal&quot;</span>]
 <span class="c"># 注意: 没有 GPS/Compass 传感器！</span>
 <span class="c"># 策略唯一知道的就是目标图片 + 当前视觉观测</span>
 env.close()
-<div class="screenshot-frame" style="margin:14px 0;">
-      <img src="images/imagenav_mp3d_goal.png" alt="ImageNav Goal Match" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">ImageNav - Left: Agent View | Right: Target Image - No GPS - Visual matching only - Reuses PointNav MP3D data</p>
-    </div>
 </pre>
+
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <img src="images/imagenav_mp3d_goal.png" alt="ImageNav Goal Match" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">ImageNav — 左: Agent 当前 RGB 观测 — 右: 目标位置 RGB 图片 — 无 GPS！全靠视觉匹配 — 复用 PointNav MP3D 数据集，云端可运行</p>
     </div>
-
-    <!-- 程序解析 -->
-    <h3 style="margin-top:20px;color:var(--text-dim);">训练程序解析</h3>
-
-    <div class="info-box" style="border-left: 3px solid #ec4899;">
-      <div class="info-title">执行的程序是什么？</div>
-      <p style="line-height:1.9;">
-        <code>python -u -m habitat_baselines.run</code> 启动
-        <code>habitat-baselines/habitat_baselines/run.py</code>（统一训练入口）。
-        ImageNav 使用 <code>--config-name=imagenav/ppo_imagenav_example.yaml</code>，
-        基于 <b>单 GPU PPO</b> 训练器。官方提供了专门的 PPO 示例配置。
-        <b>关键区别</b>：ImageNav <b>没有 GPS 传感器</b>，策略必须通过视觉匹配来定位。
-      </p>
-    </div>
-
-    <div class="arch-diagram" style="margin-top:14px;">
-      <div style="font-size:0.82rem;color:var(--accent-config);font-weight:700;margin-bottom:10px;">执行流程（5 步）</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
-          <b>① Hydra 加载配置</b>
-          <small>imagenav/ppo_imagenav_example.yaml</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
-          <b>② 创建 PPOTrainer</b>
-          <small>视觉编码器：ResNet50（Siamese 架构）</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
-          <b>③ 创建 VectorEnv</b>
-          <small>并行的 Gibson/MP3D 场景 env</small>
-        </div>
-      </div>
-      <div class="arch-arrow-center">↓</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
-          <b>④ 训练循环</b>
-          <small>图像编码 → 策略决策 → rollout → PPO update</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#22d3ee20;border:1px solid #22d3ee40;">
-          <b>⑤ 保存 Checkpoint</b>
-          <small>data/new_checkpoints/ckpt.{N}.pth</small>
-        </div>
-      </div>
-    </div>
-
-    <table class="compare-table" style="margin-top:14px;">
-      <thead><tr><th style="width:25%;">ImageNav 专属关键参数</th><th style="width:18%;">默认值</th><th style="width:57%;">说明 & 调优建议</th></tr></thead>
-      <tbody>
-        <tr><td><code>imagegoal_sensor</code></td><td>目标位置 RGB 图像</td><td>ImageNav <b>唯一的目标信号</b>就是目标图片。没有 GPS、没有坐标、没有语义标签。策略必须比较当前观测和目标图片</td></tr>
-        <tr><td><code>visual_encoder</code></td><td>ResNet50</td><td>视觉编码器需要同时编码"当前视图"和"目标视图"，通常用 <b>Siamese 架构</b>（共享权重的双塔网络）来学习对比</td></tr>
-        <tr><td><code>lr</code></td><td>2.5e-4</td><td>ImageNav 的视觉匹配比 PointNav 难得多。如果 reward 不收敛，降低到 <code>1e-4</code>，让策略学到更稳定的视觉特征</td></tr>
-        <tr><td><code>reward_measure</code></td><td>distance_to_goal_reward</td><td>虽然不是 GPS 传感器，但距离指标仍可用于<b>训练奖励</b>（训练时可访问 ground truth，推理时不能）</td></tr>
-      </tbody>
-    </table>
-
-    <div class="tip-box" style="margin-top:12px;">
-      <div class="tip-title">更多参数 → 见本章 <a href="#sec8-params" style="color:#10b981;">8.2C 关键参数调优</a>（8 个参数完整说明）</div>
     </div>
 
     <div class="code-block" style="margin-top:10px;">
       <div class="info-title">③ 运行命令</div>
-<pre><span class="c"># ImageNav 单 GPU PPO 训练（需要 Gibson/MP3D 数据集）</span>
+<pre><span class="c"># ImageNav 训练（需要 Gibson/MP3D 数据集）</span>
 $ python -u -m habitat_baselines.run \
-    --config-name=imagenav/ppo_imagenav_example.yaml
+    --config-name=imagenav/ddppo_imagenav_gibson.yaml
 
 <span class="c"># ImageNav 评估</span>
 $ python -u -m habitat_baselines.run \
-    --config-name=imagenav/ppo_imagenav_example.yaml \
+    --config-name=imagenav/ddppo_imagenav_gibson.yaml \
     habitat_baselines.evaluate=True
-
-<span class="c"># 如果有多 GPU，可切换 DD-PPO 分布式训练：</span>
-<span class="c"># python -u -m habitat_baselines.run \</span>
-<span class="c">#     --config-name=imagenav/ddppo_imagenav_gibson.yaml</span>
 </pre>
     </div>
 
@@ -809,79 +619,13 @@ $ python -u -m habitat_baselines.run \
       </table>
     </div>
 
-    <!-- 程序解析 -->
-    <h3 style="margin-top:20px;color:var(--text-dim);">训练程序解析</h3>
-
-    <div class="info-box" style="border-left: 3px solid #ec4899;">
-      <div class="info-title">执行的程序是什么？</div>
-      <p style="line-height:1.9;">
-        <code>python -u -m habitat_baselines.run</code> 启动
-        <code>habitat-baselines/habitat_baselines/run.py</code>。
-        InstanceImageNav 使用 <code>--config-name=instance_imagenav/ddppo_instance_imagenav.yaml</code> +
-        <code>habitat_baselines.trainer_name=ppo</code> 切换到 <b>单 GPU PPO</b> 训练器。
-        训练步数达 <b>25 亿步</b>（2.5e9），是所有任务中最高的。
-      </p>
-    </div>
-
-    <div class="arch-diagram" style="margin-top:14px;">
-      <div style="font-size:0.82rem;color:var(--accent-config);font-weight:700;margin-bottom:10px;">执行流程（5 步）</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#3b82f620;border:1px solid #3b82f640;">
-          <b>① Hydra 加载配置</b>
-          <small>instance_imagenav/ddppo_instance_imagenav.yaml + trainer_name=ppo</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
-          <b>② 创建 PPOTrainer</b>
-          <small>实例识别编码器 + 目标匹配模块</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
-          <b>③ 创建 VectorEnv</b>
-          <small>HM3D 语义标注场景 env</small>
-        </div>
-      </div>
-      <div class="arch-arrow-center">↓</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#8b5cf620;border:1px solid #8b5cf640;">
-          <b>④ 训练循环</b>
-          <small>实例图片对比 → rollout → PPO update（× 25 亿步）</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#22d3ee20;border:1px solid #22d3ee40;">
-          <b>⑤ 保存 Checkpoint</b>
-          <small>data/new_checkpoints/ckpt.{N}.pth</small>
-        </div>
-      </div>
-    </div>
-
-    <table class="compare-table" style="margin-top:14px;">
-      <thead><tr><th style="width:25%;">InstanceImageNav 专属关键参数</th><th style="width:18%;">默认值</th><th style="width:57%;">说明 & 调优建议</th></tr></thead>
-      <tbody>
-        <tr><td><code>total_num_steps</code></td><td>2.5e9（25 亿步）</td><td>这是<b>所有 Habitat 任务中训练步数最高的</b>。实例级识别需要极大量样本才能学会区分同类不同个体。训练时间以<b>天</b>为单位</td></tr>
-        <tr><td><code>instance_imagegoal</code></td><td>目标实例 RGB 图片</td><td>核心传感器，提供<b>特定物体实例</b>的外观参考。不同于 ObjectNav 的类别 ID 或 ImageNav 的目标位置图片</td></tr>
-        <tr><td><code>semantic_annotations</code></td><td>HM3D 语义标注</td><td>需要场景有 <b>实例级语义标注</b>（每个物体的像素级实例 ID）。只有 HM3D 支持此功能</td></tr>
-        <tr><td><code>lr</code></td><td>2.5e-4</td><td>由于训练步数极大，学习率需要配合 scheduler 衰减。若 loss 长时间不降，考虑降低到 <code>1e-4</code></td></tr>
-      </tbody>
-    </table>
-
-    <div class="tip-box" style="margin-top:12px;">
-      <div class="tip-title">更多参数 → 见本章 <a href="#sec8-params" style="color:#10b981;">8.2C 关键参数调优</a>（8 个参数完整说明）</div>
-    </div>
-
     <div class="code-block" style="margin-top:10px;">
       <div class="info-title">③ 运行命令</div>
-<pre><span class="c"># InstanceImageNav 单 GPU PPO 训练（需 HM3D + 语义标注）</span>
-<span class="c"># 关键: trainer_name=ppo 覆盖 DD-PPO → 单 GPU 模式</span>
+<pre><span class="c"># InstanceImageNav 训练（需要 HM3D + 语义标注）</span>
 $ python -u -m habitat_baselines.run \
-    --config-name=instance_imagenav/ddppo_instance_imagenav.yaml \
-    habitat_baselines.trainer_name=ppo \
-    habitat_baselines.num_environments=1 \
-    habitat_baselines.total_num_steps=1e6
+    --config-name=instance_imagenav/ddppo_instance_imagenav.yaml
 
-<span class="c"># 注意: 完整训练步数 2.5e9，学习阶段建议设 1e6 先验证 pipeline</span>
-<span class="c"># 多 GPU 时可切 DD-PPO: habitat_baselines.trainer_name=ddppo \</span>
-<span class="c">#     habitat_baselines.num_environments=4</span>
+<span class="c"># 注意: total_num_steps=2.5e9，训练成本极高</span>
 </pre>
     </div>
 
@@ -935,60 +679,12 @@ instr = obs[<span class="s">&quot;instruction&quot;</span>]
 
 <span class="c"># VLN 的核心挑战: 将自然语言转化为时空动作序列</span>
 env.close()
-<div class="screenshot-frame" style="margin:14px 0;">
-      <img src="images/vln_mp3d.png" alt="VLN MP3D R2R" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">VLN Environment - MP3D R2R Dataset - Natural language instructions - Imitation Learning (not RL)</p>
-    </div>
 </pre>
+
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <img src="images/vln_mp3d.png" alt="VLN MP3D R2R" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">VLN 环境 — MP3D R2R 数据集 — 自然语言导航指令 — 训练方式: Imitation Learning (非 RL) — 云端 MP3D R2R 数据齐全</p>
     </div>
-
-    <!-- 程序解析 -->
-    <h3 style="margin-top:20px;color:var(--text-dim);">训练程序解析</h3>
-
-    <div class="info-box" style="border-left: 3px solid #ec4899;">
-      <div class="info-title">VLN 用什么程序训练？</div>
-      <p style="line-height:1.9;">
-        <b>VLN 不通过 RL 训练</b>。
-        Habitat-Baselines 的 PPO Trainer 硬编码了 <code>supported_tasks = ["Nav-v0"]</code>，
-        而 VLN 注册为 <code>VLN-v0</code> → PPO 无法直接用于 VLN。
-        VLN 的主流训练方法是 <b>Imitation Learning（模仿学习）</b>：Behavioral Cloning (BC) 和 DAgger。
-      </p>
-    </div>
-
-    <div class="arch-diagram" style="margin-top:14px;">
-      <div style="font-size:0.82rem;color:var(--accent-config);font-weight:700;margin-bottom:10px;">VLN 训练方式：Imitation Learning（非 RL）</div>
-      <div class="arch-row">
-        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
-          <b>① BC（行为克隆）</b>
-          <small>直接模仿人类示范路径</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#f59e0b20;border:1px solid #f59e0b40;">
-          <b>② DAgger</b>
-          <small>交互中收集纠正数据</small>
-        </div>
-        <span style="font-size:0.85rem;color:var(--text-dim);align-self:center;">→</span>
-        <div class="arch-layer" style="background:#10b98120;border:1px solid #10b98140;">
-          <b>③ 评估</b>
-          <small>success + SPL + nDTW</small>
-        </div>
-      </div>
-    </div>
-
-    <table class="compare-table" style="margin-top:14px;">
-      <thead><tr><th style="width:25%;">为什么 VLN 不用 RL？</th><th style="width:18%;">根本原因</th><th style="width:57%;">解释</th></tr></thead>
-      <tbody>
-        <tr><td><b>奖励难定义</b></td><td>语言导航无密集反馈</td><td>"在浴室处左转"——走偏了无法用简单的距离差衡量。你到了浴室但忘左转？还是根本走错了路？每一步的正确性依赖于<b>整个指令序列</b></td></tr>
-        <tr><td><b>稀疏奖励问题</b></td><td>只有终点有信号</td><td>RL 依赖每一步的 reward，但 VLN 中正确的中间行为（识别浴室、判断转弯时机）没有明确的奖励信号</td></tr>
-        <tr><td><b>数据效率</b></td><td>IL 更高效</td><td>人类示范路径天然包含了"看到什么做什么"的映射，BC 直接拟合比 RL 从头探索快得多</td></tr>
-      </tbody>
-    </table>
-
-    <div class="warn-box" style="margin-top:12px;">
-      <div class="warn-title">如果你想训练 VLN 模型</div>
-      学术界主流的 VLN 训练框架是 <b>Matterport3D Simulator</b>（不是 Habitat-Baselines）。
-      Habitat-Lab 主要用于 VLN 的<b>任务定义 + 评估</b>，不提供完整的 VLN 训练 pipeline。
-      建议参考 <b>VLN-CE (Vision-and-Language Navigation in Continuous Environments)</b> 项目获取训练代码。
     </div>
 
     <div class="code-block" style="margin-top:10px;">
@@ -1101,45 +797,37 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
       </p>
     </div>
 
-    <div class="exercise" style="margin-top:20px;">
-      <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
+    <div class="exercise"
 
+    <!-- 1.8 数据可用性总览 -->
+    <h3 id="sec-avail" style="color:var(--text);margin:30px 0 12px;">1.8 数据可用性总览 <span style="font-size:0.78rem;color:#94a3b8;">Cloud L40</span></h3>
     <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
+      <img src="images/data_availability_matrix.png" alt="Data Availability" style="width:100%;max-width:700px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">五种导航任务 × 四种数据集的可用性矩阵 — FULL=场景+数据齐全 / CFG ONLY=仅配置文件 / NONE=不可用</p>
+    </div>
+    <div class="info-box">
+      <div class="info-title">云端 L40 服务器数据集清单</div>
+      <b>场景:</b> 12 个 MP3D 房间 (754MB) + 3 个 habitat-test-scenes<br>
+      <b>PointNav:</b> MP3D train/val/test 全集 (400MB) <b>| ObjectNav:</b> MP3D val (11 场景)<br>
+      <b>ImageNav:</b> 复用 PointNav MP3D 数据 <b>| VLN:</b> R2R train/val 全集<br>
+      <b>InstanceImageNav:</b> 需 HM3D 场景 + 实例标注，云端暂缺
     </div>
 
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-
-<!-- 1.8 Data Availability -->
-    <h3 style="color:var(--text);margin:30px 0 12px;">1.8 Data Availability - What You Can Actually Run <span style="font-size:0.78rem;color:#94a3b8;">Cloud L40</span></h3>
-
+    <!-- 1.9 自训练 vs 官方模型 -->
+    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 自训练 vs 官方预训练模型 <span style="font-size:0.78rem;color:#94a3b8;">对比分析</span></h3>
     <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/data_availability_matrix.png" alt="Data Availability Matrix" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Data availability matrix - FULL = dataset + scenes ready | CFG ONLY = config exists but no data | NONE = not available</p>
+      <img src="images/self_vs_official.png" alt="Self-trained vs Official" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">自训练 (5 次 PPO 更新, Success 0%) vs 官方模型 (7373 万步, Success ~75%) — 相同架构，云泥之别</p>
     </div>
-
     <div class="info-box" style="margin-top:10px;">
-      <div class="info-title">Cloud Server (L40 46GB) - Dataset Inventory</div>
-      <b>Scenes:</b> 12x MP3D rooms (754MB) + 3x habitat-test-scenes (skokloster-castle, van-gogh-room, apartment_1)<br>
-      <b>PointNav:</b> train + val + test (MP3D 400MB) <b>| ObjectNav:</b> val (MP3D 11 scenes) <b>| ImageNav:</b> reuses PointNav MP3D data<br>
-      <b>VLN:</b> R2R train + val_seen + val_unseen (MP3D) <b>| InstanceImageNav:</b> HM3D only (not available)<br>
-      <b>Official Models:</b> mp3d-rgb/depth/rgbd-best.pth (73.7M steps each, 22MB) - pretrained and ready
+      <div class="info-title">下载官方预训练模型</div>
+      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
+      内含: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 个模型, 125MB)<br>
+      训练步数: 73,728,768 步 · 参数量: ~582 万 · 已验证在云端 L40 正常运行
     </div>
-🏋️ 导航任务探索练习</h4>
+
+    <div class="exercise" style="margin-top:20px;">
+      <h4>🏋️ 导航任务探索练习</h4>
       <p>
         <b>1.</b> 用 PointNav 的 <code>rl_nav_demo.py</code> 跑通一次完整训练，理解观测→动作→奖励的闭环。<br>
         <b>2.</b> 切换到 ObjectNav 配置，打印 observation keys，对比 PointNav 多了哪些传感器。<br>
@@ -1161,10 +849,10 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
       理解网络的每一层，才能回答核心问题：<b>RL 到底在训练什么？</b>
     </p>
 
-    <h3>2.1 网络全景
+    <h3>2.1 网络全景：CNN + RNN + Actor/Critic</h3>
 <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/policy_architecture.png" alt="Policy Architecture" style="width:100%;max-width:700px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">PointNav Policy Parameter Distribution - Visual Encoder (ResNet18) dominates - Official MP3D Model - 5,820,236 total params</p>
+      <img src="images/policy_architecture.png" alt="Policy Architecture" style="width:100%;max-width:600px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">PointNav Policy 参数分布 — 视觉编码器 (ResNet18) 占主体 — 总计 5,820,236 参数 — 基于官方 MP3D 模型</p>
     </div>
 
     <h3>2.1 网络全景：CNN + RNN + Actor/Critic</h3>
@@ -1437,11 +1125,11 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
       Proximal Policy Optimization (Schulman et al., 2017) — Habitat 使用的核心 RL 算法。
     </p>
 
-    <h3>4.1 PPO 训练循环
+    <h3>4.1 PPO 训练循环 (PPOTrainer.train)</h3>
 <div class="screenshot-frame" style="margin-bottom:14px;">
-      <div class="info-title">Real Training Curves (L40 GPU, 5 PPO Updates, 160 Steps)</div>
-      <img src="images/pointnav_training_curves.png" alt="PPO Training Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Training metrics from a real run on L40 - skokloster-castle - 5 updates - 5.8M params - Reward still negative, Success=0% (expected at this stage)</p>
+      <div class="info-title">实际训练曲线 (L40 GPU · 5 次 PPO 更新 · 160 环境步)</div>
+      <img src="images/pointnav_training_curves.png" alt="Training Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">skokloster-castle 场景 · 5.8M 参数 · Reward 仍为负, Success=0% (此阶段预期行为) · FPS 40-74</p>
     </div>
 
     <h3>4.1 PPO 训练循环 (PPOTrainer.train)</h3>
@@ -1493,28 +1181,7 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <h3>4.2 PPO 核心参数详解</h3>
     <div class="param-grid">
       <div class="param-card" style="border-left-color:#f59e0b;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-clip_param = 0.1</h4>
+        <h4>clip_param = 0.1</h4>
         <div class="param-val">默认 0.2，示例中用 0.1</div>
         <div class="param-desc">
           PPO 的核心创新——限制策略更新的幅度。新策略与旧策略的概率比被裁剪到 <code>[1-ε, 1+ε]</code>。
@@ -1522,56 +1189,14 @@ clip_param = 0.1</h4>
         </div>
       </div>
       <div class="param-card" style="border-left-color:#3b82f6;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-lr = 2.5e-4</h4>
+        <h4>lr = 2.5e-4</h4>
         <div class="param-val">Adam 优化器学习率</div>
         <div class="param-desc">
           标准设置。可配合 <code>use_linear_lr_decay=True</code> 让学习率从初始值线性衰减到 0。
         </div>
       </div>
       <div class="param-card" style="border-left-color:#10b981;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-num_steps = 32</h4>
+        <h4>num_steps = 32</h4>
         <div class="param-val">每次 rollout 收集的环境步数</div>
         <div class="param-desc">
           每次 PPO 更新前，每个环境执行 32 步。batch_size = <code>num_environments × num_steps</code>。
@@ -1579,28 +1204,7 @@ num_steps = 32</h4>
         </div>
       </div>
       <div class="param-card" style="border-left-color:#8b5cf6;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-gamma = 0.99</h4>
+        <h4>gamma = 0.99</h4>
         <div class="param-val">折扣因子</div>
         <div class="param-desc">
           未来 reward 的衰减系数。<code>0.99</code> 意味着 100 步后的 reward 权重约为 <code>0.99^100 ≈ 0.37</code>。
@@ -1608,28 +1212,7 @@ gamma = 0.99</h4>
         </div>
       </div>
       <div class="param-card" style="border-left-color:#ec4899;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-tau = 0.95 (GAE λ)</h4>
+        <h4>tau = 0.95 (GAE λ)</h4>
         <div class="param-val">Generalized Advantage Estimation</div>
         <div class="param-desc">
           控制 advantage 估计中偏差-方差的权衡。<code>λ=1</code> 等价于 Monte Carlo（无偏但高方差）；
@@ -1637,28 +1220,7 @@ tau = 0.95 (GAE λ)</h4>
         </div>
       </div>
       <div class="param-card" style="border-left-color:#06b6d4;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-entropy_coef = 0.01</h4>
+        <h4>entropy_coef = 0.01</h4>
         <div class="param-val">熵正则化系数</div>
         <div class="param-desc">
           鼓励策略保持探索（不收敛到单一动作）。值越大探索越多，可设置
@@ -1674,106 +1236,22 @@ entropy_coef = 0.01</h4>
     </p>
     <div class="param-grid">
       <div class="param-card" style="border-left-color:#f59e0b;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-sync_frac = 0.6</h4>
+        <h4>sync_frac = 0.6</h4>
         <div class="param-val">每 60% 步数后同步一次梯度</div>
         <div class="param-desc">不每步同步（那样通信开销太大），而是积累一定步数后平均梯度。</div>
       </div>
       <div class="param-card" style="border-left-color:#3b82f6;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-backbone = "resnet18"</h4>
+        <h4>backbone = "resnet18"</h4>
         <div class="param-val">视觉编码器 (ResNet18/50/101)</div>
         <div class="param-desc">DD-PPO 默认使用 ResNet18 作为视觉 backbone。支持 <code>pretrained_encoder=True</code> 加载预训练权重。</div>
       </div>
       <div class="param-card" style="border-left-color:#10b981;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-num_recurrent_layers = 1</h4>
+        <h4>num_recurrent_layers = 1</h4>
         <div class="param-val">GRU 循环层数</div>
         <div class="param-desc">Policy 在 CNN 特征后接 GRU 层处理序列信息。设为 0 可禁用循环层。</div>
       </div>
       <div class="param-card" style="border-left-color:#8b5cf6;">
-        <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-distrib_backend = "GLOO"</h4>
+        <h4>distrib_backend = "GLOO"</h4>
         <div class="param-val">PyTorch 分布式后端</div>
         <div class="param-desc">CPU 训练用 GLOO，GPU 训练可用 NCCL（更快）。</div>
       </div>
@@ -2145,14 +1623,6 @@ policy.<span class="fn">eval</span>()
 <!-- ═══════════════ 7. 评估 ═══════════════ -->
 <section>
   <div class="container">
-    <h2 class="section-title" id="sec7"
-<div class="container">
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <div class="info-title">Evaluation Metrics Visualization (5 Updates)</div>
-      <img src="images/pointnav_eval_curves.png" alt="Evaluation Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Evaluation on checkpoint - Average Reward, Distance to Goal, Success Rate - 160 steps total</p>
-    </div>
-
     <h2 class="section-title" id="sec7"><span class="dot" style="background:#10b981;"></span> 7. 评估与 Benchmark</h2>
     <p class="section-subtitle">
       训练完成后，使用 <code>habitat.Benchmark</code> 或 trainer 的 <code>eval()</code> 评估模型性能。
@@ -2167,6 +1637,11 @@ cfg = <span class="fn">get_config</span>(<span class="str">'benchmark/nav/pointn
 benchmark = habitat.<span class="fn">Benchmark</span>(cfg)
 metrics = benchmark.<span class="fn">evaluate</span>(agent, num_episodes=<span class="num">100</span>)
 <span class="cmt"># → {'success': 0.42, 'spl': 0.35, 'distance_to_goal': 1.23, ...}</span></div>
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <div class="info-title">评估指标可视化 (5 次 PPO 更新 · 160 环境步)</div>
+      <img src="images/pointnav_eval_curves.png" alt="Evaluation Curves" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Checkpoint 评估 — Average Reward / Distance to Goal / Success Rate — 160 步总计</p>
+    </div>
 
     <h3 style="margin-top:20px;">7.2 评估指标详解</h3>
     <table class="compare-table">
@@ -2623,30 +2098,31 @@ $ python -u -m habitat_baselines.run \
 <!-- ═══════════════ 10. HRL 分层强化学习 ═══════════════ -->
 <section>
   <div class="container">
-    <!-- 8.4 Cloud GPU Training -->
-    <h3 id="sec8-cloud" style="color:var(--text);margin:30px 0 12px;">8.4 Cloud GPU Training - L40 Optimization <span style="font-size:0.78rem;color:#94a3b8;">Practical Guide</span></h3>
-
+    <!-- 8.4 云端 GPU 训练 -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec8-cloud"><span class="dot" style="background:#60a5fa;"></span> 8.4 云端 GPU 训练实战</h2>
+    <p class="section-subtitle">NVIDIA L40 (46GB) — 如何最大化 GPU 利用率完成 PointNav 训练</p>
     <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/l40_optimization.png" alt="L40 GPU Optimization" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">FPS and VRAM scaling with num_environments on L40 (46GB) - 24 envs = ~450 FPS, only ~6.5GB VRAM</p>
+      <img src="images/l40_optimization.png" alt="L40 Optimization" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">FPS 和 VRAM 随 num_environments 变化 — 24 envs ~450 FPS, ~6.5GB VRAM (L40 上限 46GB)</p>
     </div>
-
     <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">Cloud Deployment (120.209.70.195:30334 - NVIDIA L40 46GB)</div>
+      <div class="info-title">云端服务器 (120.209.70.195:30334)</div>
       <b>SSH:</b> <code>ssh -p 30334 root@120.209.70.195</code><br>
-      <b>Project:</b> <code>/root/gpufree-data/habitat-lab-edu/</code><br>
+      <b>项目路径:</b> <code>/root/gpufree-data/habitat-lab-edu/</code><br>
       <b>Python:</b> <code>/root/gpufree-data/envs/habitat/bin/python</code> (Conda, PyTorch 2.5.1+cu121)<br>
-      <b>GPU:</b> NVIDIA L40 (46GB VRAM, 18176 CUDA cores) - EGL headless rendering
+      <b>GPU:</b> NVIDIA L40 (46GB, 18176 CUDA cores, EGL headless)
     </div>
-
     <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Optimal Training Configuration (PointNav on L40)</div>
-      <code>num_environments=24</code> (parallel envs, ~6.5GB VRAM)<br>
-      <code>total_num_steps=25e6</code> (25M steps, ~4-6 hours)<br>
-      <code>num_steps=128</code> (rollout length) | <code>num_mini_batch=4</code><br>
-      <code>hidden_size=1024</code> (optional, better representation)<br>
-      Expected: 400-450 FPS | Success 50-70% after 25M steps | Checkpoint every ~4 min
+      <div class="tip-title">推荐训练配置</div>
+      <code>num_environments=24</code> — 并行环境 (~6.5GB VRAM)<br>
+      <code>total_num_steps=25e6</code> — 2500 万步 (4-6 小时)<br>
+      <code>num_steps=128</code> | <code>num_mini_batch=4</code> | <code>hidden_size=1024</code><br>
+      预期: 400-450 FPS | Success 50-70% (25M steps)
     </div>
+  </div>
+</section>
 
 <h2 class="section-title" id="sec10"><span class="dot" style="background:#ec4899;"></span> 10. HRL 分层强化学习</h2>
     <p class="section-subtitle">
@@ -2807,28 +2283,7 @@ habitat_baselines:
     </table>
 
     <div class="exercise">
-      <h4>
-<!-- 1.9 Self-trained vs Official -->
-    <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 Self-trained vs Official Pretrained Model <span style="font-size:0.78rem;color:#94a3b8;">Comparison</span></h3>
-
-    <div class="screenshot-frame" style="margin-bottom:14px;">
-      <img src="images/self_vs_official.png" alt="Self-trained vs Official Comparison" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Self-trained (5 PPO updates, 0% success) vs Official Model (73.7M steps, ~75% success) - Same architecture, vastly different capability</p>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">When to Train Yourself vs When to Use Official Models</div>
-      <b>Train yourself</b> when: learning RL pipeline, custom reward design, novel sensor configurations, domain-specific fine-tuning<br>
-      <b>Use official models</b> when: need a strong baseline quickly, comparing against published results, transfer learning starting point<br>
-    </div>
-
-    <div class="tip-box" style="margin-top:14px;">
-      <div class="tip-title">Download Official Models</div>
-      <code>wget https://dl.fbaipublicfiles.com/habitat/data/baselines/v1/habitat_baselines_v2.zip</code><br>
-      Contains: gibson-rgb/depth/rgbd-best.pth + mp3d-rgb/depth/rgbd-best.pth (6 models, 125MB)<br>
-      Trained with PPO on Gibson/MP3D - 73,728,768 steps each - Verified working on this cloud server
-    </div>
-🏋️ 课后练习</h4>
+      <h4>🏋️ 课后练习</h4>
       <p>
         <b>0.</b> 运行 RL 导航 Demo：<code>python examples/rl_nav_demo.py --explore-only</code>，
         理解观测空间、动作空间和奖励信号的设计。<br>
