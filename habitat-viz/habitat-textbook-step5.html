@@ -2021,6 +2021,23 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
   </div>
 </section>
 
+<!-- ══════ 🛠 §2 常见错误 ══════ -->
+<section>
+  <div class="container">
+    <div class="warn-box">
+      <div class="warn-title">🛠 Policy 网络常见错误</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:35%;">错误信息</th><th style="width:25%;">可能原因</th><th style="width:40%;">解决方法</th></tr></thead>
+        <tbody>
+          <tr><td><code>RuntimeError: size mismatch</code></td><td>CNN 输出维度与 RNN 输入不匹配</td><td>检查 <code>BACKBONE</code> 参数和 <code>hidden_size</code> 是否一致</td></tr>
+          <tr><td><code>IndexError: action out of range</code></td><td>策略输出维度 ≠ 动作空间大小</td><td>Policy 最后一层必须输出 <code>num_actions</code> 维</td></tr>
+          <tr><td><code>CUDA out of memory</code></td><td>视觉 backbone 太大 (ResNet101)</td><td>降级为 <code>resnet50</code> 或减小 <code>hidden_size</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════ 3. RL 环境链 ═══════════════ -->
 <section>
   <div class="container">
@@ -2680,6 +2697,23 @@ r<sub>t</sub>(θ) = π<sub>new</sub> / π<sub>old</sub> = 0.6 / 0.4 = <b>1.5</b>
   </div>
 </section>
 
+<!-- ══════ 🛠 §3 常见错误 ══════ -->
+<section>
+  <div class="container">
+    <div class="warn-box">
+      <div class="warn-title">🛠 RL 环境包装链常见错误</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:35%;">错误信息</th><th style="width:25%;">可能原因</th><th style="width:40%;">解决方法</th></tr></thead>
+        <tbody>
+          <tr><td><code>TypeError: RLEnv.__init__() missing config</code></td><td>用 <code>Env(config)</code> 替代了 <code>RLEnv(config)</code></td><td>训练必须用 RLEnv——Env 不提供 reward 计算</td></tr>
+          <tr><td><code>KeyError: 'reward_measure'</code></td><td>RLEnv 配置缺少 <code>reward_measure</code> 段</td><td>在 yaml 中补全 <code>habitat.task.measurements.reward_measure</code></td></tr>
+          <tr><td><code>AttributeError: 'VectorEnv' has no 'step'</code></td><td>VectorEnv 的 API 与单 Env 不同</td><td>VectorEnv 使用 <code>vector_step(actions)</code> 而非 <code>step()</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
 <!-- ═══════════════ 5. 配置体系 ═══════════════ -->
 <section>
   <div class="container">
@@ -2753,6 +2787,23 @@ r<sub>t</sub>(θ) = π<sub>new</sub> / π<sub>old</sub> = 0.6 / 0.4 = <b>1.5</b>
           <li><code>eval.video_option</code> — ["disk", "tensorboard"]</li>
         </ul>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════ 🛠 §5 常见错误 ══════ -->
+<section>
+  <div class="container">
+    <div class="warn-box">
+      <div class="warn-title">🛠 训练配置常见错误</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:35%;">错误信息</th><th style="width:25%;">可能原因</th><th style="width:40%;">解决方法</th></tr></thead>
+        <tbody>
+          <tr><td><code>ConfigAttributeError: Key 'xxx' is not in struct</code></td><td>Hydra Structured Config 拒绝不存在字段</td><td>先 <code>OmegaConf.to_container()</code> 转普通 dict 再修改</td></tr>
+          <tr><td><code>FileNotFoundError: ...cfg_file_path...</code></td><td>yaml 路径写错（相对路径基准是 cwd）</td><td>用 <code>habitat.get_config()</code> 自动解析路径，不要手写</td></tr>
+          <tr><td><code>MissingConfigException: dataset not found</code></td><td>benchmark config 引用的数据集未下载</td><td>检查 <code>habitat.dataset.data_path</code> 指向正确的 .json.gz</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </section>
