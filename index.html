@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Habitat 学习资源中心 — 从零理解具身智能</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card-bg: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --accent-core: #3b82f6;
+    --accent-task: #8b5cf6;
+    --accent-data: #10b981;
+    --accent-rl: #f59e0b;
+    --accent-sim: #06b6d4;
+    --accent-config: #ec4899;
+    --radius: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── Hero ─────────────────────────────── */
+  .hero {
+    background: linear-gradient(135deg, #0c1a2b 0%, #0f172a 60%, #0a2008 100%);
+    padding: 80px 24px 64px; text-align: center; position: relative;
+    border-bottom: 1px solid var(--border);
+  }
+  .hero::after {
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, #3b82f6, #8b5cf6, #10b981, #f59e0b, transparent);
+  }
+  .hero h1 {
+    font-size: 3rem; font-weight: 800;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa, #34d399);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; margin-bottom: 16px; letter-spacing: -0.02em;
+  }
+  .hero .subtitle {
+    font-size: 1.15rem; color: var(--text-dim); max-width: 720px; margin: 0 auto 28px;
+  }
+  .hero .badges {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+  }
+  .badge {
+    padding: 6px 16px; border-radius: 20px; font-size: 0.82rem;
+    font-weight: 600; border: 1px solid;
+  }
+  .badge-blue   { background: #1e3a5f30; color: #60a5fa; border-color: #3b82f640; }
+  .badge-teal   { background: #0d948810; color: #2dd4bf; border-color: #14b8a640; }
+  .badge-purple { background: #7c3aed20; color: #c4b5fd; border-color: #8b5cf640; }
+  .badge-amber  { background: #b4530930; color: #fbbf24; border-color: #f59e0b40; }
+
+  /* ── Layout ───────────────────────────── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  section { padding: 56px 0; }
+  section + section { border-top: 1px solid var(--border); }
+  .section-title {
+    font-size: 1.5rem; font-weight: 700; margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-subtitle { font-size: 0.92rem; color: var(--text-dim); margin-bottom: 28px; }
+
+  /* ── Hub Cards ────────────────────────── */
+  .hub-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px;
+  }
+  .hub-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .hub-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px #00000040; }
+  .hub-card.full { grid-column: 1 / -1; }
+  .hub-card .card-top {
+    padding: 28px 28px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .hub-card .card-icon {
+    font-size: 2.4rem; flex-shrink: 0; width: 56px; height: 56px;
+    border-radius: 14px; display: flex; align-items: center; justify-content: center;
+  }
+  .hub-card .card-title { font-size: 1.25rem; font-weight: 700; margin-bottom: 4px; }
+  .hub-card .card-desc { font-size: 0.88rem; color: var(--text-dim); line-height: 1.6; }
+  .hub-card .card-sub {
+    padding: 16px 28px 22px; display: flex; flex-wrap: wrap; gap: 8px;
+  }
+  .hub-card .card-sub a {
+    display: inline-block; padding: 8px 16px; border-radius: 8px;
+    text-decoration: none; font-size: 0.84rem; font-weight: 600;
+    transition: all 0.15s; border: 1px solid;
+  }
+  .hub-card .card-sub .sub-link { border-color: var(--border); color: var(--text-dim); }
+  .hub-card .card-sub .sub-link:hover { border-color: #60a5fa; color: #60a5fa; background: #3b82f60a; }
+  .hub-card .card-sub .sub-arrow {
+    border-color: #3b82f640; color: #60a5fa; background: #3b82f610;
+    margin-left: auto;
+  }
+  .hub-card .card-sub .sub-arrow:hover { background: #3b82f620; }
+
+  /* ── Step Overview ────────────────────── */
+  .step-road {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px;
+  }
+  .step-node {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px; text-align: center;
+    transition: all 0.2s; text-decoration: none; color: inherit; display: block;
+    border-top: 3px solid;
+  }
+  .step-node:hover { transform: translateY(-2px); box-shadow: 0 8px 30px #00000030; }
+  .step-node .step-num { font-size: 0.72rem; font-weight: 700; margin-bottom: 6px; }
+  .step-node .step-name { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+  .step-node .step-desc { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+
+  /* ── Resource Links ──────────────────── */
+  .resource-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px;
+  }
+  .resource-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px; text-decoration: none; color: inherit;
+    display: flex; align-items: flex-start; gap: 14px; transition: all 0.2s;
+  }
+  .resource-card:hover { border-color: #60a5fa; background: #3b82f608; }
+  .resource-card .r-icon { font-size: 1.8rem; flex-shrink: 0; }
+  .resource-card .r-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 4px; }
+  .resource-card .r-desc { font-size: 0.8rem; color: var(--text-dim); line-height: 1.5; }
+
+  /* ── Footer ───────────────────────────── */
+  .footer {
+    text-align: center; padding: 32px; color: var(--text-dim);
+    font-size: 0.82rem; border-top: 1px solid var(--border);
+  }
+  .footer a { color: #60a5fa; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2rem; }
+    .hub-grid { grid-template-columns: 1fr; }
+    .step-road { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════ -->
+<!--  HERO                                  -->
+<!-- ═══════════════════════════════════════ -->
+<header class="hero">
+  <h1>Habitat 学习资源中心</h1>
+  <p class="subtitle">
+    从零理解具身智能 — 基于 Meta AI Habitat-Lab 的工程化教学体系。
+    主线教程、专题深度、架构可视化，三条路径助你建立完整的知识体系。
+  </p>
+  <div class="badges">
+    <span class="badge badge-blue">Habitat-Lab v0.2.5</span>
+    <span class="badge badge-teal">Habitat-Sim 0.2.5</span>
+    <span class="badge badge-purple">Python 3.9+</span>
+    <span class="badge badge-amber">Chinese Tutorial</span>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════ -->
+<!--  MAIN LEARNING PATH                     -->
+<!-- ═══════════════════════════════════════ -->
+<section>
+<div class="container">
+  <div class="section-title">📗 主线教程：Habitat 从零理解</div>
+  <p class="section-subtitle">
+    11 章教科书。从概念到运行到源码，按 <b>工程依赖顺序</b> 编排。
+  </p>
+
+  <div class="hub-grid">
+    <!-- Textbook Card -->
+    <div class="hub-card full">
+      <div class="card-top">
+        <div class="card-icon" style="background:linear-gradient(135deg,#3b82f620,#8b5cf620);">📗</div>
+        <div>
+          <div class="card-title">Habitat 教科书（11 章全覆盖）</div>
+          <div class="card-desc">
+            模块化设计，从「它是什么」到「我该怎么学」。涵盖：架构总览 → 传感器与观测 → 任务体系 → 模拟器 → 数据管道 → RL 训练 → 评估基准 → 学习路线。
+          </div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook.html" class="sub-arrow">打开教科书 →</a>
+      </div>
+    </div>
+
+    <!-- Step Cards -->
+    <div class="hub-card" style="border-top:3px solid var(--accent-core);">
+      <div class="card-top">
+        <div class="card-icon" style="background:#3b82f615;">🔧</div>
+        <div>
+          <div class="card-title">第1步：安装环境</div>
+          <div class="card-desc">Conda 环境 → 代理配置 → habitat-sim → habitat-lab → 数据下载验证。交互式检查清单。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step1.html" class="sub-link">📖 开始安装</a>
+        <a href="habitat-textbook-step1.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card" style="border-top:3px solid #10b981;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#10b98115;">📦</div>
+        <div>
+          <div class="card-title">第1B步：完整数据集下载</div>
+          <div class="card-desc"><b>7 种场景 + 6 种任务数据集</b>：Gibson/MP3D/HM3D 获取流程、目录结构规范、授权申请指南。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step1b.html" class="sub-link">📖 下载数据</a>
+        <a href="habitat-textbook-step1b.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card" style="border-top:3px solid var(--accent-sim);">
+      <div class="card-top">
+        <div class="card-icon" style="background:#06b6d415;">▶️</div>
+        <div>
+          <div class="card-title">第2步：跑通示例</div>
+          <div class="card-desc">5 个渐进式示例 + <b>4 组真实运行结果</b>（含终端输出、RGB 图像、GPS 轨迹、Top-down 地图）。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step2.html" class="sub-link">📖 查看示例</a>
+        <a href="habitat-textbook-step2.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card" style="border-top:3px solid var(--accent-task);">
+      <div class="card-top">
+        <div class="card-icon" style="background:#8b5cf615;">💻</div>
+        <div>
+          <div class="card-title">第3步：读核心代码</div>
+          <div class="card-desc"><b>交互式调用链追踪器</b> + 参数调控台 + 6 模块可折叠源码分析。从注册中心到 C++ 引擎。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step3.html" class="sub-link">📖 阅读源码</a>
+        <a href="habitat-textbook-step3.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+    <div class="hub-card" style="border-top:3px solid #ec4899;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#ec489915;">⚙️</div>
+        <div>
+          <div class="card-title">第4步：改配置实验</div>
+          <div class="card-desc"><b>5 组配置实验</b>：RGB 分辨率、RGB vs RGBD、自定义 LiDAR 传感器、YAML 配置继承、success_distance 参数。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step4.html" class="sub-link">📖 动手实验</a>
+        <a href="habitat-textbook-step4.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card" style="border-top:3px solid #f59e0b;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#f59e0b15;">🏋️</div>
+        <div>
+          <div class="card-title">第5步：训练与评测</div>
+          <div class="card-desc"><b>PPO 训练架构全解</b>：Hydra 配置系统、RL 环境封装链、策略网络结构、Benchmark 评测指标。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step5.html" class="sub-link">📖 学习训练</a>
+        <a href="habitat-textbook-step5.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card" style="border-top:3px solid #f59e0b;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#f59e0b15;">🚀</div>
+        <div>
+          <div class="card-title">第5B步：DD-PPO 分布式训练</div>
+          <div class="card-desc"><b>单机多卡 PPO 扩展</b>：架构原理、配置对比、分布式启动命令、吞吐量缩放、6 种常见故障排查。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step5b.html" class="sub-link">📖 分布式训练</a>
+        <a href="habitat-textbook-step5b.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card" style="border-top:3px solid #14b8a6;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#14b8a615;">🧭</div>
+        <div>
+          <div class="card-title">第6步：VLN 仿真训练</div>
+          <div class="card-desc"><b>在 Habitat 中训练 VLN 模型</b>：VLN-v0 任务配置、R2R 数据集、InstructionSensor、模仿学习 + DDPPO 微调、模型导出。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step6.html" class="sub-link">📖 开始训练</a>
+        <a href="habitat-textbook-step6.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 分岔路标 ── -->
+  <div style="margin-top: 28px; text-align: center;">
+    <div style="display: inline-block; background: linear-gradient(135deg, #14b8a620, #a78bfa20); border: 1px solid #14b8a640; border-radius: 20px; padding: 12px 32px;">
+      <span style="font-weight: 700; color: #2dd4bf;">🔀 研究轨 → 部署轨</span>
+      <span style="color: var(--text-dim); font-size: 0.85rem; margin-left: 8px;">Steps 1–5 掌握 Habitat 本身 · Steps 6–8 将模型部署到真实机器人</span>
+    </div>
+  </div>
+
+  <!-- ── 部署轨卡片 ── -->
+  <div class="hub-grid" style="margin-top: 24px;">
+    <div class="hub-card" style="border-top:3px solid #a78bfa;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#a78bfa15;">🤖</div>
+        <div>
+          <div class="card-title">第7步：真机部署 · 方法一</div>
+          <div class="card-desc"><b>VLN 模型 + ROS Nav2</b>：VLN 做高层决策 → 子目标位姿 → ROS Nav2 执行导航。含 Spark-I / Leo ROS 软件包骨架。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step7.html" class="sub-link">📖 方法一</a>
+        <a href="habitat-textbook-step7.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card" style="border-top:3px solid #ec4899;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#ec489915;">🧠</div>
+        <div>
+          <div class="card-title">第8步：真机部署 · 方法二</div>
+          <div class="card-desc"><b>VLM 端到端（NaVid 路线）</b>：视觉语言模型直接输出控制指令，无需地图、无需导航栈。模型选型 + 硬件适配。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step8.html" class="sub-link">📖 方法二</a>
+        <a href="habitat-textbook-step8.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+
+    <div class="hub-card full" style="border-top:3px solid #8b5cf6;">
+      <div class="card-top">
+        <div class="card-icon" style="background:#8b5cf615;">🦾</div>
+        <div>
+          <div class="card-title">第9步：Rearrange 操作任务（Habitat 2.0）</div>
+          <div class="card-desc"><b>6 个案例从零掌握交互式操作</b>：Pick/Place 抓取放置、关节物体（抽屉/冰箱）、PDDL 复合任务（TidyHouse）。Fetch 机器人 + 物理仿真。</div>
+        </div>
+      </div>
+      <div class="card-sub">
+        <a href="habitat-textbook-step9.html" class="sub-link">📖 学习 Rearrange</a>
+        <a href="habitat-textbook-step9.html" class="sub-arrow">→</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 研究轨 -->
+  <div style="margin-top: 32px; text-align: center; margin-bottom: 10px;">
+    <span style="font-size: 0.8rem; font-weight: 700; color: #60a5fa; background: #3b82f615; padding: 4px 14px; border-radius: 12px;">🔬 研究轨：掌握 Habitat 平台</span>
+  </div>
+  <div class="step-road">
+    <a href="habitat-textbook-step1.html" class="step-node" style="border-top-color: var(--accent-core);">
+      <div class="step-num" style="color:#60a5fa;">STEP 1</div>
+      <div class="step-name">安装环境</div>
+      <div class="step-desc">Conda + pip + 代理<br>habitat-sim + habitat-lab<br>交互式检查清单</div>
+    </a>
+    <a href="habitat-textbook-step2.html" class="step-node" style="border-top-color: var(--accent-sim);">
+      <div class="step-num" style="color:#22d3ee;">STEP 2</div>
+      <div class="step-name">跑通示例</div>
+      <div class="step-desc">5 个渐进示例<br>真实运行结果 + 图像<br>PointNav / Benchmark</div>
+    </a>
+    <a href="habitat-textbook-step3.html" class="step-node" style="border-top-color: var(--accent-task);">
+      <div class="step-num" style="color:#a78bfa;">STEP 3</div>
+      <div class="step-name">读核心代码</div>
+      <div class="step-desc">调用链追踪器<br>参数调控台<br>6 模块源码分析</div>
+    </a>
+    <a href="habitat-textbook-step4.html" class="step-node" style="border-top-color: #ec4899;">
+      <div class="step-num" style="color:#f9a8d4;">STEP 4</div>
+      <div class="step-name">改配置实验</div>
+      <div class="step-desc">5 组配置实验<br>传感器 / 自定义 LiDAR<br>真实运行结果</div>
+    </a>
+    <a href="habitat-textbook-step5.html" class="step-node" style="border-top-color: #f59e0b;">
+      <div class="step-num" style="color:#fcd34d;">STEP 5</div>
+      <div class="step-name">训练与评测</div>
+      <div class="step-desc">PPO 训练架构<br>RL 环境封装链<br>Benchmark 评测</div>
+    </a>
+  </div>
+
+  <!-- 研究轨扩展 -->
+  <div style="margin-top: 12px; text-align: center; margin-bottom: 4px;">
+    <span style="font-size: 0.72rem; font-weight: 600; color: var(--text-dim); background: #1e293b80; padding: 2px 12px; border-radius: 10px;">📎 研究轨扩展：专项深入</span>
+  </div>
+  <div class="step-road" style="grid-template-columns: repeat(2, 1fr); max-width: 420px; margin: 0 auto;">
+    <a href="habitat-textbook-step1b.html" class="step-node" style="border-top-color: #10b981;">
+      <div class="step-num" style="color:#6ee7b7;">STEP 1B</div>
+      <div class="step-name">完整数据集下载</div>
+      <div class="step-desc">7 种场景 + 6 种任务<br>Gibson/MP3D/HM3D<br>授权申请 + 目录规范</div>
+    </a>
+    <a href="habitat-textbook-step5b.html" class="step-node" style="border-top-color: #f59e0b;">
+      <div class="step-num" style="color:#fcd34d;">STEP 5B</div>
+      <div class="step-name">DD-PPO 分布式训练</div>
+      <div class="step-desc">PPO → 多GPU扩展<br>NCCL + preemption<br>单机多卡吞吐量翻倍</div>
+    </a>
+  </div>
+
+  <!-- 部署轨 -->
+  <div style="margin-top: 28px; text-align: center; margin-bottom: 10px;">
+    <span style="font-size: 0.8rem; font-weight: 700; color: #2dd4bf; background: #14b8a615; padding: 4px 14px; border-radius: 12px;">🤖 部署轨：从仿真到真机</span>
+  </div>
+  <div class="step-road" style="grid-template-columns: repeat(3, 1fr);">
+    <a href="habitat-textbook-step6.html" class="step-node" style="border-top-color: #14b8a6;">
+      <div class="step-num" style="color:#2dd4bf;">STEP 6</div>
+      <div class="step-name">VLN 仿真训练</div>
+      <div class="step-desc">VLN-v0 + R2R 数据集<br>InstructionSensor<br>模仿学习 + 模型导出</div>
+    </a>
+    <a href="habitat-textbook-step7.html" class="step-node" style="border-top-color: #a78bfa;">
+      <div class="step-num" style="color:#c4b5fd;">STEP 7</div>
+      <div class="step-name">方法一 · VLN+ROS</div>
+      <div class="step-desc">VLN → 子目标<br>ROS Nav2 导航<br>Spark-I / Leo 适配</div>
+    </a>
+    <a href="habitat-textbook-step8.html" class="step-node" style="border-top-color: #ec4899;">
+      <div class="step-num" style="color:#f9a8d4;">STEP 8</div>
+      <div class="step-name">方法二 · VLM 端到端</div>
+      <div class="step-desc">VLM 直接控制<br>NaVid / NaVILA<br>无地图导航</div>
+    </a>
+  </div>
+
+  <!-- 进阶轨 -->
+  <div style="margin-top: 28px; text-align: center; margin-bottom: 10px;">
+    <span style="font-size: 0.8rem; font-weight: 700; color: #c4b5fd; background: #8b5cf615; padding: 4px 14px; border-radius: 12px;">🦾 进阶轨：Habitat 2.0 交互式操作</span>
+  </div>
+  <div class="step-road" style="grid-template-columns: repeat(1, 1fr); max-width: 220px; margin: 0 auto;">
+    <a href="habitat-textbook-step9.html" class="step-node" style="border-top-color: #8b5cf6;">
+      <div class="step-num" style="color:#c4b5fd;">STEP 9</div>
+      <div class="step-name">Rearrange 操作任务</div>
+      <div class="step-desc">Pick/Place/Open/Close<br>PDDL 复合任务<br>Fetch + 物理仿真</div>
+    </a>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!--  SUPPLEMENTARY RESOURCES               -->
+<!-- ═══════════════════════════════════════ -->
+<section>
+<div class="container">
+  <div class="section-title">📚 专题深度 & 参考资源</div>
+  <p class="section-subtitle">主线教程之外的补充材料，深入特定主题。</p>
+
+  <div class="resource-grid">
+    <a href="vln.html" class="resource-card">
+      <div class="r-icon">🧭</div>
+      <div>
+        <div class="r-title">VLN 视觉语言导航 · 专题</div>
+        <div class="r-desc">6 大技术范型 · 11 维对比表 · 核心架构维度分析 · 从 R2R 到 LLM Planning · Habitat 中的 VLN 实现</div>
+      </div>
+    </a>
+    <a href="architecture.html" class="resource-card">
+      <div class="r-icon">🔌</div>
+      <div>
+        <div class="r-title">工程架构可视化</div>
+        <div class="r-desc">Habitat-Lab 完整模块依赖图 · 核心层/任务层/数据层/RL 层/配置层 · 10 大模块对比</div>
+      </div>
+    </a>
+    <a href="habitat-textbook-step7.html" class="resource-card">
+      <div class="r-icon">🤖</div>
+      <div>
+        <div class="r-title">VLN → 真机部署 · 实战</div>
+        <div class="r-desc">两种部署方案对比：VLN+ROS Nav2 vs VLM 端到端 · Spark-I / Leo 机器人 ROS 软件包骨架</div>
+      </div>
+    </a>
+    <a href="habitat-textbook-step6.html" class="resource-card">
+      <div class="r-icon">🧭</div>
+      <div>
+        <div class="r-title">VLN 仿真训练 · 实战</div>
+        <div class="r-desc">从配置 VLN-v0 任务到导出 checkpoint · R2R 数据集 · InstructionSensor · 评估指标解读</div>
+      </div>
+    </a>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!--  NAVIGATION MAP                         -->
+<!-- ═══════════════════════════════════════ -->
+<section>
+<div class="container">
+  <div class="section-title">🗺️ 站点导航图</div>
+  <p class="section-subtitle">所有页面的关系一览。建议按箭头方向阅读。</p>
+
+  <style>
+    .sitemap {
+      display: flex; flex-direction: column; align-items: center; gap: 14px;
+      margin: 24px 0; font-size: 0.85rem;
+    }
+    .sitemap .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    .sitemap .node {
+      padding: 10px 18px; border-radius: 8px; font-weight: 600; text-decoration: none;
+      border: 1px solid; white-space: nowrap; transition: all 0.15s;
+    }
+    .sitemap .node-home { background: #3b82f620; border-color: #3b82f640; color: #60a5fa; }
+    .sitemap .node-main { background: #8b5cf620; border-color: #8b5cf640; color: #c4b5fd; }
+    .sitemap .node-step { background: var(--card-bg); border-color: var(--border); color: var(--text-dim); }
+    .sitemap .node-step:hover { border-color: #60a5fa; color: var(--text); }
+    .sitemap .node-topic { background: #10b98120; border-color: #10b98140; color: #6ee7b7; }
+    .sitemap .node-arch { background: #f59e0b20; border-color: #f59e0b40; color: #fbbf24; }
+    .sitemap .arrow-down { color: #475569; font-size: 1.2rem; }
+    .sitemap .arrow-right { color: #475569; margin: 0 4px; }
+  </style>
+
+  <div class="sitemap">
+    <div class="row">
+      <a href="index.html" class="node node-home">🏠 门户首页</a>
+    </div>
+    <div class="arrow-down">↓</div>
+    <div class="row">
+      <a href="habitat-textbook.html" class="node node-main">📗 教科书（11章总览）</a>
+    </div>
+    <div class="arrow-down">↓</div>
+    <div class="row">
+      <a href="habitat-textbook-step1.html" class="node node-step">Step 1 · 安装</a>
+      <span class="arrow-right">→</span>
+      <a href="habitat-textbook-step2.html" class="node node-step">Step 2 · 跑示例</a>
+      <span class="arrow-right">→</span>
+      <a href="habitat-textbook-step3.html" class="node node-step">Step 3 · 读代码</a>
+      <span class="arrow-right">→</span>
+      <a href="habitat-textbook-step4.html" class="node node-step">Step 4 · 改配置</a>
+      <span class="arrow-right">→</span>
+      <a href="habitat-textbook-step5.html" class="node node-step">Step 5 · 训练</a>
+    </div>
+    <div style="color:var(--text-dim);font-size:0.7rem;margin-top:2px;">┌ 扩展 ────────────────────────────────┐</div>
+    <div class="row">
+      <a href="habitat-textbook-step1b.html" class="node node-step" style="border-color:#10b98140; color:#6ee7b7;">Step 1B · 数据集</a>
+      <span style="color:var(--text-dim);margin:0 8px;">|</span>
+      <a href="habitat-textbook-step5b.html" class="node node-step" style="border-color:#f59e0b40; color:#fcd34d;">Step 5B · DD-PPO</a>
+    </div>
+    <div style="color:#475569;font-size:0.8rem;margin-top:2px;">└ ─────────────────────────────────────┘</div>
+    <div class="arrow-down" style="font-size:0.9rem; color:#475569;">┊</div>
+    <div class="row">
+      <a href="habitat-textbook-step6.html" class="node node-step" style="border-color:#14b8a640; color:#2dd4bf;">Step 6 · VLN 训练</a>
+      <span class="arrow-right">→</span>
+      <a href="habitat-textbook-step7.html" class="node node-step" style="border-color:#a78bfa40; color:#c4b5fd;">Step 7 · 方法一</a>
+      <span class="arrow-right" style="color:#a78bfa;">⇢</span>
+      <a href="habitat-textbook-step8.html" class="node node-step" style="border-color:#ec489940; color:#f9a8d4;">Step 8 · 方法二</a>
+    </div>
+    <div class="arrow-down" style="font-size:0.9rem; color:#475569;">┊</div>
+    <div class="row">
+      <a href="habitat-textbook-step9.html" class="node node-step" style="border-color:#8b5cf640; color:#c4b5fd;">Step 9 · Rearrange</a>
+    </div>
+    <div style="color:#475569;font-size:1rem;margin-top:8px;">└ ─ ─ ─ ─ ─ 横向扩展（专题页） ─ ─ ─ ─ ─ ┘</div>
+    <div class="row" style="margin-top:4px;">
+      <a href="vln.html" class="node node-topic">🧭 VLN 专题</a>
+      <a href="architecture.html" class="node node-arch">🔌 架构可视化</a>
+      <span style="color:var(--text-dim);font-size:0.75rem;">传感器深度 (即将上线)</span>
+      <span style="color:var(--text-dim);font-size:0.75rem;">论文精读 (即将上线)</span>
+    </div>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════════════════════════════ -->
+<!--  FOOTER                                 -->
+<!-- ═══════════════════════════════════════ -->
+<footer class="footer">
+  <p><b>Habitat 学习资源中心</b> · 基于 Meta AI Habitat-Lab v0.2.5 工程架构</p>
+  <p style="margin-top:6px;">
+    <a href="habitat-textbook.html">教科书</a> ·
+    <a href="habitat-textbook-step1b.html">数据集</a> ·
+    <a href="habitat-textbook-step5b.html">DD-PPO</a> ·
+    <a href="habitat-textbook-step9.html">Rearrange</a> ·
+    <a href="vln.html">VLN 专题</a> ·
+    <a href="architecture.html">架构可视化</a>
+  </p>
+  <p style="margin-top:4px;font-size:0.75rem;">Habitat 1.0 (ICCV 2019) · Habitat 2.0 (NeurIPS 2021) · 仅供学习参考</p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+</body>
+</html>

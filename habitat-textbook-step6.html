@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第6步：VLN 仿真训练 — Habitat 从零理解</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+
+<style>
+  /* ── Step 6 补充变量 ─── */
+  :root {
+    --accent-vln: #2dd4bf;
+    --accent-sensor: #f59e0b;
+    --accent-train: #a78bfa;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="topnav" id="topnav">
+  <a href="index.html">🏠 门户</a>
+  <span class="sep">|</span>
+  <a href="habitat-textbook.html">📗 教科书</a>
+  <span class="sep">/</span>
+  <a href="habitat-textbook-step5.html">第5步：训练与评测</a>
+  <span class="sep">/</span>
+  <span class="current">第6步：VLN 仿真训练</span>
+  <span class="sep" style="margin-left:auto;"></span>
+  <a href="habitat-textbook-step7.html">🤖 方法一：VLN+ROS →</a>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="step-badge">STEP 6 · 部署轨</div>
+  <h1>VLN 仿真训练</h1>
+  <p class="subtitle">
+    在 Habitat 中训练视觉语言导航（VLN）模型：配置 VLN-v0 任务、理解 R2R 数据集与 InstructionSensor、
+    跑通模仿学习 + DDPPO 微调、导出 <code>checkpoint</code> 为真机部署做准备。
+  </p>
+</header>
+
+<!-- ═══════════════ 本章概览 ═══════════════ -->
+<section>
+<div class="container">
+
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 本章概览：4 个案例</h2>
+  <p class="section-subtitle">
+    从配置到训练到导出，每一步都可独立运行和验证。建议按顺序完成。
+  </p>
+
+  <table class="compare-table">
+    <thead>
+      <tr><th style="width:50px;">#</th><th style="width:180px;">案例</th><th>你将学会</th><th style="width:60px;">难度</th><th style="width:90px;">前置条件</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="color:#2dd4bf;font-weight:700;">6-1</td>
+        <td><a href="#case6-1">配置 VLN 任务</a></td>
+        <td>VLN-v0 任务配置、R2R 数据集加载、验证环境可创建</td>
+        <td>⭐⭐</td>
+        <td>Step 2</td>
+      </tr>
+      <tr>
+        <td style="color:#2dd4bf;font-weight:700;">6-2</td>
+        <td><a href="#case6-2">理解数据与传感器</a></td>
+        <td>R2R episode 结构、InstructionSensor 原理、observation 空间</td>
+        <td>⭐⭐</td>
+        <td>6-1</td>
+      </tr>
+      <tr>
+        <td style="color:#fbbf24;font-weight:700;">6-3</td>
+        <td><a href="#case6-3">模仿学习训练</a></td>
+        <td>IL 训练流程、teacher-forcing、checkpoint 保存</td>
+        <td>⭐⭐⭐</td>
+        <td>6-2, Step 5</td>
+      </tr>
+      <tr>
+        <td style="color:#fbbf24;font-weight:700;">6-4</td>
+        <td><a href="#case6-4">评估与导出模型</a></td>
+        <td>SR/SPL/nDTW 指标、模型推理模式、导出 checkpoint</td>
+        <td>⭐⭐</td>
+        <td>6-3</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Progress -->
+  <div class="progress-section">
+      <div class="progress-label"><span>学习进度</span><span id="progress-text">0 / 4 阶段完成</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
+    </div>
+  <ul class="checklist" id="checklist">
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">6-1: 配置并验证 VLN-v0 环境</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">6-2: 理解 R2R 数据和 InstructionSensor</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">6-3: 跑通 VLN 模仿学习训练</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">6-4: 评估模型并导出 checkpoint</div></li>
+  </ul>
+
+</div>
+</section>
+
+<!-- ═══════════════ 前置：MP3D 与 VLN 的必要关系 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-warn);"></span> 为什么 VLN 必须依赖 Matterport3D？</h2>
+  <p class="section-subtitle">
+    这不是 Habitat 的限制，而是 VLN 任务本身的定义方式决定的。
+  </p>
+
+  <div class="info-box">
+    <div class="info-title">R2R —— VLN 领域的"ImageNet"</div>
+    <p>
+      R2R (Room-to-Room) 是 CVPR 2018 提出的视觉语言导航基准数据集，至今<b>每篇 VLN 论文都以它为评测标准</b>。
+      它的采集方式是：人类标注者在 <b>90 栋 Matterport3D 建筑</b>中行走，用自然语言写下导航指令，
+      例如 <em>"Walk down the hallway, turn left at the painting, and stop in front of the bed."</em>
+      <br><br>
+      <b>这决定了：语言指令和 MP3D 场景是绑定的。</b> 换一栋建筑，"绘画"和"走廊"都不同了，指令不再有意义。
+      正因为如此，VLN 任务无法像 PointNav 那样在不同场景数据集间切换。
+    </p>
+  </div>
+
+  <h3 style="margin-top:20px;color:var(--text-dim);">数据依赖链</h3>
+
+  <div class="arch-diagram">
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#ef444420;border:2px solid #ef4444;min-width:220px;">
+        R2R 数据集<br><small>10,819 条导航指令</small>
+      </div>
+      <div style="margin:0 12px;color:var(--text-dim);align-self:center;">引用</div>
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:220px;">
+        MP3D 场景 ID<br><small>90 栋建筑的 .glb 文件</small>
+      </div>
+      <div style="margin:0 12px;color:var(--text-dim);align-self:center;">运行时</div>
+      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;min-width:220px;">
+        VLN 仿真器<br><small>Instruction → Action → SR/SPL/nDTW</small>
+      </div>
+    </div>
+  </div>
+
+  <p style="margin-top:16px;">
+    Habitat 的 VLN 代码（<code>VLNDatasetV1</code> / <code>VLNTask</code>）本身是<b>场景无关的</b>。
+    但整个 Habitat-Lab 中只注册了 <code>R2RVLN-v1</code> 这一个 VLN 数据集，
+    它的配置硬编码指向 <code>data/datasets/vln/mp3d/r2r/</code>，而其中的 episodes 引用的都是 MP3D 场景。
+  </p>
+
+  <h3 style="margin-top:20px;color:var(--text-dim);">无需认证的获取方案</h3>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>文件</th><th>大小</th><th>来源</th><th>覆盖</th><th>需要认证？</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>vln_r2r_mp3d_v1.zip</code></td>
+        <td>2.7 MB</td>
+        <td>Facebook CDN（<code>dl.fbaipublicfiles.com</code>）</td>
+        <td>10,819 训练 + 1,020 验证 episodes</td>
+        <td style="color:#4ade80;">否</td>
+      </tr>
+      <tr>
+        <td><code>MatterPort3D.zip</code></td>
+        <td>665 MB</td>
+        <td>清华大学云盘</td>
+        <td>11 个场景（val_unseen 全集）</td>
+        <td style="color:#4ade80;">否</td>
+      </tr>
+      <tr>
+        <td><code>mp3d_example</code></td>
+        <td>93 MB</td>
+        <td>Habitat 内置（<code>datasets_download</code>）</td>
+        <td>1 个场景（17DRP5sb8fy）</td>
+        <td style="color:#4ade80;">否</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:16px;">
+    <div class="tip-title">当前状态：12 个场景，可完整走通 VLN 流程</div>
+    <p>
+      以上三样合计 <b>&lt; 800 MB</b>，全部免除认证。覆盖：
+      <br>• <b>训练</b>：17DRP5sb8fy 在 R2R train 中有 75 条指令，足够演示训练流程
+      <br>• <b>评估</b>：11 个 val_unseen 场景覆盖 1,839 条指令，可直接跑标准 val_unseen 评估
+      <br>• 如需完整 90 场景（训练出可发表级 VLN 模型），才需要官方申请 Matterport3D
+    </p>
+  </div>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">有其他数据集可以替代吗？</div>
+    <p>
+      <b>严格来说，没有。</b> 虽然存在 RxR（多语言 R2R）、REVERIE、SOON 等扩展 VLN 数据集，
+      但它们全部基于 MP3D 场景采集。HM3D 和 Gibson 都<b>没有</b>对应的 VLN 指令数据集。
+      如果你将来想对比发表的 VLN 模型或参加 Habitat Challenge，MP3D 是必经之路。
+    </p>
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════ 6-1: 配置 VLN 任务 ═══════════════ -->
+<section id="case6-1">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 6-1 · 配置 VLN 任务</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      使用 <code>habitat.get_config()</code> 加载 VLN 基准配置，创建一个 VLN 环境并验证它能正常
+      <code>reset()</code>。这是 VLN 训练的<b>最小验证单元</b>——如果这步不通过，后面的训练无从谈起。
+      <br><br>
+      <b>前置条件：</b>已安装 habitat-lab + habitat-sim。R2R 数据集和 MP3D 场景的获取方式见上方"为什么 VLN 必须依赖 Matterport3D"（无需认证，合计 &lt; 800MB）。
+    </p>
+  </div>
+
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 核心代码 & 关键函数</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># case_6_1_vln_env.py — 验证 VLN 环境可创建并 reset</span>
+<span class="kw">import</span> habitat
+
+<span class="cmt"># VLN 使用专门的 benchmark 配置文件</span>
+config = habitat.get_config(
+    config_path=<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>
+)
+
+<span class="cmt"># 可选：覆盖数据集路径</span>
+<span class="kw">with</span> habitat.config.read_write(config):
+    config.habitat.dataset.data_path = <span class="str">"data/datasets/vln/r2r/v1/{split}/{split}.json.gz"</span>
+
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="cmt"># VLN 的 observation 包含语言指令</span>
+<span class="kw">print</span>(<span class="str">"观测键:"</span>, <span class="kw">list</span>(obs.keys()))
+<span class="kw">print</span>(<span class="str">"指令:"</span>, obs[<span class="str">"instruction"</span>][<span class="str">"text"</span>][:80], <span class="str">"..."</span>)
+<span class="kw">print</span>(<span class="str">"RGB shape:"</span>, obs[<span class="str">"rgb"</span>].shape)
+env.close()</div>
+  </div>
+
+  <table class="compare-table">
+    <thead><tr><th>函数</th><th>角色</th><th>说明</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>habitat.get_config()</code></td>
+        <td>加载基准配置</td>
+        <td>读取 YAML → 解析 Hydra → 返回冻结的 OmegaConf 配置对象</td>
+      </tr>
+      <tr>
+        <td><code>habitat.config.read_write()</code></td>
+        <td>临时解冻配置</td>
+        <td>上下文管理器，在 <code>with</code> 块内可修改配置值</td>
+      </tr>
+      <tr>
+        <td><code>habitat.Env(config)</code></td>
+        <td>创建环境</td>
+        <td>根据配置组装 Simulator + Dataset + Task</td>
+      </tr>
+      <tr>
+        <td><code>env.reset()</code></td>
+        <td>初始化 episode</td>
+        <td>随机选一个 episode，返回 observation dict (含 instruction)</td>
+      </tr>
+      <tr>
+        <td><code>obs["instruction"]</code></td>
+        <td>语言指令文本</td>
+        <td>VLN 特有的 observation 键，由 InstructionSensor 生成</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何创建和运行</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 终端中运行</span>
+$ <span class="kw">python</span> case_6_1_vln_env.py
+
+<span class="cmt"># 预期输出（示例）</span>
+观测键: [<span class="str">'rgb'</span>, <span class="str">'depth'</span>, <span class="str">'instruction'</span>, <span class="str">'pointgoal_with_gps_compass'</span>]
+指令: Walk down the hallway, turn left at the first door, and stop in front of the bed. ...
+RGB shape: (3, 480, 640)</div>
+  </div>
+
+  <div class="warn-box">
+    <div class="warn-title">⚠️ 常见错误</div>
+    <p>
+      <b>1.</b> <code>Dataset not found</code> → 检查 R2R 数据集是否下载到了 <code>data/datasets/vln/r2r/</code><br>
+      <b>2.</b> <code>Scene not found</code> → 检查 Matterport3D 场景是否在 <code>data/scene_datasets/mp3d/</code><br>
+      <b>3.</b> <code>KeyError: 'instruction'</code> → 确认配置中 task 类型为 <code>VLN-v0</code> 而非 <code>Nav-v0</code>
+    </p>
+  </div>
+
+  <!-- ④ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 运行效果</h3>
+  <div class="info-box">
+    <p>
+      <code>env.reset()</code> 成功后，你会看到：<br>
+      <b>1.</b> 终端打印出观测键列表 — 确认 <code>instruction</code> 键存在<br>
+      <b>2.</b> 一段英文指令文本 — 这就是 VLN 模型需要理解并执行的导航命令<br>
+      <b>3.</b> RGB 图像的 shape 是 (3, H, W) — 证明视觉传感器工作正常<br>
+      <br>
+      与 PointNav 最大的区别：<b>observation 中多了 <code>instruction</code> 字段</b>，这是让 VLN 不同于纯视觉导航的关键。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 6-2: 理解数据与传感器 ═══════════════ -->
+<section id="case6-2">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-sensor);"></span> 6-2 · 理解 R2R 数据与 InstructionSensor</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      深入 R2R (Room-to-Room) 数据集的一个 episode，理解 VLN 任务的<b>完整数据结构</b>：
+      episode 包含什么字段、指令如何编码、InstructionSensor 如何把文本喂给模型。
+      这步至关重要——不理解数据，就无法设计模型输入。
+    </p>
+  </div>
+
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② R2R Episode 结构</h3>
+
+  <div class="arch-diagram">
+    <div style="font-size:0.9rem;color:#2dd4bf;font-weight:700;margin-bottom:16px;">一个 R2R Episode 的内部结构</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#3b82f620;border:2px solid #3b82f6;">
+        episode_id<br><small>"13361"</small>
+      </div>
+      <div class="arch-layer" style="background:#8b5cf620;border:2px solid #8b5cf6;">
+        scene_id<br><small>"2t7WUuJeko7"</small>
+      </div>
+      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;">
+        start_position + rotation<br><small>(x,y,z) + quat</small>
+      </div>
+    </div>
+    <div class="arch-arrow-center">↓</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:280px;">
+        goals[0]<br><small>position: (x,y,z) + radius</small>
+      </div>
+      <div class="arch-layer" style="background:#ec489920;border:2px solid #ec4899;min-width:400px;">
+        reference_path<br><small>[{position, rotation}×N] — 最短路径轨迹点</small>
+      </div>
+    </div>
+    <div class="arch-arrow-center">↓</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#14b8a620;border:2px solid #14b8a6;min-width:500px;">
+        instructions<br><small>{instruction_id, instruction_text}×3 — 同一条路径的三段英文描述</small>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">InstructionSensor 工作原理</h3>
+
+  <div class="flow-box">
+    <div class="flow-step" style="border-top:3px solid #3b82f6;">
+      <div style="font-weight:600;font-size:0.9rem;">R2R JSON</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">episode.instructions[0].instruction_text</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+      <div style="font-weight:600;font-size:0.9rem;">InstructionSensor</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">读取 episode.instruction<br>→ tokenize → tensor</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #14b8a6;">
+      <div style="font-weight:600;font-size:0.9rem;">obs["instruction"]</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">token IDs (seq_len,)<br>或原始文本</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #f59e0b;">
+      <div style="font-weight:600;font-size:0.9rem;">VLN Policy</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">LSTM/Transformer<br>编码指令 → 输出动作</div>
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何验证数据</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># case_6_2_inspect_data.py — 检查一个 episode 的完整数据</span>
+<span class="kw">import</span> habitat
+
+config = habitat.get_config(<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>)
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="cmt"># 从 Episode 对象获取完整数据</span>
+ep = env.current_episode
+<span class="kw">print</span>(<span class="str">"=== Episode 基本信息 ==="</span>)
+<span class="kw">print</span>(<span class="str">f"episode_id:    </span><span class="str">{ep.episode_id}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"scene_id:      </span><span class="str">{ep.scene_id}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"start_position:</span><span class="str"> {ep.start_position}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"goals[0].pos:  </span><span class="str">{ep.goals[0].position}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"reference_path 长度: </span><span class="str">{len(ep.reference_path)} 个路径点</span><span class="str">"</span>)
+
+<span class="cmt"># 指令 — VLN 最核心的数据字段</span>
+<span class="kw">print</span>(<span class="str">f"\n=== 指令 ({len(ep.instructions)} 条) ==="</span>)
+<span class="kw">for</span> i, instr <span class="kw">in</span> <span class="kw">enumerate</span>(ep.instructions):
+    <span class="kw">print</span>(<span class="str">f"[{i}] </span><span class="str">{instr.instruction_text[:100]}...</span><span class="str">"</span>)
+
+env.close()</div>
+  </div>
+
+  <div class="dual-panel">
+    <div class="panel">
+      <h4 style="color:#2dd4bf;">📐 NavigationGoal (VLN版)</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        VLN 的 goal 与 PointNav 完全一样——<code>position (x,y,z) + radius</code>。
+        区别在于<b>agent 不知道 goal 的坐标</b>，它只看到指令文本。
+        目标是靠理解语言来推断的，而非靠 GPS 传感器指向。
+      </p>
+    </div>
+    <div class="panel">
+      <h4 style="color:#a78bfa;">📝 为什么有 3 条指令</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        同一个 episode 由 3 个不同的标注员撰写指令。训练时随机选一条，
+        评估时用固定的一条。这迫使模型学习<b>语言多样性</b>——"turn left at
+        the sofa" 和 "go left after passing the couch" 对应相同的路径。
+      </p>
+    </div>
+  </div>
+
+  <div class="tip-box">
+    <div class="tip-title">💡 关键理解：VLN 属于 "稀疏监督" 任务</div>
+    <p>
+      与 PointNav（每步都有 GPS+Compass 指向目标）不同，VLN 的 agent <b>只在 reset 时看到指令文本</b>。
+      后续每一步，模型必须记住指令内容并结合当前视觉观测做决策。这使得 VLN 天然需要
+      <b>记忆机制</b>（LSTM/Transformer/LLM）。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 6-3: 模仿学习训练 ═══════════════ -->
+<section id="case6-3">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-train);"></span> 6-3 · 模仿学习训练</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      使用 <b>Behavioral Cloning（行为克隆）</b>在 R2R 数据集上训练一个 VLN agent。
+      Agent 的监督信号来自 <code>reference_path</code>（最短路径轨迹），模型学习：
+      给定当前 RGB + 指令 → 预测下一步动作（前进/左转/右转/停止）。
+      <br><br>
+      <b>前置：</b>需要 GPU。如仅有 CPU，可将 batch_size 调至 1 且 epochs 设为 1 做语法验证。
+    </p>
+  </div>
+
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 训练流程 & 关键函数</h3>
+
+  <div class="flow-box">
+    <div class="flow-step" style="border-top:3px solid #3b82f6;">
+      <div style="font-weight:600;font-size:0.9rem;">① 数据准备</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">R2R episodes<br>→ rollout 生成轨迹</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+      <div style="font-weight:600;font-size:0.9rem;">② Teacher-Forcing</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">reference_path 动作<br>作为 ground truth</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #f59e0b;">
+      <div style="font-weight:600;font-size:0.9rem;">③ IL Loss</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">Cross Entropy<br>动作分类</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #14b8a6;">
+      <div style="font-weight:600;font-size:0.9rem;">④ Checkpoint</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">保存 .pth<br>用于评估/导出</div>
+    </div>
+  </div>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 终端命令 — VLN 模仿学习训练</span>
+$ <span class="kw">python</span> -u -m habitat_baselines.run \
+    --config-name=<span class="str">vln/il_vln_r2r.yaml</span> \
+    habitat_baselines.num_updates=<span class="num">10000</span> \
+    habitat_baselines.batch_size=<span class="num">8</span> \
+    habitat_baselines.checkpoint_folder=<span class="str">"data/checkpoints/vln_il"</span>
+
+<span class="cmt"># 关键 config 路径说明：</span>
+<span class="cmt"># config-name=vln/il_vln_r2r.yaml</span>
+<span class="cmt">#   → habitat-baselines/habitat_baselines/config/vln/il_vln_r2r.yaml</span>
+<span class="cmt"># 该 YAML 会自动引用：</span>
+<span class="cmt">#   - benchmark/nav/vln/vln_r2r.yaml（任务 & 数据集）</span>
+<span class="cmt">#   - habitat_baselines/rl/policy/vln_policy.yaml（策略网络）</span></div>
+  </div>
+
+  <table class="compare-table">
+    <thead><tr><th>模块</th><th>文件</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>VLN Task</td>
+        <td><code>habitat/tasks/nav/vln.py</code></td>
+        <td>定义 VLNTask、VLNEpisode、动作空间 (FORWARD/LEFT/RIGHT/STOP)</td>
+      </tr>
+      <tr>
+        <td>InstructionSensor</td>
+        <td><code>habitat/tasks/nav/vln_sensor.py</code></td>
+        <td>从 episode 读取指令，tokenize 后注入 observation</td>
+      </tr>
+      <tr>
+        <td>VLN Policy</td>
+        <td><code>habitat_baselines/rl/policy/vln_policy.py</code></td>
+        <td>CNN 编码 RGB + RNN 编码指令 + 动作输出头</td>
+      </tr>
+      <tr>
+        <td>IL Trainer</td>
+        <td><code>habitat_baselines/il/trainer.py</code></td>
+        <td>管理 teacher-forcing 训练循环、数据集迭代</td>
+      </tr>
+      <tr>
+        <td>R2R Dataset</td>
+        <td><code>habitat/datasets/vln/r2r_dataset.py</code></td>
+        <td>加载 R2R JSON，提供 Episode 迭代器</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何创建和运行</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 1. 确保 R2R 数据集和 MP3D 场景已下载</span>
+$ ls data/datasets/vln/r2r/v1/train/
+  train.json.gz  val_seen.json.gz  val_unseen.json.gz
+
+<span class="cmt"># 2. 确保 habitat-baselines 已安装</span>
+$ pip install -e habitat-baselines
+
+<span class="cmt"># 3. 启动训练（GPU 推荐）</span>
+$ <span class="kw">python</span> -u -m habitat_baselines.run \
+    --config-name=<span class="str">vln/il_vln_r2r.yaml</span>
+
+<span class="cmt"># 预期输出：</span>
+<span class="cmt"># [2024-01-15 10:30:00] Epoch 0/100, Loss: 1.386, Acc: 0.312</span>
+<span class="cmt"># [2024-01-15 10:35:00] Epoch 10/100, Loss: 0.947, Acc: 0.521</span>
+<span class="cmt"># ...</span>
+<span class="cmt"># Checkpoint saved to data/checkpoints/vln_il/ckpt.100.pth</span></div>
+  </div>
+
+  <div class="warn-box">
+    <div class="warn-title">⚠️ 训练注意事项</div>
+    <p>
+      <b>1. GPU 内存：</b>Matterport3D 场景较大，建议至少 8GB VRAM。OOM 时减小 <code>batch_size</code><br>
+      <b>2. 数据预处理：</b>首次运行时会预处理 R2R 数据（生成 tokenizer 词表），需等待几分钟<br>
+      <b>3. Teacher-Forcing vs 在线采样：</b>IL 训练用的是 reference_path 上的 ground truth 动作，不会让 agent 自由探索
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 6-4: 评估与导出模型 ═══════════════ -->
+<section id="case6-4">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 6-4 · 评估与导出模型</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      训练完成后，在验证集上评估模型的导航能力（SR/SPL/nDTW），然后导出 checkpoint
+      为<b>纯推理权重文件</b>。这个文件就是 Step 7 部署到真机时需要加载的模型。
+    </p>
+  </div>
+
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 评估代码 & 指标说明</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 评估训练好的 VLN 模型</span>
+$ <span class="kw">python</span> -u -m habitat_baselines.run \
+    --config-name=<span class="str">vln/il_vln_r2r.yaml</span> \
+    habitat_baselines.evaluate=<span class="kw">True</span> \
+    habitat_baselines.eval_ckpt_path_dir=<span class="str">"data/checkpoints/vln_il/ckpt.100.pth"</span> \
+    habitat_baselines.eval_split=<span class="str">"val_seen"</span>
+
+<span class="cmt"># 预期输出：</span>
+<span class="cmt"># SR: 0.452  SPL: 0.398  nDTW: 0.561</span>
+<span class="cmt"># Success weighted by Path Length: 评估导航路径质量</span></div>
+  </div>
+
+  <table class="compare-table">
+    <thead><tr><th>指标</th><th>全称</th><th>含义</th><th>范围</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>SR</b></td>
+        <td>Success Rate</td>
+        <td>在目标 radius 内执行 STOP 的比例</td>
+        <td>0–1, 越高越好</td>
+      </tr>
+      <tr>
+        <td><b>SPL</b></td>
+        <td>Success weighted by Path Length</td>
+        <td>成功且路径尽量短（惩罚绕路）</td>
+        <td>0–1, 越高越好</td>
+      </tr>
+      <tr>
+        <td><b>nDTW</b></td>
+        <td>Normalized Dynamic Time Warping</td>
+        <td>实际路径与 reference_path 的相似度</td>
+        <td>0–1, 越高越好</td>
+      </tr>
+      <tr>
+        <td><b>OSR</b></td>
+        <td>Oracle Success Rate</td>
+        <td>如果 agent 在最近点 STOP 的成功率（上界）</td>
+        <td>≥ SR</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="dual-panel">
+    <div class="panel">
+      <h4 style="color:#2dd4bf;">📊 val_seen vs val_unseen</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        R2R 的验证集分两种：<br>
+        <b>val_seen：</b>场景在训练中见过（但 episode 不同），测<b>指令泛化</b><br>
+        <b>val_unseen：</b>场景从未见过，测<b>场景泛化</b><br>
+        val_unseen 的 SR 通常比 val_seen 低 10–20 个百分点。
+      </p>
+    </div>
+    <div class="panel">
+      <h4 style="color:#a78bfa;">📦 模型导出</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        checkpoint 包含 optimizer state + scheduler state + model weights。
+        为了在真机上做<b>纯推理</b>，需要提取出 model weights 部分：<br>
+        <code>ckpt = torch.load("ckpt.100.pth")</code><br>
+        <code>model_weights = ckpt["state_dict"]</code><br>
+        <code>torch.save(model_weights, "vln_inference.pth")</code>
+      </p>
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何导出可用于真机推理的模型</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># export_vln_model.py — 导出纯推理权重 + 配置</span>
+<span class="kw">import</span> torch
+<span class="kw">import</span> yaml
+
+<span class="cmt"># 1. 加载训练好的 checkpoint</span>
+ckpt = torch.load(<span class="str">"data/checkpoints/vln_il/ckpt.100.pth"</span>, map_location=<span class="str">"cpu"</span>)
+
+<span class="cmt"># 2. 提取 model state_dict（去掉 optimizer/scheduler）</span>
+model_state = ckpt[<span class="str">"state_dict"</span>]
+torch.save(model_state, <span class="str">"vln_inference.pth"</span>)
+<span class="kw">print</span>(<span class="str">"模型权重已导出到 vln_inference.pth"</span>)
+
+<span class="cmt"># 3. 保存模型配置（推理时需要重新构建网络结构）</span>
+config = {
+    <span class="str">"policy"</span>: <span class="str">"VLNPolicy"</span>,
+    <span class="str">"rgb_shape"</span>: [<span class="num">3</span>, <span class="num">480</span>, <span class="num">640</span>],
+    <span class="str">"action_space"</span>: [<span class="str">"STOP"</span>, <span class="str">"MOVE_FORWARD"</span>, <span class="str">"TURN_LEFT"</span>, <span class="str">"TURN_RIGHT"</span>],
+    <span class="str">"instruction_vocab_size"</span>: <span class="num">2500</span>,
+    <span class="str">"hidden_size"</span>: <span class="num">512</span>,
+}
+<span class="kw">with</span> <span class="kw">open</span>(<span class="str">"vln_config.yaml"</span>, <span class="str">"w"</span>) <span class="kw">as</span> f:
+    yaml.dump(config, f)
+<span class="kw">print</span>(<span class="str">"模型配置已导出到 vln_config.yaml"</span>)</div>
+  </div>
+
+  <div class="tip-box">
+    <div class="tip-title">💡 这两个文件就是部署的输入</div>
+    <p>
+      <code>vln_inference.pth</code> + <code>vln_config.yaml</code> 是 Step 7（方法一：VLN+ROS Nav2）
+      部署时需要的两个文件。它们包含了<b>在真机上重建 VLN 模型并运行推理所需的一切</b>。
+      你在 Step 7 中会看到如何在 ROS 节点中加载它们。
+    </p>
+  </div>
+
+  <!-- ④ 试试调整 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 试试调整这些</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>调整项</th><th>怎么改</th><th>预期看到什么</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>训练步数</td>
+        <td>改 <code>habitat_baselines.num_updates</code> 从 10000 → 5000</td>
+        <td>SR 下降 ~5-10%，但训练时间减半</td>
+      </tr>
+      <tr>
+        <td>Batch Size</td>
+        <td>改 <code>habitat_baselines.batch_size</code> 从 8 → 16</td>
+        <td>收敛更快但 GPU 内存翻倍，可能 OOM</td>
+      </tr>
+      <tr>
+        <td>评估 split</td>
+        <td>改 <code>eval_split</code> 从 val_seen → val_unseen</td>
+        <td>SR 降低，反映场景泛化能力</td>
+      </tr>
+      <tr>
+        <td>动作空间</td>
+        <td>在配置中添加/移除 TURN 角度参数</td>
+        <td>动作粒度影响导航效率和平滑度</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box">
+    <div class="warn-title">⚠️ 部署前检查清单</div>
+    <p>
+      ✅ SR > 0.3（低于此值，真机上的表现会是灾难性的）<br>
+      ✅ 模型在 CPU 上推理时间 &lt; 100ms（真机一般无 GPU）<br>
+      ✅ checkpoint 文件可脱离 habitat-baselines 加载（验证导出脚本）<br>
+      ✅ 已在 val_unseen 上评估过，了解模型在新场景中的表现上限
+    </p>
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════ 总结 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 本章总结</h2>
+
+  <div class="module-grid">
+    <div class="module" style="border-left-color: var(--accent-vln);">
+      <h3>✅ 完成本章后你应该能</h3>
+      <ul>
+        <li>创建并验证 VLN-v0 环境</li>
+        <li>理解 R2R episode 的数据结构（position + instruction + reference_path）</li>
+        <li>解释 InstructionSensor 如何从 episode 提取指令文本</li>
+        <li>启动 VLN 模仿学习训练并阅读 loss/acc 曲线</li>
+        <li>理解 SR/SPL/nDTW 三项评估指标</li>
+        <li>导出可用于真机推理的 checkpoint + config 文件</li>
+      </ul>
+    </div>
+    <div class="module" style="border-left-color: #a78bfa;">
+      <h3>🔜 下一步：真机部署</h3>
+      <p style="margin-top:4px;">
+        现在你手头有了训练好的 VLN 模型。接下来的问题是：<b>怎么让它在 Spark-I 或 Leo 上跑起来？</b><br><br>
+        <a href="habitat-textbook-step7.html" style="color:#c4b5fd;font-weight:600;">→ 方法一：VLN 模型 + ROS Nav2</a>（更适合有 ROS 经验的团队）<br>
+        <a href="habitat-textbook-step8.html" style="color:#f9a8d4;font-weight:600;">→ 方法二：VLM 端到端</a>（更适合 CV/ML 背景的团队）
+      </p>
+    </div>
+  </div>
+
+  <!-- Page Nav -->
+  <div class="page-nav">
+    <a href="habitat-textbook-step5.html" class="prev">← 第5步：训练与评测</a>
+    <a href="habitat-textbook-step7.html" class="next">第7步：真机部署 · 方法一 →</a>
+  </div>
+
+</div>
+</section>
+
+<footer class="footer">
+  <p><b>Habitat 从零理解</b> · Step 6 · VLN 仿真训练</p>
+  <p style="margin-top:6px;">
+    <a href="index.html">门户</a> ·
+    <a href="habitat-textbook.html">教科书</a> ·
+    <a href="habitat-textbook-step5.html">← Step 5</a> ·
+    <a href="habitat-textbook-step7.html">Step 7 →</a>
+  </p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+<script>window.totalStages = 4;</script>
+</body>
+</html>

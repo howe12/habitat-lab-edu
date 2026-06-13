@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第9步：Rearrange 操作任务 — Habitat 从零理解</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<style>
+/* reuse same :root vars from theme.css */
+.arch-arrow-center { font-size: 0.9rem !important; }
+h3 { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+h4 { font-size: 0.92rem; font-weight: 600; color: var(--text); }
+.info-title { color: #60a5fa; font-weight: 700; margin-bottom: 6px; }
+.obs-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.obs-item { background: #1a2332; padding: 8px 12px; border-radius: 6px; font-size: 0.78rem; }
+.obs-item code { color: #fbbf24; }
+.obs-key { color: #93c5fd; font-weight: 600; }
+.table-col-small { width: 10%; }
+.table-col-med { width: 16%; }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html">🏠 门户</a>
+  <span class="sep">|</span>
+  <a href="habitat-textbook.html">📗 教科书</a>
+  <span class="sep">/</span>
+  <span class="current">第9步：Rearrange 操作任务</span>
+</nav>
+
+<header class="hero">
+  <div class="step-badge">第 9 步 · 进阶 · 预计 3-5 天</div>
+  <h1>Rearrange：具身操作任务</h1>
+  <p class="subtitle">
+    Habitat 2.0 的核心贡献——从"导航到目标点"升级为"与物体交互"。
+    本章覆盖 Pick/Place、关节物体、PDDL 复合任务，从简单的抓取到复杂的多阶段家居操作。
+  </p>
+</header>
+
+<!-- ═══════════════ 案例总览 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 案例总览</h2>
+    <table class="compare-table">
+      <thead><tr><th class="table-col-small">#</th><th>案例</th><th class="table-col-med">难度</th><th>学什么</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Navigation vs Rearrange 全景对比</td><td>⭐</td><td>任务空间、动作空间、物理仿真的本质差异</td></tr>
+        <tr><td>2</td><td>Pick 任务：抓取物体</td><td>⭐⭐</td><td>ArmRelPos + SuctionGrasp + 物体会话</td></tr>
+        <tr><td>3</td><td>Place 任务：放置物体</td><td>⭐⭐</td><td>持物约束、目标位姿传感器</td></tr>
+        <tr><td>4</td><td>NavToObj：纯导航子任务</td><td>⭐⭐</td><td>无手臂控制的底盘导航</td></tr>
+        <tr><td>5</td><td>关节物体：开关抽屉/冰箱</td><td>⭐⭐⭐</td><td>Marker 交互 + 关节物体物理</td></tr>
+        <tr><td>6</td><td>PDDL 复合任务：TidyHouse</td><td>⭐⭐⭐</td><td>Pick→Nav→Place 多阶段编排</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════ 案例 1：Rearrange 全景 ═══════════════ -->
+<section id="case1">
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-core);"></span> 案例 1：Navigation vs Rearrange — 全景对比</h2>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <p>
+        理解 Rearrange 和 Navigation 的本质差异。Rearrange 引入了<b>物理仿真、机器人本体、物体交互</b>，
+        是 Habitat 2.0 论文的核心升级。对初学者而言，最关键的认知转换是：
+        <b>不再是"走到某个点"，而是"改变这个世界的状态"</b>。
+      </p>
+    </div>
+
+    <table class="compare-table">
+      <thead><tr><th style="width:20%">维度</th><th style="width:40%">Navigation (PointNav)</th><th style="width:40%">Rearrange (Pick/Place)</th></tr></thead>
+      <tbody>
+        <tr><td><b>智能体</b></td><td>看不见的"点"（radius=0.1 碰撞球）</td><td>Fetch 机器人（有底盘+手臂+夹爪的 URDF 模型）</td></tr>
+        <tr><td><b>物理引擎</b></td><td>无（只有碰撞检测）</td><td>必须开启 Bullet 物理仿真</td></tr>
+        <tr><td><b>动作空间</b></td><td>离散：STOP/FWD/LEFT/RIGHT</td><td>连续：ArmJoint(7维) + Grip(1维) + BaseVel(2维)</td></tr>
+        <tr><td><b>场景内容</b></td><td>静态网格</td><td>场景 + 可抓取物体(YCB) + 接收器(receptacle)</td></tr>
+        <tr><td><b>成功条件</b></td><td>智能体停在 target 附近（<0.2m）</td><td>物体被吸起 / 物体落到目标位姿</td></tr>
+        <tr><td><b>Sim 类型</b></td><td><code>HabitatSim-v0</code></td><td><code>RearrangeSim-v0</code></td></tr>
+        <tr><td><b>数据集</b></td><td>PointNav episodes (json.gz)</td><td>RearrangeDatasetV0（自动生成 + auto-download）</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Rearrange 任务继承体系</h3>
+    <div class="code-block"><span class="cmt"># Rearrange 的类继承（从 NavigationTask 到具体子任务）</span>
+EmbodiedTask                    <span class="cmt"># 所有任务的根</span>
+  └─ NavigationTask             <span class="cmt"># 导航基类</span>
+       └─ <b>RearrangeTask</b>          <span class="cmt"># + 物理、碰撞、抓取管理</span>
+            ├─ RearrangePickTaskV1     <span class="cmt"># 抓取（吸盘）</span>
+            ├─ RearrangePlaceTaskV1    <span class="cmt"># 放置（持物→目标）</span>
+            ├─ DynNavRLEnv             <span class="cmt"># 纯导航（无手臂控制）</span>
+            └─ RearrangeReachTaskV1    <span class="cmt"># 机械臂到达（底盘固定）</span>
+       └─ SetArticulatedObjectTask     <span class="cmt"># 关节物体操作</span>
+            ├─ RearrangeOpenDrawerTaskV1
+            ├─ RearrangeCloseFridgeTaskV1
+            └─ ...</div>
+  </div>
+</section>
+
+<!-- ═══════════════ 案例 2：Pick 任务 ═══════════════ -->
+<section id="case2">
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-task);"></span> 案例 2：Pick 任务 — 抓取物体</h2>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <p>
+        最简 Rearrange 入门。Fetch 机器人导航到物体附近，控制机械臂用吸盘抓取物体。
+        <b>成功 = is_holding=1</b>。这是所有操作任务的原子能力。
+      </p>
+    </div>
+
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-title">② 核心代码 & 关键函数</div>
+    </div>
+
+    <div class="code-block"><span class="kw">import</span> habitat
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+
+<span class="cmt"># ① 加载配置 — 使用预置的 pick benchmark</span>
+config = habitat.get_config(<span class="str">"benchmark/rearrange/pick.yaml"</span>)
+
+<span class="cmt"># ② (可选) 重写部分配置</span>
+<span class="kw">with</span> habitat.config.read_write(config):
+    config.habitat.environment.max_episode_steps = <span class="num">300</span>
+
+<span class="cmt"># ③ 创建环境 — 自动下载 ReplicaCAD + YCB + robot URDF</span>
+env = habitat.Env(config=config)
+
+<span class="cmt"># ④ 观察空间</span>
+obs = env.reset()
+<span class="kw">print</span>(<span class="str">"Observation keys:"</span>, list(obs.keys()))
+<span class="kw">for</span> k, v <span class="kw">in</span> obs.items():
+    <span class="kw">print</span>(<span class="str">f"  {k:30s} shape={v.shape}"</span>)
+
+<span class="cmt"># ⑤ 动作空间 — 与 PointNav 完全不同！</span>
+<span class="kw">print</span>(<span class="str">"\nAction space:"</span>, env.action_space)
+<span class="cmt"># 输出类似: Dict(arm_action: Box(0.0, 1.0, (10,)), ...)</span>
+
+<span class="cmt"># ⑥ 采样并执行一个随机动作</span>
+action = env.action_space.sample()
+obs, reward, done, info = env.step(action)
+<span class="kw">print</span>(<span class="str">f"\nReward: {reward:.4f}, Done: {done}"</span>)
+<span class="kw">print</span>(<span class="str">f"Info: {info}"</span>)
+env.close()</div>
+
+    <table class="compare-table" style="margin-top:12px;">
+      <thead><tr><th>关键函数/配置</th><th>角色</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>habitat.get_config("benchmark/rearrange/pick.yaml")</code></td><td>加载预置配置</td><td>自动设置 RearrangeSim + Fetch robot + Pick task</td></tr>
+        <tr><td><code>env.action_space</code></td><td>动作空间定义</td><td>Dict: {"arm_action": Box(10,), "grip_action": Box(1,), "base_vel": Box(2,)}</td></tr>
+        <tr><td><code>arm_action</code></td><td>机械臂关节控制</td><td>7 维 delta joint position（相对关节角度变化）</td></tr>
+        <tr><td><code>SuctionGraspAction</code></td><td>吸盘抓取</td><td>1 维: 正值=吸, 负值=放</td></tr>
+        <tr><td><code>is_holding</code></td><td>持物状态传感器</td><td>0/1: 是否正吸着物体</td></tr>
+        <tr><td><code>joint</code></td><td>关节角度传感器</td><td>7 维: 每个关节的当前角度</td></tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <div class="tip-title">③ 如何运行</div>
+      <div class="code-block"><span class="prompt">$</span> python pick_demo.py</div>
+      <p>首次运行会自动下载 <code>rearrange_task_assets</code>（约 2-5 分钟），之后不再需要等待。</p>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">④ 预期传感器输出</div>
+      <div class="obs-grid">
+        <div class="obs-item"><span class="obs-key">head_depth</span> → <code>shape=(256, 256, 1)</code><br>机器人头部深度相机</div>
+        <div class="obs-item"><span class="obs-key">joint</span> → <code>shape=(7,)</code><br>手臂 7 个关节角度</div>
+        <div class="obs-item"><span class="obs-key">is_holding</span> → <code>shape=(1,)</code><br>0 = 未抓取，1 = 已抓取</div>
+        <div class="obs-item"><span class="obs-key">obj_start_sensor</span> → <code>shape=(3,)</code><br>物体相对 EE 的位置</div>
+        <div class="obs-item"><span class="obs-key">relative_resting_position</span> → <code>shape=(3,)</code><br>EE 到休息位的向量</div>
+        <div class="obs-item"><span class="obs-key">joint_vel</span> → <code>shape=(7,)</code><br>关节速度</div>
+      </div>
+    </div>
+
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-title">⑤ 输出含义</div>
+      <p>
+        <b>obj_start_sensor</b>：物体中心在机器人末端执行器坐标系下的 3D 偏移量 (Δx, Δy, Δz)。<br>
+        机械臂控制的目标就是把这个向量趋近于 0——即 EE 接触到物体。<br>
+        <b>is_holding</b> 从 0 → 1 的瞬间标志着一次成功的抓取。<br>
+        <b>joint</b> 是 7 自由度 Fetch 手臂的当前位姿: shoulder_pan, shoulder_lift, upperarm_roll, elbow_flex, forearm_roll, wrist_flex, wrist_roll。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 案例 3：Place 任务 ═══════════════ -->
+<section id="case3">
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-rl);"></span> 案例 3：Place 任务 — 放置物体</h2>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <p>
+        智能体<b>已持有一个物体</b>（初始状态 is_holding=1），需要导航到底座目标位置并释放物体。
+        Pick vs Place 的最大区别：Pick 需要先接近物体→抓取；Place 已经持有物体→只需导航+释放。
+      </p>
+    </div>
+
+    <div class="code-block"><span class="kw">import</span> habitat
+
+config = habitat.get_config(<span class="str">"benchmark/rearrange/place.yaml"</span>)
+
+<span class="kw">with</span> habitat.config.read_write(config):
+    config.habitat.environment.max_episode_steps = <span class="num">300</span>
+
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="cmt"># 关键差异：初始状态下 is_holding=1</span>
+<span class="kw">print</span>(<span class="str">"is_holding at start:"</span>, obs[<span class="str">"is_holding"</span>])
+<span class="cmt"># → [1.0] — agent 已经抓着物体</span>
+
+<span class="cmt"># obj_goal_sensor: 目标位置（不是物体位置！）</span>
+<span class="kw">print</span>(<span class="str">"goal_pos (relative to EE):"</span>, obs[<span class="str">"obj_goal_sensor"</span>])
+
+<span class="cmt"># Place 特有传感器</span>
+<span class="kw">for</span> key <span class="kw">in</span> [<span class="str">"obj_goal_sensor"</span>, <span class="str">"obj_start_sensor"</span>,
+           <span class="str">"obj_goal_gps_compass"</span>]:
+    <span class="kw">print</span>(<span class="str">f"  {key:30s} = {obs[key]}"</span>)
+
+env.close()</div>
+
+    <table class="compare-table" style="margin-top:12px;">
+      <thead><tr><th>传感器</th><th>Pick 有?</th><th>Place 有?</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><code>obj_start_sensor</code></td><td>✅</td><td>✅</td><td>物体位置（EE 坐标系）</td></tr>
+        <tr><td><code>obj_goal_sensor</code></td><td>❌</td><td>✅</td><td>目标放置位置（EE 坐标系）</td></tr>
+        <tr><td><code>obj_goal_gps_compass</code></td><td>❌</td><td>✅</td><td>目标在 robot base 坐标系的极坐标 (ρ, φ)</td></tr>
+        <tr><td><code>is_holding</code></td><td>✅ (初始 0)</td><td>✅ (初始 1)</td><td>抓取状态</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════ 案例 4：NavToObj ═══════════════ -->
+<section id="case4">
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-config);"></span> 案例 4：NavToObj — 纯导航子任务</h2>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <p>
+        NavToObj 是 Rearrange 系列中最接近 PointNav 的任务——<b>没有机械臂控制</b>，
+        只需要用底盘速度控制导航到目标物体或接收器。这使它成为从 Navigation 过渡到 Rearrange 的理想跳板。
+      </p>
+    </div>
+
+    <div class="code-block"><span class="kw">import</span> habitat
+
+config = habitat.get_config(<span class="str">"benchmark/rearrange/nav_to_obj.yaml"</span>)
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="cmt"># 动作空间：只需 chassis 速度控制（线性 + 角速度）</span>
+<span class="kw">print</span>(<span class="str">"Action space:"</span>, env.action_space)
+<span class="cmt"># base_vel: [linear_vel, angular_vel] — 2 维连续</span>
+
+<span class="cmt"># 观察空间：有 GPS+Compass 类传感器</span>
+<span class="kw">print</span>(<span class="str">"nav goal sensor (polar):"</span>, obs[<span class="str">"obj_start_gps_compass"</span>])
+<span class="cmt"># [distance, angle] — 目标物体相对机器人底座的极坐标</span>
+
+<span class="cmt"># 简单控制：以固定速度向目标移动</span>
+<span class="kw">for</span> step <span class="kw">in</span> range(<span class="num">200</span>):
+    dist, angle = obs[<span class="str">"obj_start_gps_compass"</span>]
+    <span class="cmt"># 简单策略：转向目标，然后前进</span>
+    <span class="kw">if</span> abs(angle) > <span class="num">0.2</span>:
+        action = {<span class="str">"base_vel"</span>: np.array([<span class="num">0.0</span>, np.sign(angle) * <span class="num">0.5</span>])}
+    <span class="kw">else</span>:
+        action = {<span class="str">"base_vel"</span>: np.array([<span class="num">1.0</span>, <span class="num">0.0</span>])}
+    obs, reward, done, info = env.step(action)
+    <span class="kw">if</span> done:
+        <span class="kw">break</span>
+
+env.close()</div>
+
+    <table class="compare-table" style="margin-top:12px;">
+      <thead><tr><th>对比维度</th><th>PointNav</th><th>NavToObj</th></tr></thead>
+      <tbody>
+        <tr><td>导航目标</td><td>3D 坐标点</td><td>物体 / 接收器</td></tr>
+        <tr><td>动作空间</td><td>离散（4 动作）</td><td>连续速度（base_vel）</td></tr>
+        <tr><td>模拟器</td><td>HabitatSim</td><td>RearrangeSim</td></tr>
+        <tr><td>物理引擎</td><td>关闭</td><td>开启</td></tr>
+        <tr><td>智能体</td><td>无形态点</td><td>Fetch robot 底盘</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════ 案例 5：关节物体 ═══════════════ -->
+<section id="case5">
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-warn);"></span> 案例 5：关节物体 — 开关抽屉与冰箱</h2>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <p>
+        Habitat-Sim 支持<b>可动关节物体</b>（ArticulatedObject）——抽屉、柜门、冰箱门等。
+        操作这类物体需要一种不同的交互方式：通过 <b>marker</b>（交互标记点）来指定抓取位置，
+        然后以 <b>关节角度</b> 为目标进行控制。
+      </p>
+    </div>
+
+    <div class="code-block"><span class="kw">import</span> habitat
+
+<span class="cmt"># 开抽屉任务</span>
+config = habitat.get_config(<span class="str">"benchmark/rearrange/open_cab.yaml"</span>)
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="kw">print</span>(<span class="str">"Articulated object task sensors:"</span>)
+<span class="kw">for</span> k, v <span class="kw">in</span> obs.items():
+    <span class="kw">print</span>(<span class="str">f"  {k:30s} shape={v.shape}"</span>)
+
+<span class="cmt"># 关节物体特有的组件：</span>
+<span class="cmt"># - marker: 手柄/拉手位置（用于指定抓取点）</span>
+<span class="cmt"># - joint_state: 当前关节开合角度</span>
+<span class="cmt"># - target_joint_state: 目标关节角度（全开/全关）</span>
+
+env.close()
+
+<span class="kw">print</span>(<span class="str">"\n</span><span class="cmt">=== 可用的关节物体任务 ===</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">"  open_cab.yaml    — 开柜门"</span>)
+<span class="kw">print</span>(<span class="str">"  close_cab.yaml   — 关柜门"</span>)
+<span class="kw">print</span>(<span class="str">"  open_fridge.yaml — 开冰箱"</span>)
+<span class="kw">print</span>(<span class="str">"  close_fridge.yaml— 关冰箱"</span>)</div>
+
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-title">⑤ 输出含义</div>
+      <p>
+        关节物体任务的 <b>核心指标</b> 是关节角度与目标角度的差值。<br>
+        例如 OpenDrawer：目标角度 = 0.45 rad（全开），初始角度 = 0.0 rad（全关）。<br>
+        Agent 需要抓取把手（marker），施加力拉开抽屉，直到达到目标角度。<br>
+        关节类型有：prismatic（滑动，如抽屉）和 revolute（旋转，如冰箱门）。
+      </p>
+    </div>
+
+    <div class="info-box" style="margin-top:12px;">
+      <div class="info-title">⑥ 可调参数</div>
+      <table class="compare-table">
+        <thead><tr><th>调整项</th><th>怎么改</th><th>预期看到什么</th></tr></thead>
+        <tbody>
+          <tr><td>目标关节角度</td><td>修改 task config 中的 <code>target_joint_state</code></td><td>部分开合 vs 全开全合</td></tr>
+          <tr><td>力阈值</td><td>修改 <code>force_terminate.max_accum_force</code></td><td>更早/更晚因力过大而终止</td></tr>
+          <tr><td>任务类型</td><td>切换 <code>open_cab</code> → <code>open_fridge</code></td><td>不同的关节物体形态和交互方式</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 案例 6：PDDL 复合任务 ═══════════════ -->
+<section id="case6">
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 案例 6：PDDL 复合任务 — 多阶段家居操作</h2>
+
+    <div class="info-box">
+      <div class="info-title">① 案例含义</div>
+      <p>
+        <b>PDDL</b>（Planning Domain Definition Language）是一种符号化任务规划语言。
+        在 Habitat 中，一个"收拾桌子"的任务会被分解为：<br>
+        <code>nav(碗) → pick(碗) → nav(桌子) → place(碗, 桌子) → nav(杯子) → ...</code><br>
+        高层用 PDDL 规划，低层用 RL/脚本执行每个原子动作——这就是 HRL（Hierarchical RL）的核心思想。
+      </p>
+    </div>
+
+    <div class="code-block"><span class="kw">import</span> habitat
+
+<span class="cmt"># 简单复合任务（有预定义 solution）</span>
+config = habitat.get_config(<span class="str">"benchmark/rearrange/rearrange_easy.yaml"</span>)
+
+<span class="kw">with</span> habitat.config.read_write(config):
+    config.habitat.environment.max_episode_steps = <span class="num">500</span>
+
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="kw">print</span>(<span class="str">"Composite task PDDL predicates:"</span>)
+<span class="cmt"># all_predicates 传感器告诉你当前所有 PDDL 谓词的真值</span>
+<span class="kw">if</span> <span class="str">"all_predicates"</span> <span class="kw">in</span> obs:
+    <span class="kw">print</span>(obs[<span class="str">"all_predicates"</span>])
+
+env.close()</div>
+
+    <h3 style="margin-top:20px;">PDDL Domain 定义示例</h3>
+    <div class="code-block"><span class="cmt"># 来自 config/habitat/task/rearrange/pddl/rearrange_easy.yaml</span>
+<span class="cmt"># 定义场景中有什么、目标是什么、怎么做</span>
+
+<span class="str">objects:</span>            <span class="cmt"># 场景实体</span>
+  <span class="str">- name: goal0|0</span>        <span class="cmt"># 要移动的物体</span>
+    <span class="str">expr_type: movable_entity_type</span>
+  <span class="str">- name: TARGET_goal0|0</span>  <span class="cmt"># 目标位置（接收器）</span>
+    <span class="str">expr_type: goal_entity_type</span>
+  <span class="str">- name: robot_0</span>         <span class="cmt"># 机器人自己</span>
+    <span class="str">expr_type: robot_entity_type</span>
+
+<span class="str">goal:</span>               <span class="cmt"># 最终目标：物体在目标位置 AND 机器人不持物</span>
+  <span class="str">expr_type: AND</span>
+  <span class="str">sub_exprs:</span>
+    <span class="str">- at(goal0|0, TARGET_goal0|0)</span>
+    <span class="str">- not_holding(robot_0)</span>
+
+<span class="str">solution:</span>           <span class="cmt"># 预定义的执行计划（easy mode）</span>
+  <span class="str">- nav(goal0|0, robot_0)</span>          <span class="cmt"># 1. 导航到物体</span>
+  <span class="str">- pick(goal0|0, robot_0)</span>         <span class="cmt"># 2. 抓取</span>
+  <span class="str">- nav(TARGET_goal0|0, robot_0)</span>  <span class="cmt"># 3. 导航到目标</span>
+  <span class="str">- place(goal0|0, TARGET_goal0|0, robot_0)</span> <span class="cmt"># 4. 放置</span></div>
+
+    <table class="compare-table" style="margin-top:12px;">
+      <thead><tr><th>PDDL 元素</th><th>角色</th><th>例子</th></tr></thead>
+      <tbody>
+        <tr><td><b>Entity</b></td><td>场景中的对象</td><td>goal0|0（物）、TARGET_goal0|0（位置）、robot_0（机器人）</td></tr>
+        <tr><td><b>Predicate</b></td><td>描述世界状态的真/假断言</td><td><code>at(goal0|0, TARGET)</code>, <code>holding(robot_0)</code>, <code>not_holding(robot_0)</code></td></tr>
+        <tr><td><b>Goal</b></td><td>目标状态（谓词的逻辑组合）</td><td><code>AND(at(...), not_holding(...))</code></td></tr>
+        <tr><td><b>Solution</b></td><td>到达目标的动作序列</td><td><code>nav → pick → nav → place</code></td></tr>
+        <tr><td><b>Action</b></td><td>可执行的原子动作</td><td><code>nav(entity, robot)</code>, <code>pick(entity, robot)</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px;">可用复合任务</h3>
+    <table class="compare-table">
+      <thead><tr><th>Benchmark Config</th><th>任务描述</th><th>物体数</th></tr></thead>
+      <tbody>
+        <tr><td><code>rearrange_easy.yaml</code></td><td>单个物体：抓取→搬运→放置</td><td>1</td></tr>
+        <tr><td><code>rearrange.yaml</code></td><td>同上但无预定义 solution（需要 planner）</td><td>1</td></tr>
+        <tr><td><code>set_table.yaml</code></td><td>摆桌子：多个物体→多个位置</td><td>3-5</td></tr>
+        <tr><td><code>tidy_house.yaml</code></td><td>整理房间：物体归位</td><td>3-5</td></tr>
+        <tr><td><code>prepare_groceries.yaml</code></td><td>准备食材：多物体→不同接收器</td><td>3-5</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════ 学后自检 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 学后自检 — 你掌握了什么</h2>
+
+    <div class="trouble-grid">
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q1：Rearrange 和 Navigation 的核心区别是什么？</h4>
+        <p>Navigation 是"走到点"，Rearrange 是"改变世界状态"。后者需要物理引擎、机器人 URDF、关节手臂控制和物体交互（抓取/放置）。Sim 类型从 HabitatSim-v0 切换为 RearrangeSim-v0。</p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q2：Pick 任务中的 is_holding=1 意味着什么？</h4>
+        <p>吸盘已成功吸住目标物体。这是 pick_reward 的峰值信号，也是 pick_success 的判断依据。此后物体会跟随机械臂末端执行器运动。</p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q3：PDDL 中的 solution 字段是做什么的？</h4>
+        <p>预定义的动作序列（nav→pick→nav→place）。在"easy"模式下，CompositeTask 按 solution 顺序执行每个原子动作。在"hard"模式下需要运行时 planner。</p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q4：为什么不直接在 PointNav 的 Env 里加一个"抓取"动作？</h4>
+        <p>因为操作任务需要物理仿真、碰撞检测、抓取约束、关节限制——这些都需要 Bullet 物理引擎和完整的 URDF 机器人模型，不是在一个离散动作空间里加一个 action_id 能实现的。</p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q5：Rearrange 的数据集需要手动下载吗？</h4>
+        <p>不需要。RearrangeDatasetV0 的 __init__ 方法会自动调用 datasets_download --uids rearrange_task_assets，首次运行时会自动完成。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ Page Nav ═══════════════ -->
+<section>
+  <div class="container">
+    <div class="page-nav">
+      <a href="habitat-textbook-step5.html" class="prev">← 第5步：训练与评测</a>
+      <a href="habitat-textbook-step5b.html" class="next">第5B步：DD-PPO 分布式训练 →</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p><a href="index.html">门户首页</a> · <a href="habitat-textbook.html">教科书</a> · <b>第9步：Rearrange 操作任务</b></p>
+  <p style="margin-top:4px;">仅供学习参考</p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+</body>
+</html>

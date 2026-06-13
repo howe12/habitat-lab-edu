@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第4步：改配置实验 — Habitat 从零理解</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<style>
+  /* ── Step 4 专属样式：实验卡 / 截图 / 步骤号 ─── */
+  .exp-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-left: 4px solid var(--accent-core);
+    border-radius: var(--radius); padding: 22px 26px; margin: 18px 0;
+  }
+  .exp-card h3 { font-size: 1.05rem; color: var(--text); margin-bottom: 8px; }
+  .exp-goal { font-size: 0.9rem; color: var(--text-dim); line-height: 1.7; margin: 6px 0; }
+  .exp-result {
+    background: #0f172a; border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem; color: #cbd5e1; line-height: 1.7;
+    margin-top: 10px; overflow-x: auto; white-space: pre;
+  }
+  .screenshot-row {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px; margin: 18px 0;
+  }
+  .screenshot-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px;
+    display: flex; flex-direction: column; gap: 8px; text-align: center;
+  }
+  .screenshot-card img {
+    width: 100%; border-radius: 8px; display: block;
+    border: 1px solid var(--border);
+  }
+  .step-tag {
+    display: inline-block; font-size: 0.72rem; font-weight: 700;
+    padding: 3px 10px; border-radius: 12px;
+    background: #3b82f620; color: #93c5fd; border: 1px solid #3b82f640;
+    margin-bottom: 6px;
+  }
+  .step-name { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .step-desc { font-size: 0.82rem; color: var(--text-dim); line-height: 1.6; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="topnav">
+  <a href="index.html">🏠 门户</a>
+  <span class="sep">|</span>
+  <a href="habitat-textbook.html">📗 教科书</a>
+  <span class="sep">/</span>
+  <a href="habitat-textbook-step3.html">第3步：解剖参数</a>
+  <span class="sep">/</span>
+  <span class="current">第4步：改配置实验</span>
+  <span class="sep" style="margin-left:auto;"></span>
+  <a href="vln.html">🧭 VLN</a>
+  <span class="sep">|</span>
+  <a href="architecture.html">🔌 架构</a>
+</nav>
+
+<!-- ═══════════════ HERO ═══════════════ -->
+<header class="hero">
+  <div class="step-badge">第 4 步 · 动手实验</div>
+  <h1>改配置实验</h1>
+  <p class="subtitle">
+    修改 Habitat 的配置参数，观察对观测输出、传感器数据、任务指标的影响。从"读配置"到"改配置"，建立配置→效果的因果直觉。
+  </p>
+</header>
+
+<!-- ═══════════════ 1. 概述 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> 0. 本章路线图</h2>
+    <p class="section-subtitle">
+      5 个递进实验，从改分辨率到自定义传感器，循序渐进掌握配置体系。
+    </p>
+
+    <div class="flow-box">
+      <div class="flow-step">
+        <div class="step-tag">实验 4-1</div>
+        <div class="step-name">改 RGB 分辨率</div>
+        <div class="step-desc">观察内存与画质变化</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="step-tag">实验 4-2</div>
+        <div class="step-name">切换传感器组合</div>
+        <div class="step-desc">理解 sim vs lab sensors</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="step-tag">实验 4-3</div>
+        <div class="step-name">注册自定义传感器</div>
+        <div class="step-desc">LiDAR 传感器实战</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="step-tag">实验 4-4</div>
+        <div class="step-name">自定义 YAML 配置</div>
+        <div class="step-desc">创建自己的 Benchmark</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="step-tag">实验 4-5</div>
+        <div class="step-name">对比 success_distance</div>
+        <div class="step-desc">理解指标对训练的影响</div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">💡 前置知识</div>
+      本章假设你已理解：
+      <b>(1)</b> 第3步中的参数模型（摄像头、动作、传感器）；<br>
+      <b>(2)</b> Hydra 的 <code>defaults:</code> 配置继承机制；<br>
+      <b>(3)</b> <code>habitat.config.read_write()</code> 上下文管理器的用法。
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 2. 实验 4-1：改分辨率 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#3b82f6;"></span> 实验 4-1：修改 RGB 分辨率</h2>
+    <p class="section-subtitle">修改 <code>rgb_sensor</code> 的宽度和高度，观察观测张量 shape 和内存占用的变化。</p>
+
+    <div class="exp-card" style="border-left-color:#3b82f6;">
+      <h3>📐 实验设置</h3>
+      <p class="exp-goal">对比 128×128、256×256、512×512 三种分辨率下 RGB 和 Depth 观测的变化。</p>
+
+      <div class="code-block"><span class="cmt"># 修改配置的核心代码</span>
+<span class="kw">with</span> habitat.config.read_write(cfg):
+    cfg.habitat.simulator.agents.main_agent.sim_sensors.rgb_sensor.<span class="fn">width</span> = <span class="num">128</span>
+    cfg.habitat.simulator.agents.main_agent.sim_sensors.rgb_sensor.<span class="fn">height</span> = <span class="num">128</span>
+    cfg.habitat.simulator.agents.main_agent.sim_sensors.depth_sensor.<span class="fn">width</span> = <span class="num">128</span>
+    cfg.habitat.simulator.agents.main_agent.sim_sensors.depth_sensor.<span class="fn">height</span> = <span class="num">128</span></div>
+
+      <p class="exp-goal" style="color:#60a5fa;">📊 运行结果：</p>
+      <div class="exp-result">
+<span class="label">128x128</span>: rgb=<span class="num">(128, 128, 3)</span>, depth=<span class="num">(128, 128, 1)</span>, memory≈<span class="num">48 KB</span>
+<span class="label">256x256</span>: rgb=<span class="num">(256, 256, 3)</span>, depth=<span class="num">(256, 256, 1)</span>, memory≈<span class="num">192 KB</span>
+<span class="label">512x512</span>: rgb=<span class="num">(512, 512, 3)</span>, depth=<span class="num">(512, 512, 1)</span>, memory≈<span class="num">768 KB</span></div>
+    </div>
+
+    <h3 style="margin-top:24px;">📸 实际截图对比</h3>
+    <div class="screenshot-row">
+      <div class="screenshot-card">
+        <img src="step4_outputs/4-1_rgb_128x128.png" alt="128x128 RGB" loading="lazy">
+        <div class="caption">128×128 — 48 KB</div>
+      </div>
+      <div class="screenshot-card">
+        <img src="step4_outputs/4-1_rgb_256x256.png" alt="256x256 RGB" loading="lazy">
+        <div class="caption">256×256 — 192 KB (默认)</div>
+      </div>
+      <div class="screenshot-card">
+        <img src="step4_outputs/4-1_rgb_512x512.png" alt="512x512 RGB" loading="lazy">
+        <div class="caption">512×512 — 768 KB</div>
+      </div>
+    </div>
+
+    <div class="key-finding">
+      <span class="icon">💡</span>
+      <div>
+        <b>关键发现：</b>分辨率每翻倍（128→256→512），RGB 内存占用变为 <b>4 倍</b>（宽×高×3通道）。
+        深度图为 1 通道，占用为 RGB 的 1/3。<b>工程权衡：</b>高分辨率提供更清晰视觉，但显著增加 GPU 显存和 I/O 开销。
+        训练时常用 128×128 或 256×256 以平衡精度与效率。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 3. 实验 4-2：传感器组合 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#06b6d4;"></span> 实验 4-2：切换传感器组合</h2>
+    <p class="section-subtitle">区分 <code>sim_sensors</code>（模拟器级物理传感器）和 <code>lab_sensors</code>（任务级逻辑传感器）。</p>
+
+    <div class="exp-card" style="border-left-color:#06b6d4;">
+      <h3>🔬 两个传感器层级</h3>
+      <p class="exp-goal">默认配置加载了 RGB + Depth 作为 sim_sensors，PointGoalWithGPSCompass 作为 lab_sensor。</p>
+
+      <div class="exp-result">
+<span class="label">默认 (RGB + Depth):</span> 观测 keys = [<span class="str">'rgb'</span>, <span class="str">'depth'</span>, <span class="str">'pointgoal_with_gps_compass'</span>]
+  rgb: shape=<span class="num">(256, 256, 3)</span>
+  depth: shape=<span class="num">(256, 256, 1)</span>
+  pointgoal_with_gps_compass: shape=<span class="num">(2,)</span>
+
+<span class="label">仅 RGB (移除 Depth):</span> 观测 keys = [<span class="str">'rgb'</span>, <span class="str">'pointgoal_with_gps_compass'</span>]</div>
+
+      <h3 style="margin-top:18px;">📸 实际观测截图对比</h3>
+      <div class="screenshot-row">
+        <div class="screenshot-card">
+          <img src="step4_outputs/4-2_rgb_default.png" alt="RGB Default" loading="lazy">
+          <div class="caption">RGB (默认 256×256)</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="step4_outputs/4-2_depth_colorized.png" alt="Depth Colorized" loading="lazy">
+          <div class="caption">Depth 热力图 (INFERNO)</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="step4_outputs/4-2_rgb_only.png" alt="RGB Only" loading="lazy">
+          <div class="caption">仅 RGB (移除 Depth)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="module-grid" style="margin-top:18px;">
+      <div class="module" style="border-left-color:#06b6d4;">
+        <h3>🎮 sim_sensors</h3>
+        <p>Simulator 级别的传感器，直接挂载在 Agent 身上，由渲染引擎驱动。</p>
+        <ul>
+          <li><code>rgb_sensor</code> — RGB 相机</li>
+          <li><code>depth_sensor</code> — 深度相机</li>
+          <li><code>semantic_sensor</code> — 语义分割</li>
+          <li>控制分辨率、HFOV、位置偏移</li>
+          <li>可添加/移除来改变观测内容</li>
+        </ul>
+      </div>
+      <div class="module" style="border-left-color:#8b5cf6;">
+        <h3>🧠 lab_sensors</h3>
+        <p>Task 级别的传感器，与具体任务绑定，提供任务相关的高级信息。</p>
+        <ul>
+          <li><code>pointgoal_with_gps_compass</code> — 目标方向+距离</li>
+          <li><code>heading_sensor</code> — 朝向角</li>
+          <li><code>gps_sensor</code> — 绝对坐标</li>
+          <li>可通过注册机制扩展</li>
+          <li>不依赖渲染，计算量小</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="key-finding">
+      <span class="icon">💡</span>
+      <div>
+        <b>关键发现：</b><code>sim_sensors</code> 和 <code>lab_sensors</code> 是两个独立的配置路径。
+        sim_sensors 的添加/移除直接影响 GPU 渲染负载；lab_sensors 则几乎零开销。
+        设计自定义任务时，应优先考虑用 lab_sensors 提供任务信息。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 4. 实验 4-3：自定义传感器 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#10b981;"></span> 实验 4-3：注册自定义传感器</h2>
+    <p class="section-subtitle">通过 <code>@registry.register_sensor</code> 注册一个自定义 LiDAR 传感器，理解 Sensor 基类接口。</p>
+
+    <div class="exp-card" style="border-left-color:#10b981;">
+      <h3>🛰️ SimpleLidarSensor — 8 方向射线 LiDAR</h3>
+      <p class="exp-goal">继承 <code>Sensor</code> 基类，实现 5 个接口方法，使用 <code>habitat_sim.geo.Ray</code> 做射线检测。</p>
+
+      <div class="code-block"><span class="cmt"># 注册自定义传感器 — 只需一个装饰器</span>
+<span class="kw">@registry.register_sensor</span>(name=<span class="str">"SimpleLidarSensor"</span>)
+<span class="kw">class</span> <span class="fn">SimpleLidarSensor</span>(Sensor):
+    <span class="str">"""模拟 LiDAR：返回 8 个方向的射线距离"""</span>
+    cls_uuid: <span class="kw">str</span> = <span class="str">"simple_lidar"</span>
+
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="key">self</span>, sim, config, *args, **kwargs):
+        <span class="key">self</span>._sim = sim
+        <span class="key">self</span>._num_rays = <span class="fn">getattr</span>(config, <span class="str">'num_rays'</span>, <span class="num">8</span>)
+        <span class="key">self</span>._max_range = <span class="fn">getattr</span>(config, <span class="str">'max_range'</span>, <span class="num">5.0</span>)
+        <span class="fn">super</span>().<span class="fn">__init__</span>(config=config)
+
+    <span class="kw">def</span> <span class="fn">_get_uuid</span>(<span class="key">self</span>, *args, **kwargs):
+        <span class="kw">return</span> <span class="key">self</span>.cls_uuid
+
+    <span class="kw">def</span> <span class="fn">_get_sensor_type</span>(<span class="key">self</span>, *args, **kwargs):
+        <span class="kw">return</span> SensorTypes.TACTILE
+
+    <span class="kw">def</span> <span class="fn">_get_observation_space</span>(<span class="key">self</span>, *args, **kwargs):
+        <span class="kw">return</span> spaces.<span class="fn">Box</span>(low=<span class="num">0.0</span>, high=<span class="key">self</span>._max_range,
+                          shape=(<span class="key">self</span>._num_rays,), dtype=np.float32)
+
+    <span class="kw">def</span> <span class="fn">get_observation</span>(<span class="key">self</span>, observations, episode, *args, **kwargs):
+        pos = <span class="key">self</span>._sim.get_agent_state().position
+        <span class="kw">for</span> i, angle <span class="kw">in</span> <span class="fn">enumerate</span>(<span class="fn">np.linspace</span>(<span class="num">0</span>, <span class="num">2*np.pi</span>, <span class="key">self</span>._num_rays)):
+            ray = habitat_sim.geo.Ray()
+            ray.origin = pos
+            ray.direction = <span class="fn">np.array</span>([<span class="fn">np.cos</span>(angle), <span class="num">0</span>, <span class="fn">np.sin</span>(angle)])
+            result = <span class="key">self</span>._sim.<span class="fn">cast_ray</span>(ray)
+            <span class="kw">if</span> result.has_hits():
+                distances[i] = result.hits[<span class="num">0</span>].ray_distance
+        <span class="kw">return</span> distances</div>
+
+      <p class="exp-goal" style="color:#10b981;">✅ 注册验证 & 输出测试：</p>
+      <div class="exp-result">
+<span class="label">registry.get_sensor('SimpleLidarSensor')</span> → &lt;class SimpleLidarSensor&gt;
+<span class="label">UUID:</span> simple_lidar
+<span class="label">观测空间:</span> Box(<span class="num">0.0</span>, <span class="num">5.0</span>, (<span class="num">8</span>,), float32)
+<span class="label">LiDAR 输出:</span> [<span class="num">5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0, 5.0</span>] <span class="cmt">← 开放空间，无遮挡</span></div>
+
+      <div class="tip-box" style="margin-top:14px;">
+        <div class="tip-title">💡 在 YAML 中使用自定义传感器</div>
+        将以下配置添加到你的 Benchmark YAML 中：<br>
+        <code style="display:block;margin-top:8px;">
+          habitat:<br>
+          &nbsp;&nbsp;task:<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;lab_sensors:<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;simple_lidar:<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;type: SimpleLidarSensor<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;num_rays: 8<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;max_range: 5.0
+        </code>
+      </div>
+
+      <h3 style="margin-top:18px;">📸 LiDAR 可视化结果</h3>
+      <div class="screenshot-row" style="grid-template-columns:1fr;">
+        <div class="screenshot-card">
+          <img src="step4_outputs/4-3_lidar_visualization.png" alt="LiDAR Visualization" loading="lazy" style="max-width:100%;">
+          <div class="caption">左：极坐标 LiDAR 16射线距离图 · 右：RGB 观测上下文（skokloster-castle 场景）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="key-finding">
+      <span class="icon">💡</span>
+      <div>
+        <b>关键发现：</b>Sensorn 接口只需实现 5 个方法：<code>_get_uuid</code>、<code>_get_sensor_type</code>、
+        <code>_get_observation_space</code>、<code>get_observation</code>（以及可选的 <code>__init__</code>）。
+        通过 <code>@registry.register_sensor</code> 装饰器即可将传感器注册到全局注册表，
+        Habitat 的 SensorSuite 会自动管理其生命周期。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 5. 实验 4-4：自定义 YAML ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#ec4899;"></span> 实验 4-4：创建自定义 Benchmark 配置</h2>
+    <p class="section-subtitle">从零编写一个 YAML 配置文件，理解 Hydra 配置继承和 <code>_self_</code> 覆盖机制。</p>
+
+    <div class="exp-card" style="border-left-color:#ec4899;">
+      <h3>📝 my_custom_pointnav.yaml</h3>
+      <p class="exp-goal">降低分辨率到 128×128、减少步数到 200、放宽成功距离到 0.5m。</p>
+
+      <div class="config-tree">
+<span class="cmt"># @package _global_</span>
+<span class="cmt"># 自定义 PointNav 配置 — 降低分辨率 + 减少步数 + 放宽成功条件</span>
+<span class="kw">defaults:</span>
+  - /benchmark/nav/pointnav: pointnav_base       <span class="cmt">← 继承基础任务结构</span>
+  - /habitat/dataset/pointnav: habitat_test       <span class="cmt">← 使用 habitat-test 数据集</span>
+  - <span class="warn">_self_</span>                                        <span class="cmt">← 让下方配置覆盖上方（关键！）</span>
+
+<span class="key">habitat:</span>
+  <span class="key">environment:</span>
+    <span class="key">max_episode_steps:</span> <span class="num">200</span>                           <span class="cmt">← 原默认 500</span>
+  <span class="key">simulator:</span>
+    <span class="key">agents:</span>
+      <span class="key">main_agent:</span>
+        <span class="key">sim_sensors:</span>
+          <span class="key">rgb_sensor:</span>
+            <span class="key">width:</span> <span class="num">128</span>                                   <span class="cmt">← 原 256</span>
+            <span class="key">height:</span> <span class="num">128</span>
+          <span class="key">depth_sensor:</span>
+            <span class="key">width:</span> <span class="num">128</span>
+            <span class="key">height:</span> <span class="num">128</span>
+  <span class="key">task:</span>
+    <span class="key">measurements:</span>
+      <span class="key">success:</span>
+        <span class="key">success_distance:</span> <span class="num">0.5</span>                         <span class="cmt">← 原 0.1</span></div>
+
+      <p class="exp-goal" style="color:#10b981;">✅ 配置验证通过：</p>
+      <div class="exp-result">
+<span class="label">加载方式:</span> cfg = get_config(<span class="str">'step4_outputs/my_custom_pointnav.yaml'</span>)
+<span class="label">分辨率:</span> <span class="num">128</span>x<span class="num">128</span>
+<span class="label">max_episode_steps:</span> <span class="num">200</span>
+<span class="label">success_distance:</span> <span class="num">0.5</span></div>
+
+      <h3 style="margin-top:18px;">📸 默认 vs 自定义配置对比</h3>
+      <div class="screenshot-row" style="grid-template-columns:1fr;">
+        <div class="screenshot-card">
+          <img src="step4_outputs/4-4_config_comparison.png" alt="Config Comparison" loading="lazy" style="max-width:100%;">
+          <div class="caption">各项参数改动一目了然：分辨率↓ / 步数↓ / 成功距离↑</div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:24px;">配置解析顺序</h3>
+    <div class="flow-box">
+      <div class="flow-step">
+        <div class="step-tag">第1层</div>
+        <div class="step-name">pointnav_base</div>
+        <div class="step-desc">定义所有默认值</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="step-tag">第2层</div>
+        <div class="step-name">habitat_test</div>
+        <div class="step-desc">覆盖数据集路径</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border:2px solid #f59e0b;">
+        <div class="step-tag" style="color:#fbbf24;">第3层 _self_</div>
+        <div class="step-name">你的覆盖值</div>
+        <div class="step-desc">最终生效的配置</div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <div class="info-title">💡 <code>_self_</code> 的作用</div>
+      Hydra 的 <code>defaults:</code> 列表中，<b>后面的配置覆盖前面的</b>。<code>_self_</code> 代表"当前文件自身的配置值"，
+      把它放在最后意味着当前文件中定义的参数会覆盖 <code>defaults:</code> 中所有继承配置的对应值。
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 6. 实验 4-5：success_distance ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#f59e0b;"></span> 实验 4-5：对比 success_distance 阈值</h2>
+    <p class="section-subtitle">修改 <code>success_distance</code> 参数，观察对评测指标（成功率）的影响。这是连接"配置"与"训练"的桥梁。</p>
+
+    <div class="exp-card" style="border-left-color:#f59e0b;">
+      <h3>📊 同一 Agent，不同阈值下的表现</h3>
+      <p class="exp-goal">使用一个固定的简单 Agent（每 5 步前进一次，偶尔转弯），在 10 个 episode 上评估不同 success_distance 阈值。</p>
+
+      <table class="compare-table">
+        <thead>
+          <tr><th>阈值设置</th><th>平均终点距离</th><th>成功率</th><th>含义</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><b>严格 0.1m</b> (默认)</td><td>9.01m</td><td>0%</td><td>Agent 必须精确站在目标 0.1m 内才算成功</td></tr>
+          <tr><td><b>中等 0.2m</b></td><td>9.01m</td><td>0%</td><td>稍微放宽，但仍要求较高精度</td></tr>
+          <tr><td><b>宽松 0.5m</b></td><td>9.01m</td><td>0%</td><td>Agent 在目标半米范围内即算成功</td></tr>
+          <tr><td><b>极宽 1.0m</b></td><td>9.01m</td><td>0%</td><td>只需大致在目标附近即可判定成功</td></tr>
+        </tbody>
+      </table>
+
+      <div class="code-block"><span class="cmt"># 修改 success_distance 的方法</span>
+<span class="kw">with</span> habitat.config.read_write(cfg):
+    cfg.habitat.task.measurements.success.<span class="fn">success_distance</span> = <span class="num">0.5</span>  <span class="cmt"># 从 0.1 改为 0.5</span></div>
+
+      <h3 style="margin-top:18px;">📸 实验结果图表</h3>
+      <div class="screenshot-row" style="grid-template-columns:1fr;">
+        <div class="screenshot-card">
+          <img src="step4_outputs/4-5_success_distance_chart.png" alt="Success Distance Chart" loading="lazy" style="max-width:100%;">
+          <div class="caption">4 种阈值的成功率对比（简单 Agent，10 episodes，max_steps=100）</div>
+        </div>
+      </div>
+
+      <div class="tip-box">
+        <div class="tip-title">📖 解读</div>
+        本实验中成功率全为 0% 是因为简单 Agent 没有导航能力，终点距离始终 ~9m。
+        这恰恰说明了 <b>success_distance 的影响机制</b>：它只在 Agent <b>最终位置接近目标时</b> 起作用。
+        对于能导航到目标附近的 Agent，更宽松的 success_distance 会显著提高成功率。
+        常见实践：<b>训练初期用宽松值（0.5m）加速收敛，后期收紧（0.1m）提升精度</b>。
+      </div>
+    </div>
+
+    <div class="key-finding">
+      <span class="icon">💡</span>
+      <div>
+        <b>关键发现：</b><code>success_distance</code> 是 <b>评测指标</b> 而非 <b>训练信号</b>。
+        修改它不改变 Agent 的行为，只改变"什么算成功"的定义。
+        训练时通常用 <code>distance_to_goal</code> 作为 reward 信号，<code>success_distance</code> 仅用于评估。
+        在 RL 训练中，设置合理的 success_distance 对奖励稀疏程度有直接影响。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 实验 4-6：语义传感器实操 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#8b5cf6;"></span> 实验 4-6：语义传感器实操</h2>
+    <p class="section-subtitle">加载 Semantic Sensor，理解每个像素值的含义，用 semantic_annotations() 查询物体名称。</p>
+
+    <div class="info-box">
+      <div class="info-title">Semantic 传感器原理</div>
+      <p>
+        Semantic 传感器返回 <b>物体实例 ID 图</b>，每个像素值不是颜色而是<b>该位置可见物体的实例编号</b>。
+        数据类型是 <code>int32</code>，shape 为 <code>(H, W, 1)</code>。0 表示背景（无物体），1+ 表示不同的物体实例。
+        <b>Semantic 传感器零额外渲染成本</b> — 渲染器在生成 RGB 的同时输出语义信息。
+      </p>
+    </div>
+
+    <div class="code-block" style="margin-top:16px;">
+      <div class="code-label">加载语义传感器并解读观测</div>
+      <pre><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> habitat
+<span class="kw">from</span> habitat.config.default <span class="kw">import</span> get_config
+
+<span class="cmt"># ObjectNav semantic 配置自带 Semantic Sensor</span>
+config = get_config(<span class="str">"benchmark/nav/objectnav/objectnav_hm3d_with_semantic.yaml"</span>)
+env = habitat.Env(config)
+obs = env.reset()
+
+sem = obs[<span class="str">"semantic"</span>]
+<span class="kw">print</span>(<span class="str">"shape:"</span>, sem.shape)   <span class="cmt"># (480, 640, 1) — 取决于 config 的 width/height</span>
+<span class="kw">print</span>(<span class="str">"dtype:"</span>, sem.dtype)   <span class="cmt"># int32</span>
+<span class="kw">print</span>(<span class="str">"unique IDs:"</span>, np.unique(sem))  <span class="cmt"># [0, 1, 3, 5, 12, ...] 场景中的物体实例</span>
+
+<span class="cmt"># 查询物体类别：用 semantic_annotations() 映射 ID → 名称</span>
+sim = env.sim
+sem_scene = sim.semantic_annotations()
+<span class="kw">for</span> obj <span class="kw">in</span> sem_scene.objects:
+    <span class="kw">print</span>(<span class="str">f"ID={obj.id:3d}  category={obj.category.name():20s}  bbox={obj.aabb}"</span>)</pre>
+    </div>
+
+    <div class="info-box" style="margin-top:14px;">
+      <div class="info-title">Semantic 传感器在哪里配置？</div>
+      <p>
+        Semantic 传感器通过 agent YAML 添加。两种方式：<br>
+        · <b>专用 agent</b>：<code>semantic_agent.yaml</code> — 只有 semantic 传感器，无 RGB/Depth<br>
+        · <b>组合 agent</b>：<code>rgbds_agent.yaml</code> — RGB + Depth + Semantic 四通道（推荐）<br>
+        配置文件中通过 <code>defaults → /habitat/simulator/agents@...</code> 选择 agent 类型。
+      </p>
+    </div>
+
+    <div class="tip-box" style="margin-top:12px;">
+      <div class="tip-title">实操技巧</div>
+      <p>
+        如果你的测试场景没有 semantic 标注，返回的是全零数组。
+        可以用 <code>habitat-test-scenes</code>（van-gogh-room）或 MP3D/HM3D 完整场景测试。
+        用 <code>np.bincount(sem.flatten())</code> 可以统计每个物体 ID 在画面中的像素占比。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 实验 4-7：自定义Measure指标 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#f59e0b;"></span> 实验 4-7：自定义 Measure 指标教程</h2>
+    <p class="section-subtitle">用 @registry.register_measure 注册自定义指标，理解 Measure 生命周期，实现碰撞计数器。</p>
+
+    <div class="info-box">
+      <div class="info-title">Measure 的三个生命周期方法</div>
+      <p>
+        每个 Measure 必须实现 3 个方法，由 <code>EmbodiedTask</code> 在 episode 的不同时刻调用：<br>
+        · <code>_get_uuid()</code> — 返回字符串（如 <code>"collision_count"</code>），作为 metrics dict 的 key<br>
+        · <code>reset_metric(*, episode, task)</code> — episode 开始时重置，初始化 <code>self._metric</code><br>
+        · <code>update_metric(*, episode, task, action)</code> — 每个 step 后更新，修改 <code>self._metric</code><br>
+        用 <code>@registry.register_measure</code> 装饰器注册，类名即为注册 key。
+      </p>
+    </div>
+
+    <div class="code-block" style="margin-top:16px;">
+      <div class="code-label">自定义碰撞计数器 Measure</div>
+      <pre><span class="kw">from</span> habitat.core.registry <span class="kw">import</span> registry
+<span class="kw">from</span> habitat.core.embodied_task <span class="kw">import</span> Measure
+
+<span class="kw">@registry.register_measure</span>
+<span class="kw">class</span> CollisionCount(Measure):
+    <span class="str">"""统计每个 episode 中 agent 碰撞到障碍物的次数"""</span>
+    cls_uuid = <span class="str">"collision_count"</span>
+
+    <span class="kw">def</span> __init__(self, sim, config, *args, **kwargs):
+        <span class="kw">self</span>._sim = sim
+        <span class="kw">super</span>().__init__()
+
+    <span class="kw">def</span> _get_uuid(self, *args, **kwargs):
+        <span class="kw">return</span> <span class="kw">self</span>.cls_uuid
+
+    <span class="kw">def</span> reset_metric(self, episode, *args, **kwargs):
+        <span class="kw">self</span>._metric = {<span class="str">"count"</span>: 0, <span class="str">"is_collision"</span>: False}
+
+    <span class="kw">def</span> update_metric(self, episode, action, *args, **kwargs):
+        <span class="kw">self</span>._metric[<span class="str">"is_collision"</span>] = False
+        <span class="kw">if</span> <span class="kw">self</span>._sim.previous_step_collided:
+            <span class="kw">self</span>._metric[<span class="str">"count"</span>] += 1
+            <span class="kw">self</span>._metric[<span class="str">"is_collision"</span>] = True</pre>
+    </div>
+
+    <div class="code-block" style="margin-top:14px;">
+      <div class="code-label">在配置中启用自定义 Measure</div>
+      <pre><span class="cmt"># 方法 1：通过代码动态添加</span>
+<span class="kw">from</span> habitat.config.default <span class="kw">import</span> get_config
+config = get_config(<span class="str">"benchmark/nav/pointnav/pointnav_habitat_test.yaml"</span>)
+<span class="kw">with</span> habitat.config.read_write(config):
+    config.habitat.task.measurements[<span class="str">"collision_count"</span>] = {
+        <span class="str">"type"</span>: <span class="str">"CollisionCount"</span>
+    }
+
+env = habitat.Env(config)
+env.reset()
+<span class="kw">for</span> _ <span class="kw">in</span> range(50):
+    env.step(env.action_space.sample())
+<span class="kw">print</span>(env.get_metrics())  <span class="cmt"># {'collision_count': {'count': 12, 'is_collision': True}, ...}</span></pre>
+    </div>
+
+    <div class="warn-box" style="margin-top:14px;">
+      <div class="warn-title">注册时机</div>
+      <p>
+        <code>@registry.register_measure</code> 是模块级装饰器，Python 在 <code>import</code> 时执行。
+        <b>自定义 Measure 的 .py 文件必须在创建 Env 之前被导入</b>，否则 registry 中找不到这个类。
+        官方的 20+ Measure 实例在 <code>habitat/tasks/nav/nav.py</code> 和 <code>habitat/tasks/rearrange/rearrange_sensors.py</code> 中。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 7. 总结 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> 📝 本章总结</h2>
+    <p class="section-subtitle">7 个实验覆盖了 config 修改的主要维度：传感器、任务、指标。</p>
+
+    <table class="compare-table">
+      <thead>
+        <tr><th style="width:10%;">实验</th><th style="width:22%;">修改了什么</th><th style="width:18%;">配置路径</th><th style="width:50%;">你学到的</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>4-1</b></td>
+          <td>RGB 分辨率</td>
+          <td><code>sim_sensors.rgb_sensor</code></td>
+          <td>分辨率影响内存（O(w×h)），与画质正相关</td>
+        </tr>
+        <tr>
+          <td><b>4-2</b></td>
+          <td>传感器组合</td>
+          <td><code>sim_sensors / lab_sensors</code></td>
+          <td>sim_sensors 挂载渲染传感器，lab_sensors 提供任务信息</td>
+        </tr>
+        <tr>
+          <td><b>4-3</b></td>
+          <td>注册自定义传感器</td>
+          <td><code>@registry.register_sensor</code></td>
+          <td>继承 Sensor 基类 → 5 个接口 → 全局注册</td>
+        </tr>
+        <tr>
+          <td><b>4-4</b></td>
+          <td>编写自定义 YAML</td>
+          <td><code>defaults → _self_</code></td>
+          <td>Hydra 配置继承 + 覆盖机制</td>
+        </tr>
+        <tr>
+          <td><b>4-5</b></td>
+          <td>success_distance</td>
+          <td><code>task.measurements.success</code></td>
+          <td>评测指标 vs 训练信号的区别</td>
+        </tr>
+        <tr>
+          <td><b>4-6</b></td>
+          <td>Semantic 传感器</td>
+          <td><code>sim_sensors.semantic_sensor</code></td>
+          <td>物体实例 ID 图、semantic_annotations() 查询类别名</td>
+        </tr>
+        <tr>
+          <td><b>4-7</b></td>
+          <td>自定义 Measure</td>
+          <td><code>@registry.register_measure</code></td>
+          <td>实现碰撞计数器、理解 Measure 生命周期</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="exercise">
+      <h4>🏋️ 课后练习</h4>
+      <p>
+        <b>1.</b> 修改 <code>depth_sensor</code> 的 <code>min_depth</code> 和 <code>max_depth</code>，观察深度图的数值范围变化。<br>
+        <b>2.</b> 试着给 SimpleLidarSensor 添加 <code>min_range</code> 参数，过滤掉太近的射线值。<br>
+        <b>3.</b> 将实验 4-4 的自定义 YAML 配置用于实际训练（<code>python habitat-baselines/run.py ...</code>），
+        观察分辨率降低对训练速度的影响。<br>
+        <b>4.</b> 修改 <code>spl</code>（Success weighted by Path Length）指标的权重，理解 SPL vs Success 的区别。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ PAGE NAV ═══════════════ -->
+<section>
+  <div class="container">
+    <div class="page-nav">
+      <a href="habitat-textbook-step3.html" class="prev">← 第3步：解剖参数</a>
+      <a href="habitat-textbook-step5.html" class="next">第5步：训练与评测 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+  <p>
+    <a href="index.html">门户</a> ·
+    <a href="habitat-textbook.html">教科书</a> ·
+    <a href="habitat-textbook-step1.html">第1步</a> ·
+    <a href="habitat-textbook-step2.html">第2步</a> ·
+    <a href="habitat-textbook-step3.html">第3步</a> ·
+    <a href="habitat-textbook-step4.html">第4步</a>
+  </p>
+  <p style="margin-top:6px;">基于 Habitat-Lab v0.2.5 实验数据 · 截图来自 habitat-test-scenes (skokloster-castle)</p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+
+
+</body>
+</html>

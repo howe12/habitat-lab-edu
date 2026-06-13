@@ -1,0 +1,20 @@
+Observation keys: ['depth', 'pointgoal_with_gps_compass', 'rgb']
+  RGB shape: (256, 256, 3), dtype=uint8, min=26, max=252
+  Depth shape: (256, 256, 1), dtype=float32, min=0.0247, max=0.0776
+  pointgoal_with_gps_compass: shape=(2,), dtype=float32, [10.9006, 1.5645]
+  → 初始状态: distance=10.9006m, angle=1.5645rad
+
+执行 10 步随机动作 (action_space.sample())...
+  action 编号: 0=stop, 1=move_forward, 2=turn_left, 3=turn_right
+  Step  1: action=2(turn_left), dist=10.9006m, angle=1.3900rad, reward=-0.0100, done=False
+  Step  2: action=1(move_forward), dist=10.8868m, angle=1.4127rad, reward=-0.2701, done=False
+  Step  3: action=3(turn_right), dist=10.8868m, angle=1.5872rad, reward=-0.0100, done=False
+  Step  4: action=2(turn_left), dist=10.8868m, angle=1.4127rad, reward=-0.0100, done=False
+  Step  5: action=2(turn_left), dist=10.8868m, angle=1.2381rad, reward=-0.0100, done=False
+  Step  6: action=1(move_forward), dist=10.8858m, angle=1.2522rad, reward=-0.1705, done=False
+  Step  7: action=3(turn_right), dist=10.8858m, angle=1.4268rad, reward=-0.0100, done=False
+  Step  8: action=3(turn_right), dist=10.8858m, angle=1.6013rad, reward=-0.0100, done=False
+  Step  9: action=0(stop), dist=10.8858m, angle=1.6013rad, reward=-0.0100, done=True
+  → Agent 调用了 stop, episode 在第 9 步结束!
+
+After 9 steps metrics: {'distance_to_goal': 11.814453125, 'success': 0.0, 'spl': 0.0, 'distance_to_goal_reward': -0.0}

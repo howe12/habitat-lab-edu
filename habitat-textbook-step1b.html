@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>第1B步：数据集下载指南 — Habitat 从零理解</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html">🏠 门户</a>
+  <span class="sep">|</span>
+  <a href="habitat-textbook.html">📗 教科书</a>
+  <span class="sep">/</span>
+  <span class="current">第1B步：数据集下载指南</span>
+</nav>
+
+<header class="hero">
+  <div class="step-badge">第 1B 步 · 附录 · 预计 2-3 小时</div>
+  <h1>完整数据集下载指南</h1>
+  <p class="subtitle">
+    Step1 只下载了测试数据。本章带你了解 Habitat 生态中所有可用的场景和任务数据集，
+    它们的用途、大小、获取方式，以及正确的目录结构。
+  </p>
+</header>
+
+<!-- ═══════════════ 0. 为什么需要这一章 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> 0. 为什么需要这一章</h2>
+    <p class="section-subtitle">Step1 跑通了测试数据，但从"跑通"到"做研究"中间还差一步——数据。</p>
+
+    <div class="info-box">
+      <div class="info-title">测试数据 vs 完整数据</div>
+      <p>
+        Step1 下载的 <b>habitat-test-scenes</b>（3个场景, 89MB）只能用来验证安装。<br>
+        真实实验需要完整场景数据集（Gibson 1.5GB ~ HM3D 130GB）和对应的任务 episode 文件。<br>
+        本章帮你：<b>知道有哪些 → 知道要哪个 → 知道怎么下 → 知道放在哪</b>。
+      </p>
+    </div>
+
+    <table class="compare-table">
+      <thead><tr><th>数据层级</th><th>内容</th><th>例子</th><th>存放位置</th></tr></thead>
+      <tbody>
+        <tr><td><b>场景数据集</b></td><td>3D 模型、纹理、导航网格</td><td>Gibson、MP3D、HM3D</td><td><code>data/scene_datasets/</code></td></tr>
+        <tr><td><b>任务数据集</b></td><td>episode 定义（起点/目标/物体）</td><td>PointNav episodes</td><td><code>data/datasets/</code></td></tr>
+      </tbody>
+    </table>
+    <p class="section-subtitle">场景是"房子"，任务是"在这个房子里要做什么"。两者缺一不可。</p>
+  </div>
+</section>
+
+<!-- ═══════════════ 1. 场景数据集全景 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 1. 场景数据集全景</h2>
+    <p class="section-subtitle">Habitat 支持 7 种场景数据集。按获取难度递进排列。</p>
+
+    <table class="compare-table">
+      <thead><tr><th>数据集</th><th>大小</th><th>场景数</th><th>获取方式</th><th>推荐用途</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Habitat Test Scenes</b></td>
+          <td>89 MB</td>
+          <td>3</td>
+          <td><code>datasets_download --uids habitat_test_scenes</code></td>
+          <td>验证安装、CI 测试</td>
+        </tr>
+        <tr>
+          <td><b>ReplicaCAD</b></td>
+          <td>123 MB</td>
+          <td>1 (多布局)</td>
+          <td><code>datasets_download --uids rearrange_task_assets</code>（自动）</td>
+          <td>Rearrange 操作任务</td>
+        </tr>
+        <tr>
+          <td><b>Gibson</b></td>
+          <td>~1.5 GB</td>
+          <td>572 (tiny) / 86 (0+) / 14 (4+)</td>
+          <td>需签署 <a href="https://storage.googleapis.com/gibson_material/Agreement%20GDS%2006-04-18.pdf" target="_blank">Gibson 使用协议</a></td>
+          <td>PointNav 入门训练</td>
+        </tr>
+        <tr>
+          <td><b>MatterPort3D (MP3D)</b></td>
+          <td>~15 GB</td>
+          <td>90</td>
+          <td>需 <a href="https://niessner.github.io/Matterport/" target="_blank">Matterport API Key</a> + 签署协议</td>
+          <td>ObjectNav、VLN、EQA</td>
+        </tr>
+        <tr>
+          <td><b>HM3D</b></td>
+          <td><b>~130 GB</b></td>
+          <td>1000</td>
+          <td>需向 Matterport 申请审批（<a href="https://matterport.com/partners/facebook" target="_blank">申请页面</a>）</td>
+          <td>大规模训练、ObjectNav</td>
+        </tr>
+        <tr>
+          <td><b>HSSD-Habitat</b></td>
+          <td>~未知</td>
+          <td>~200+</td>
+          <td>通过 habitat-sim DATASETS.md 指引获取</td>
+          <td>ObjectNav（合成场景）</td>
+        </tr>
+        <tr>
+          <td><b>ProcTHOR-Habitat</b></td>
+          <td>~未知</td>
+          <td>大量程序化场景</td>
+          <td>通过 habitat-sim DATASETS.md 指引获取</td>
+          <td>ObjectNav（程序化场景）</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <div class="tip-title">推荐路径：从 Gibson 开始</div>
+      <p>
+        如果你是第一次下载完整数据集，推荐路线：<br>
+        <b>Test Scenes</b>（已装）→ <b>Gibson 4+</b>（14个场景，1.5GB，需签署协议）→ <b>MP3D</b>（90个场景，需 API Key）→ <b>HM3D</b>（大规模训练用）。<br>
+        ReplicaCAD 只在做 Rearrange 操作任务时需要（Step9）。
+      </p>
+    </div>
+
+    <div class="warn-box">
+      <div class="warn-title">重要：数据存放路径</div>
+      <p>
+        官方场景数据集下载说明在 <b>habitat-sim 仓库</b>的 <code>DATASETS.md</code> 中<br>
+        → <a href="https://github.com/facebookresearch/habitat-sim/blob/main/DATASETS.md" target="_blank">github.com/facebookresearch/habitat-sim/blob/main/DATASETS.md</a><br>
+        不同数据集的授权流程各不相同，请仔细阅读对应条款。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 2. 任务数据集全景 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-rl);"></span> 2. 任务数据集全景</h2>
+    <p class="section-subtitle">每种任务都有对应的 episode 数据集。它们的下载 URL 统一在 <code>dl.fbaipublicfiles.com</code>。</p>
+
+    <table class="compare-table">
+      <thead><tr><th style="width:12%">任务类型</th><th style="width:14%">场景</th><th style="width:10%">大小</th><th style="width:44%">下载地址</th><th style="width:20%">解压路径</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>PointNav</b></td><td>Habitat Test</td><td>~2 MB</td>
+          <td><code>datasets_download --uids habitat_test_pointnav_dataset</code></td>
+          <td><code>data/datasets/pointnav/habitat-test-scenes/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>PointNav</b></td><td>Gibson v1</td><td>385 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/pointnav/gibson/v1/pointnav_gibson_v1.zip</code></td>
+          <td><code>data/datasets/pointnav/gibson/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>PointNav</b></td><td>Gibson v2</td><td>274 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/pointnav/gibson/v2/pointnav_gibson_v2.zip</code></td>
+          <td><code>data/datasets/pointnav/gibson/v2/</code></td>
+        </tr>
+        <tr>
+          <td><b>PointNav</b></td><td>MP3D</td><td>400 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/pointnav/mp3d/v1/pointnav_mp3d_v1.zip</code></td>
+          <td><code>data/datasets/pointnav/mp3d/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>PointNav</b></td><td>HM3D</td><td>992 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/pointnav/hm3d/v1/pointnav_hm3d_v1.zip</code></td>
+          <td><code>data/datasets/pointnav/hm3d/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>ObjectNav</b></td><td>MP3D</td><td>170 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/objectnav/mp3d/v1/objectnav_mp3d_v1.zip</code></td>
+          <td><code>data/datasets/objectnav/mp3d/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>ObjectNav</b></td><td>HM3D</td><td>154 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/objectnav/hm3d/v1/objectnav_hm3d_v1.zip</code></td>
+          <td><code>data/datasets/objectnav/hm3d/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>InstanceImageNav</b></td><td>HM3D</td><td>303 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/imagenav/hm3d/v1/...</code></td>
+          <td><code>data/datasets/instance_imagenav/hm3d/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>VLN (R2R)</b></td><td>MP3D</td><td>2.7 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/vln/mp3d/r2r/v1/vln_r2r_mp3d_v1.zip</code></td>
+          <td><code>data/datasets/vln/mp3d/r2r/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>EQA</b></td><td>MP3D</td><td>44 MB</td>
+          <td><code>dl.fbaipublicfiles.com/habitat/data/datasets/eqa/mp3d/v1/eqa_mp3d_v1.zip</code></td>
+          <td><code>data/datasets/eqa/mp3d/v1/</code></td>
+        </tr>
+        <tr>
+          <td><b>Rearrange</b></td><td>ReplicaCAD</td><td>~11 MB</td>
+          <td><code>datasets_download --uids rearrange_task_assets</code>（自动触发）</td>
+          <td><code>data/datasets/replica_cad/rearrange/v1/</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <div class="info-title">目录结构规范</div>
+      <p>所有数据集遵循统一的层级结构：</p>
+      <div class="code-block"><span class="cmt"># 场景数据</span>
+data/scene_datasets/
+  gibson/
+    Allensville.glb           <span class="cmt"># 场景 3D 模型</span>
+    Allensville.navmesh       <span class="cmt"># 导航网格</span>
+  mp3d/
+    1LXtFkjw3qL/
+      1LXtFkjw3qL.glb
+      1LXtFkjw3qL.navmesh
+
+<span class="cmt"># 任务 episode 数据</span>
+data/datasets/
+  pointnav/gibson/v1/
+    train/
+      train.json.gz           <span class="cmt"># 主 episode 文件</span>
+      content/
+        00009.json.gz         <span class="cmt"># 按场景拆分的 episode</span>
+    val/
+      val.json.gz
+      content/...
+    test/
+      test.json.gz
+      content/...</div>
+      <p style="margin-top:8px;">
+        配置文件中的 <code>{split}</code> 模板在运行时会展开为 <code>train</code> / <code>val</code> / <code>test</code>，
+        例如：<code>data_path: "data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz"</code>
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 3. 下载测试数据（复习） ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-core);"></span> 3. 下载测试数据（复习）</h2>
+    <p class="section-subtitle">这是 Step1 已经做过的，快速过一遍。如果你还没下载，现在补上。</p>
+
+    <div class="code-block"><span class="cmt"># ① 查看所有可用的 dataset UID</span>
+<span class="prompt">$</span> python -m habitat_sim.utils.datasets_download --list
+
+<span class="cmt"># ② 下载测试场景 + PointNav 测试 episode</span>
+<span class="prompt">$</span> python -m habitat_sim.utils.datasets_download \
+      --uids habitat_test_scenes habitat_test_pointnav_dataset \
+      --data-path data/
+
+<span class="cmt"># ③ 验证：检查文件是否存在</span>
+<span class="prompt">$</span> ls data/scene_datasets/habitat-test-scenes/
+<span class="cmt"># apartment_1.glb  apartment_1.navmesh  skokloster-castle.glb  ...</span>
+
+<span class="prompt">$</span> ls data/datasets/pointnav/habitat-test-scenes/v1/
+<span class="cmt"># train/  val/  test/</span></div>
+
+    <div class="info-box">
+      <div class="info-title">datasets_download 工具说明</div>
+      <p>
+        这个工具来自 <b>habitat-sim</b> conda 包（不在 habitat-lab 源码中）。<br>
+        它本质上是对 <code>curl</code> / <code>wget</code> 的封装，从 <code>dl.fbaipublicfiles.com</code> 下载 zip 并自动解压到 <code>--data-path</code> 指定目录。<br>
+        如果下载中断，可以直接用浏览器或 curl 手动下载同名 zip 放到 <code>data/</code> 目录下重新运行该命令（会跳过已存在文件）。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 4. 下载完整数据 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-task);"></span> 4. 下载完整数据集</h2>
+    <p class="section-subtitle">以下以 Gibson PointNav 为例，演示从下载到验证的完整流程。</p>
+
+    <h3 style="font-size:1rem;margin-top:24px;">案例 4-1：下载 Gibson PointNav 任务数据</h3>
+
+    <div class="code-block"><span class="cmt"># ① 下载 episode zip 文件</span>
+<span class="prompt">$</span> mkdir -p data/datasets/pointnav/gibson/v1/
+<span class="prompt">$</span> cd data/datasets/pointnav/gibson/v1/
+<span class="prompt">$</span> wget http://dl.fbaipublicfiles.com/habitat/data/datasets/pointnav/gibson/v1/pointnav_gibson_v1.zip
+
+<span class="cmt"># ② 解压</span>
+<span class="prompt">$</span> unzip pointnav_gibson_v1.zip
+
+<span class="cmt"># ③ 验证结构</span>
+<span class="prompt">$</span> ls train/
+<span class="cmt"># train.json.gz  content/</span>
+<span class="prompt">$</span> zcat train/train.json.gz | python -m json.tool | head -30
+<span class="cmt"># 应看到 episodes 数组和每个 episode 的 start_position, goal 等字段</span></div>
+
+    <h3 style="font-size:1rem;margin-top:24px;">案例 4-2：下载 Gibson 4+ 场景（14个场景）</h3>
+
+    <div class="code-block"><span class="cmt"># Gibson 场景模型(.glb)和导航网格(.navmesh)需要从官方渠道获取</span>
+<span class="cmt"># Step 1: 访问 https://github.com/facebookresearch/habitat-sim/blob/main/DATASETS.md</span>
+<span class="cmt"># Step 2: 签署 Gibson 使用协议</span>
+<span class="cmt"># Step 3: 下载 gibson_4+_assets.tar.gz 或通过官方脚本下载</span>
+
+<span class="cmt"># 下载后解压到正确位置</span>
+<span class="prompt">$</span> mkdir -p data/scene_datasets/gibson/
+<span class="prompt">$</span> tar -xzf gibson_4+_assets.tar.gz -C data/scene_datasets/gibson/
+
+<span class="cmt"># 验证：每个场景目录下应有 .glb + .navmesh</span>
+<span class="prompt">$</span> ls data/scene_datasets/gibson/
+<span class="cmt"># Allensville.glb  Allensville.navmesh  ...（14个场景）</span></div>
+
+    <div class="tip-box">
+      <div class="tip-title">下载工具选择</div>
+      <p>
+        <b>wget</b>：<code>wget -c URL</code>（-c 支持断点续传，推荐）<br>
+        <b>curl</b>：<code>curl -C - -O URL</code>（-C - 自动续传）<br>
+        <b>aria2c</b>：<code>aria2c -x 4 URL</code>（多线程，适合大文件）<br>
+        如果直连很慢（国内），可以通过 HTTP_PROXY 加速：<code>export http_proxy=http://127.0.0.1:7897</code>
+      </p>
+    </div>
+
+    <h3 style="font-size:1rem;margin-top:24px;">案例 4-3：下载 ObjectNav MP3D 任务数据</h3>
+
+    <div class="code-block"><span class="cmt"># ObjectNav 需要 MP3D 场景 + ObjectNav episode 文件</span>
+<span class="cmt"># 前提：已获取 MP3D 场景（见案例5）</span>
+
+<span class="prompt">$</span> mkdir -p data/datasets/objectnav/mp3d/v1/
+<span class="prompt">$</span> cd data/datasets/objectnav/mp3d/v1/
+<span class="prompt">$</span> wget http://dl.fbaipublicfiles.com/habitat/data/datasets/objectnav/mp3d/v1/objectnav_mp3d_v1.zip
+<span class="prompt">$</span> unzip objectnav_mp3d_v1.zip
+
+<span class="cmt"># 验证：查看 episode 中的物体类别目标</span>
+<span class="prompt">$</span> zcat train/train.json.gz | python3 -c \
+      "import json,sys; d=json.load(sys.stdin); \
+       print('Episodes:', len(d['episodes'])); \
+       print('First goal:', d['episodes'][0]['object_category'])"</div>
+
+    <div class="warn-box">
+      <div class="warn-title" style="color:#f87171;">磁盘空间提醒</div>
+      <p>
+        HM3D 场景集高达 <b>130 GB</b>。下载前请用 <code>df -h</code> 确认磁盘空间充足。<br>
+        仅下载 episode 文件（~1GB）不需要完整场景，但运行实验时两者都需要。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 5. 授权数据集获取流程 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-warn);"></span> 5. 授权数据集获取流程</h2>
+    <p class="section-subtitle">三类主流场景数据集都需要签署协议或申请访问权限。以下是具体流程。</p>
+
+    <table class="compare-table">
+      <thead><tr><th style="width:15%">数据集</th><th style="width:30%">获取步骤</th><th style="width:25%">审批时间</th><th style="width:30%">注意事项</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><b>Gibson</b></td>
+          <td>
+            1. 阅读 <a href="https://storage.googleapis.com/gibson_material/Agreement%20GDS%2006-04-18.pdf" target="_blank">使用协议</a><br>
+            2. 发邮件给 Gibson 作者申请下载链接<br>
+            3. 下载 <code>gibson_4+_assets.tar.gz</code>
+          </td>
+          <td>通常 1-3 天</td>
+          <td>仅限学术研究用途<br>不可商业使用</td>
+        </tr>
+        <tr>
+          <td><b>MatterPort3D</b></td>
+          <td>
+            1. 访问 <a href="https://niessner.github.io/Matterport/" target="_blank">MP3D 官网</a> 填写申请表<br>
+            2. 提供 GitHub 账号 + 机构邮箱<br>
+            3. 审核通过后获取 Matterport API Key<br>
+            4. 使用官方 download_mp.py 脚本下载
+          </td>
+          <td>通常 1-2 周</td>
+          <td>需要 <b>.edu 邮箱</b>（学术机构）<br>API Key 不可分享</td>
+        </tr>
+        <tr>
+          <td><b>HM3D</b></td>
+          <td>
+            1. 访问 <a href="https://matterport.com/partners/facebook" target="_blank">Matterport 合作伙伴页面</a><br>
+            2. 提交 Habitat HM3D 数据集申请<br>
+            3. 审批通过后获得下载权限
+          </td>
+          <td>1-4 周</td>
+          <td>是 Matterport 与 Facebook AI 的合作项目<br>审批较为严格</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip-box">
+      <div class="tip-title">如果你暂时不想申请授权</div>
+      <p>
+        可以先使用 <b>Habitat Test Scenes</b>（免费）完成 PointNav 学习，<br>
+        用 <b>ReplicaCAD</b>（免费，自动下载）完成 Rearrange 学习（Step9）。<br>
+        Gibson 是最容易申请的授权数据集，推荐作为第一个扩展目标。
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 6. Rearrange 特殊说明 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-config);"></span> 6. Rearrange 数据集自动下载</h2>
+    <p class="section-subtitle">Rearrange 任务的数据集下载方式与其他任务不同——它是自动触发的。</p>
+
+    <div class="info-box">
+      <div class="info-title">自动下载机制</div>
+      <p>
+        <code>RearrangeDatasetV0</code> 的 <code>__init__</code> 方法中（<code>habitat/datasets/rearrange/rearrange_dataset.py</code> 第58-69行）
+        会自动检测数据路径是否存在；如果不存在，则调用：<br>
+        <code>python -m habitat_sim.utils.datasets_download --uids rearrange_task_assets --data-path data/</code><br>
+        这意味着你<b>不需要手动下载 Rearrange 相关数据</b>——首次运行时它会自动完成。<br>
+        下载内容包括：ReplicaCAD 场景、YCB 物体模型、Fetch 机器人 URDF 等。
+      </p>
+    </div>
+
+    <div class="code-block"><span class="cmt"># 验证 Rearrange 数据是否已自动下载</span>
+<span class="prompt">$</span> ls data/replica_cad/
+<span class="cmt"># configs/  objects/  stages/  ...</span>
+
+<span class="prompt">$</span> ls data/objects/ycb/
+<span class="cmt"># 物体 3D 模型和配置文件</span>
+
+<span class="prompt">$</span> ls data/robots/hab_fetch/
+<span class="cmt"># robots/  urdf/  ...</span></div>
+  </div>
+</section>
+
+<!-- ═══════════════ 学后自检 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 学后自检 — 你掌握了什么</h2>
+
+    <div class="trouble-grid">
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q1：data/scene_datasets/ 和 data/datasets/ 的区别？</h4>
+        <p>
+          前者放 3D 场景模型（.glb, .navmesh），后者放任务 episode 文件（.json.gz）。一个场景可以被多个任务复用。
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q2：PointNav 在 Gibson 上的完整实验需要哪些数据？</h4>
+        <p>
+          ① Gibson 场景模型（.glb + .navmesh）放在 <code>data/scene_datasets/gibson/</code><br>
+          ② PointNav episode 文件放在 <code>data/datasets/pointnav/gibson/v1/</code>
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q3：下载中断了怎么办？</h4>
+        <p>
+          使用 <code>wget -c URL</code>（断点续传）或 <code>curl -C - -O URL</code>。对于 <code>datasets_download</code> 工具，已下载完成的部分会被跳过。
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q4：如何不用申请就能开始做 Rearrange 实验？</h4>
+        <p>
+          Rearrange 的数据（ReplicaCAD + YCB + robot URDF）通过 <code>rearrange_task_assets</code> 自动下载，完全免费，不需要任何授权。
+        </p>
+      </div>
+      <div class="trouble-card" style="border-left-color: var(--accent-tip);">
+        <h4 style="color:#22d3ee;">Q5：{split} 模板是什么意思？</h4>
+        <p>
+          配置中的 <code>data_path: ".../{split}/{split}.json.gz"</code> 在运行时会根据 <code>dataset.split: "train"</code> 自动展开为 <code>train/train.json.gz</code>。这是 Hydra 的变量替换机制。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ Page Nav ═══════════════ -->
+<section>
+  <div class="container">
+    <div class="page-nav">
+      <a href="habitat-textbook-step1.html" class="prev">← 第1步：安装环境</a>
+      <a href="habitat-textbook-step2.html" class="next">第2步：跑通示例 →</a>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p><a href="index.html">门户首页</a> · <a href="habitat-textbook.html">教科书</a> · <b>第1B步：数据集下载指南</b></p>
+  <p style="margin-top:4px;">仅供学习参考</p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+</body>
+</html>
