@@ -13,6 +13,8 @@ Habitat-Lab
 ==============================
 
 > :cn: **[阅读中文版](README_CN.md)** — 包含中文教材、RL 导航 Demo、课程目录
+>
+> [![在线阅读](https://img.shields.io/badge/📖-Read_Tutorial_Online-brightgreen?style=for-the-badge&logo=github)](https://howe12.github.io/habitat-lab-edu/)
 
 Habitat-Lab is a modular high-level library for end-to-end development in embodied AI --
 defining embodied AI tasks (e.g. navigation, rearrangement, instruction following, question answering), configuring embodied agents (physical form, sensors, capabilities), training these agents (via imitation or reinforcement learning, or no learning at all as in SensePlanAct pipelines), and benchmarking their performance on the defined tasks using standard metrics.

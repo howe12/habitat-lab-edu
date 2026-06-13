@@ -26,12 +26,14 @@ Habitat-Lab
 
 ### 快速开始
 
+[![在线阅读](https://img.shields.io/badge/📖-在线阅读教程-brightgreen?style=for-the-badge&logo=github)](https://howe12.github.io/habitat-lab-edu/)
+
 ```bash
 # 安装
 pip install -e habitat-lab
 pip install -e habitat-baselines
 
-# 打开教材首页
+# 打开教材首页（本地）
 open habitat-viz/index.html
 
 # 或启动本地服务器
