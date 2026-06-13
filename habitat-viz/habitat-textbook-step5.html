@@ -289,120 +289,214 @@
     </div>
 
     <!-- 1.2 PointNav -->
-    <h3 style="color:var(--text);margin:30px 0 12px;">1.2 PointNav — 几何坐标导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐</span></h3>
+    <h3 style="color:var(--text);margin:30px 0 12px;">1.2 PointNav — 几何坐标导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ★★</span></h3>
 
-    <div class="info-box">
-      <div class="info-title">① 案例含义</div>
-      <b>PointNav</b>（PointGoal Navigation）是 Habitat 中最基础、最成熟的导航任务。
-      智能体接收一个<b>相对目标坐标</b>（距离 ρ 和角度 φ），通过 RGB-D 视觉和运动控制，
-      自主规划路径走到目标点。这是 Embodied AI 的 "Hello World"。
+    <!-- Section TOC -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;font-size:0.82rem;color:#94a3b8;">
+      <span>📌 <a href="#pnav-goal" style="color:#60a5fa;">本节目标</a></span>
+      <span>📖 <a href="#pnav-what" style="color:#60a5fa;">是什么</a></span>
+      <span>💻 <a href="#pnav-practice" style="color:#60a5fa;">实操</a></span>
+      <span>🛠 <a href="#pnav-errors" style="color:#60a5fa;">常见错误</a></span>
+      <span>📖 <a href="#pnav-api" style="color:#60a5fa;">API 详解</a></span>
     </div>
 
-    <div style="margin:14px 0;">
-      <div class="info-title">② 核心配置与关键调用</div>
+    <!-- 📌 本节目标 -->
+    <div class="info-box" id="pnav-goal">
+      <div class="info-title">📌 学完本节你将能够</div>
+      用 Gym API 创建 PointNav 环境并打印观测数据<br>
+      理解 <code>pointgoal_with_gps_compass</code> 传感器输出的 ρ(距离) 和 φ(角度) 含义<br>
+      运行一次 PPO 训练，看到 reward/loss 等指标变化
+    </div>
 
-      <table class="compare-table">
-        <thead>
-          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
-        </thead>
+    <!-- 🤔 场景驱动问题 -->
+    <div style="margin:14px 0;padding:14px 18px;background:#1e293b;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;">
+      <span style="font-size:1.1rem;">🤔</span>
+      <span style="color:#e2e8f0;font-size:0.88rem;">
+        假设你是 Habitat 里的智能体——你站在一个陌生城堡的走廊里，面前有一堵墙，头顶传来一条消息：<b style="color:#fbbf24;">"目标在你的右前方 10 米，角度 90°"</b>。<br><br>
+        你不能穿墙，不知道城堡的地图，唯一知道的是：<b>目标距离你多远、在哪个方向</b>。<br>
+        你要怎么一步步走过去？这就是 PointNav 要解决的问题。
+      </span>
+    </div>
+
+    <!-- 📖 PointNav 是什么 -->
+    <div class="info-box" id="pnav-what" style="margin-top:14px;">
+      <div class="info-title">📖 PointNav 是什么</div>
+      <b>PointNav</b>（PointGoal Navigation）是 Habitat 中最基础、最成熟的导航任务。智能体接收一个<b>相对目标坐标</b>（距离 ρ 和角度 φ），通过 RGB-D 视觉和运动控制，自主规划路径走到目标点。<br><br>
+      <b>关键理解</b>：PointNav 给你的是 <b style="color:#60a5fa;">相对坐标</b>，不是绝对坐标。无论 agent 在城堡的哪个角落，传感器都会告诉你"目标在你的 X 方向、Y 米外"——这是 PointNav 能泛化到不同场景的根本原因。
+    </div>
+
+    <!-- 📊 核心概念速查 -->
+    <table class="compare-table" style="margin-top:14px;">
+      <thead><tr><th style="width:18%;">概念</th><th style="width:18%;">符号</th><th style="width:30%;">含义</th><th style="width:34%;">与代码的关系</th></tr></thead>
+      <tbody>
+        <tr><td><b>相对距离</b></td><td>ρ (rho)</td><td>agent 到目标的直线距离（米）</td><td><code>obs["pointgoal_with_gps_compass"][0]</code></td></tr>
+        <tr><td><b>相对角度</b></td><td>φ (phi)</td><td>目标相对 agent 朝向的偏航角（弧度）</td><td><code>obs["pointgoal_with_gps_compass"][1]</code></td></tr>
+        <tr><td><b>动作空间</b></td><td>4 离散</td><td>STOP/MOVE_FWD/TURN_LEFT/TURN_RIGHT</td><td><code>env.action_space → Discrete(4)</code></td></tr>
+        <tr><td><b>观测空间</b></td><td>RGB+D+PG</td><td>256×256 RGB + Depth + PointGoal(2,)</td><td><code>obs.keys() → ['rgb','depth','pointgoal...']</code></td></tr>
+      </tbody>
+    </table>
+
+    <!-- 💻 实操 -->
+    <h4 id="pnav-practice" style="color:var(--text);margin:24px 0 10px;">💻 实操：创建 PointNav 环境</h4>
+
+    <!-- 设计理论 -->
+    <div style="margin-bottom:12px;">
+      <div style="color:#60a5fa;font-weight:600;font-size:0.85rem;margin-bottom:6px;">设计理论</div>
+      <p style="font-size:0.85rem;color:var(--text-dim);line-height:1.7;">
+        <b>核心任务</b>：用 4 行代码创建 Habitat 环境 → 获取观测 → 查看目标信息。<br>
+        关键点：<code>import habitat.gym</code> 不是装饰——它触发了 <code>Habitat-v0</code> 的注册，没有这一行，<code>gym.make("Habitat-v0")</code> 会报错。
+      </p>
+    </div>
+
+    <!-- 模块化分析表 -->
+    <table class="compare-table" style="margin-top:10px;">
+      <thead><tr><th style="width:25%;">代码段</th><th style="width:35%;">作用</th><th style="width:40%;">关键点</th></tr></thead>
+      <tbody>
+        <tr><td><code>import gym, habitat.gym</code></td><td>导入 Gym API + 注册 Habitat-v0</td><td><code>habitat.gym</code> 必须导入，否则 <code>gym.make</code> 找不到环境</td></tr>
+        <tr><td><code>gym.make("Habitat-v0", cfg=...)</code></td><td>根据配置文件创建环境实例</td><td>指定场景、传感器、任务参数</td></tr>
+        <tr><td><code>obs = env.reset()</code></td><td>重置环境 + 返回初始观测</td><td>返回 dict: {rgb, depth, pointgoal_with_gps_compass}</td></tr>
+        <tr><td><code>env.step(action)</code></td><td>执行动作，返回 (obs, reward, done, info)</td><td>reward 来自 distance_to_goal_reward</td></tr>
+        <tr><td><code>env.close()</code></td><td>释放渲染资源</td><td>不调用会导致 GPU 内存泄漏</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 完整代码 -->
+    <div class="code-block" style="margin-top:14px;">
+      <div class="info-title">完整代码</div>
+<pre><span class="kn">import</span> gym, habitat.gym  <span class="c"># noqa: F401 — 注册 Habitat-v0</span>
+
+<span class="c"># 1. 创建环境：指定 PointNav + habitat-test 场景</span>
+env = gym.make(<span class="s">"Habitat-v0"</span>,
+    cfg_file_path=<span class="s">"benchmark/nav/pointnav/pointnav_habitat_test.yaml"</span>,
+)  <span class="c"># ← 这个 yaml 定义了场景、传感器、任务参数</span>
+
+<span class="c"># 2. 重置环境，获取初始观测</span>
+obs = env.reset()
+<span class="n">print</span>(obs.keys())
+<span class="c"># 输出: dict_keys(['rgb', 'depth', 'pointgoal_with_gps_compass'])</span>
+
+<span class="c"># 3. 查看目标信息 — pointgoal_with_gps_compass = [ρ, φ]</span>
+<span class="c">#    ρ = 距离目标（米），φ = 相对目标的偏航角（弧度）</span>
+pg = obs[<span class="s">"pointgoal_with_gps_compass"</span>]
+<span class="n">print</span>(<span class="s">f"距离目标: {pg[0]:.2f}m, 偏航角: {pg[1]:.2f}rad"</span>)
+<span class="c"># 示例输出: 距离目标: 10.90m, 偏航角: 1.56rad (≈90°)</span>
+
+<span class="c"># 4. 执行一个随机动作并观察结果</span>
+obs, reward, done, info = env.step(<span class="n">env</span>.action_space.sample())
+<span class="n">print</span>(<span class="s">f"reward={reward:.3f}, done={done}"</span>)
+<span class="c"># 示例输出: reward=-0.010, done=False</span>
+
+env.close()  <span class="c"># 释放资源</span>
+</pre>
+    </div>
+
+    <!-- 运行流程 -->
+    <div style="margin:14px 0;padding:12px 16px;background:#1e293b;border-radius:8px;">
+      <div style="color:#60a5fa;font-weight:600;font-size:0.82rem;margin-bottom:8px;">运行流程</div>
+      <pre style="font-size:0.78rem;color:#94a3b8;line-height:1.8;margin:0;">
+[开始]
+   ↓
+[① import habitat.gym]  ← 注册 Habitat-v0 环境
+   ↓
+[② gym.make(..., yaml)]  ← 加载配置：场景 skokloster-castle · 传感器 RGB+Depth+PointGoal
+   ↓
+[③ env.reset()]  ← 初始化渲染器 · 随机选取 episode · 返回初始观测
+   ↓
+[④ 读取 obs["pointgoal_with_gps_compass"]]  ← [ρ=10.9m, φ=90°] agent 在原点，目标在右前方
+   ↓
+[⑤ env.step(action)]  ← 执行动作 → 计算 reward → 返回新观测
+   ↓
+[⑥ env.close()]  ← 释放 GPU 资源
+   ↓
+[结束]</pre>
+    </div>
+
+    <!-- 运行命令 + 效果截图 -->
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">运行命令</div>
+<pre><span class="c"># 直接运行上面的 Python 代码</span>
+$ python3 pointnav_env.py</pre>
+    </div>
+
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <img src="images/pointnav_rgb_depth.png" alt="PointNav Environment" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">
+        <span style="color:#60a5fa;font-weight:600;">📋 运行上面代码的实际输出</span><br>
+        skokloster-castle 城堡走廊 — L40 GPU 实时渲染 — 左: RGB 观测 (256x256) — 右: 深度图 (viridis) — 目标距离 10.9m, 偏航角 90°
+      </p>
+    </div>
+
+    <!-- 🛠 常见错误 -->
+    <div class="warn-box" id="pnav-errors" style="margin-top:18px;">
+      <div class="warn-title">🛠 常见错误</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:35%;">错误信息</th><th style="width:25%;">可能原因</th><th style="width:40%;">解决方法</th></tr></thead>
         <tbody>
-          <tr><td><b>任务类型</b></td><td><code>Nav-v0</code></td><td>habitat/tasks/nav/nav.py 中注册的 NavigationTask</td></tr>
-          <tr><td><b>任务配置</b></td><td><code>config/habitat/task/pointnav.yaml</code></td><td>定义 actions, measurements, sensors</td></tr>
-          <tr><td><b>目标传感器</b></td><td><code>pointgoal_with_gps_compass</code></td><td>输出 (ρ, φ) — 当前 agent 相对目标的距离和角度</td></tr>
-          <tr><td><b>基准配置</b></td><td><code>config/benchmark/nav/pointnav/</code></td><td>5 种场景：gibson, mp3d, hm3d, habitat_test, franka</td></tr>
-          <tr><td><b>训练配置</b></td><td><code>habitat_baselines/config/pointnav/</code></td><td>ppo_pointnav.yaml / ddppo_pointnav.yaml</td></tr>
-          <tr><td><b>动作空间</b></td><td>4 个离散动作</td><td>STOP(0), MOVE_FORWARD(1), TURN_LEFT(2), TURN_RIGHT(3)</td></tr>
-          <tr><td><b>观测空间</b></td><td>RGB(256×256×3), Depth(256×256×1),<br>PointGoal(2,)</td><td>视觉为 256×256 分辨率（可调）</td></tr>
+          <tr><td><code>gym.error.NameNotFound: Habitat-v0</code></td><td>忘记 <code>import habitat.gym</code></td><td>加上 <code>import habitat.gym</code>（不直接用但触发注册）</td></tr>
+          <tr><td><code>FileNotFoundError: .../train.json.gz</code></td><td>数据集路径错误或未下载</td><td>切换到 <code>pointnav_habitat_test.yaml</code>（云端已有）</td></tr>
+          <tr><td><code>KeyError: 'pointgoal_with_gps_compass'</code></td><td>配置文件未启用该传感器</td><td>检查 yaml 中 <code>pointgoal_with_gps_compass_sensor</code> 段</td></tr>
+          <tr><td>GPU 内存持续增长</td><td>忘记 <code>env.close()</code></td><td>在循环末尾调用 <code>env.close()</code> 释放渲染资源</td></tr>
         </tbody>
       </table>
     </div>
 
-    <div class="code-block" style="margin-top:14px;">
-<pre><span class="c"># 用 Gym API 创建 PointNav 环境</span>
-<span class="kn">import</span> gym, habitat.gym  <span class="c"># noqa: F401 — 注册 Habitat-v0</span>
+    <!-- 📖 API 详解 -->
+    <h4 id="pnav-api" style="color:var(--text);margin:24px 0 10px;">📖 核心 API 详解</h4>
 
-env = gym.make(<span class="s">&quot;Habitat-v0&quot;</span>,
-    cfg_file_path=<span class="s">&quot;benchmark/nav/pointnav/pointnav_habitat_test.yaml&quot;</span>,
-)
-
-obs = env.reset()
-<span class="n">print</span>(obs.keys())
-<span class="c"># dict_keys(['rgb', 'depth', 'pointgoal_with_gps_compass'])</span>
-
-<span class="c"># pointgoal_with_gps_compass = [ρ, φ]</span>
-<span class="c"># ρ = 距离目标（米），φ = 相对目标的偏航角（弧度）</span>
-pg = obs[<span class="s">&quot;pointgoal_with_gps_compass&quot;</span>]
-<span class="n">print</span>(<span class="s">f&quot;距离目标: {pg[0]:.2f}m, 偏航角: {pg[1]:.2f}rad&quot;</span>)
-
-<span class="c"># 执行一个随机动作</span>
-obs, reward, done, info = env.step(<span class="n">env</span>.action_space.sample())
-env.close()
-</pre>
-
-    <div class="screenshot-frame" style="margin:14px 0;">
-      <img src="images/pointnav_rgb_depth.png" alt="PointNav Environment" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.2 代码: gym.make("Habitat-v0", ...) → env.reset() → obs["rgb"] 的实际输出</span><br>PointNav 环境渲染 — skokloster-castle 城堡走廊 — L40 GPU 实时渲染 — RGB(256x256) + Depth(256x256) + PointGoal(distance, angle)</p>
+    <div class="info-box">
+      <div class="info-title">gym.make() — 创建环境</div>
+      <code>env = gym.make("Habitat-v0", cfg_file_path="benchmark/.../pointnav_xxx.yaml")</code><br><br>
+      <b>cfg_file_path</b>：Habitat 配置文件路径。这个 yaml 定义了<b>场景</b>（skokloster-castle）、<b>传感器</b>（RGB+Depth+PointGoal）、<b>任务参数</b>（max_episode_steps）等。<br>
+      <b>返回值</b>：一个实现了标准 Gym API 的环境对象（有 <code>reset()</code>, <code>step()</code>, <code>close()</code> 方法）。
     </div>
+
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">env.reset() — 重置并获取观测</div>
+      <code>obs = env.reset()</code><br><br>
+      初始化渲染器，随机抽取一个 episode（起点+目标点），返回初始观测 dict。<br>
+      <b>obs 的三个 key</b>：<br>
+      · <code>obs["rgb"]</code> — (256, 256, 3) 的 RGB 图像（uint8）<br>
+      · <code>obs["depth"]</code> — (256, 256, 1) 的深度图<br>
+      · <code>obs["pointgoal_with_gps_compass"]</code> — [ρ, φ] 二维向量，ρ(米) 距离, φ(弧度) 角度
     </div>
+
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">env.step() — 执行动作</div>
+      <code>obs, reward, done, info = env.step(action)</code><br><br>
+      <b>action</b>：0=STOP, 1=MOVE_FORWARD, 2=TURN_LEFT, 3=TURN_RIGHT<br>
+      <b>reward</b>：<code>-(新距离 - 旧距离)</code> —— 靠近目标得正奖励，远离得负奖励<br>
+      <b>done</b>：True = episode 结束（到达目标/超步数/碰撞）<br>
+      <b>info</b>：<code>{"success": 0/1, "spl": 0.0-1.0, "distance_to_goal": 米}</code>
+    </div>
+
+    <!-- 训练 ────────────────────── -->
+    <h4 style="color:var(--text);margin:24px 0 10px;">🏋 训练：启动 PPO 训练</h4>
 
     <div class="code-block" style="margin-top:10px;">
-      <div class="info-title">③ 如何创建和运行</div>
-<pre><span class="c"># PointNav 训练（离线可用 habitat-test 数据）</span>
+      <div class="info-title">训练命令</div>
+<pre><span class="c"># PointNav PPO 训练（使用 habitat-test 数据，离线可用）</span>
 $ python -u -m habitat_baselines.run \
     --config-name=pointnav/ppo_pointnav_example.yaml
 
-<span class="c"># PointNav 评估</span>
+<span class="c"># 评估训练好的 checkpoint</span>
 $ python -u -m habitat_baselines.run \
     --config-name=pointnav/ppo_pointnav_example.yaml \
-    habitat_baselines.evaluate=True
+    habitat_baselines.evaluate=True</pre>
+    </div>
 
-<span class="c"># 快速运行 Demo（环境探索 + 训练 + 推理）</span>
-$ python examples/rl_nav_demo.py --train-steps 50000
-</pre>
+    <div class="tip-box" style="margin-top:10px;">
+      <div class="tip-title">训练效果预览</div>
+      上面的命令会在 skokloster-castle 场景上运行 5 次 PPO 更新（160 环境步）。<br>
+      这个阶段 <b>Success = 0%</b> 是正常的——课程明确说明「示例仅 100 万步，策略不会学会导航」。真正的训练需要 <b>2500 万步以上</b>。
+    </div>
 
     <div class="info-box" style="margin-top:14px;border-left:3px solid #34d399;">
       <div class="info-title" style="color:#34d399;">官方预训练模型 (MP3D · 73,728,768 步训练)</div>
       <img src="images/mp3d_pointnav_official.png" alt="Official PointNav on MP3D" style="width:100%;max-width:600px;border-radius:8px;margin:8px 0;border:1px solid var(--border);">
-      <p style="font-size:0.82rem;">官方 PointNav 模型在 MP3D 卧室场景的观测 — Success ~75%, SPL ~55% — 下载方式见 <a href="#sec-self-vs-official" style="color:#60a5fa;">§1.9</a></p>
-    </div>
-    </div>
-
-    <div class="info-box" style="margin-top:14px;">
-      <div class="info-title">④ 输出结果含义</div>
-      1. <b>pointgoal_with_gps_compass</b>: 这是一个 2 维向量 [ρ, φ]，ρ 是当前 agent 到目标位置的距离（米），φ 是相对偏航角（弧度）<br>
-      2. <b>φ 的正负号</b>: 正值 = 目标在 agent 右侧，负值 = 目标在左侧<br>
-      3. <b>distance_to_goal</b>: 测地距离（沿可行走表面的最短路径），不是欧氏距离<br>
-      4. <b>GPS+Compass 是特权信息</b>: 真实机器人没有完美的 GPS，需要用 SLAM 或视觉里程计来近似<br>
-      5. <b>reward = -(新距离 - 旧距离)</b>: 靠近目标得正奖励，远离目标得负奖励（distance_to_goal_reward 计算）
+      <p style="font-size:0.82rem;">经过 7373 万步训练后的 PointNav 策略在 MP3D 卧室中的观测 — Success ~75%, SPL ~55% — 下载方式见 <a href="#sec-self-vs-official" style="color:#60a5fa;">§1.9</a></p>
     </div>
 
-    <div style="margin:14px 0;">
-      <div class="info-title">⑥ 试试调整这些</div>
-      <table class="compare-table">
-        <thead>
-          <tr><th>调整项</th><th>怎么改</th><th>预期看到什么</th></tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>max_episode_steps</td>
-            <td>在 benchmark yaml 中改为 100 或 1000</td>
-            <td>步数限制影响成功率——短限制迫使策略更高效</td>
-          </tr>
-          <tr>
-            <td>success_distance</td>
-            <td>修改 task.measurements.success.success_distance</td>
-            <td>默认 0.2m；设为 0.1 更严格（更难），设为 0.5 更宽松</td>
-          </tr>
-          <tr>
-            <td>RGB 分辨率</td>
-            <td>修改 rgb_sensor width/height 参数</td>
-            <td>分辨率越高视觉信息越多，但训练更慢</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- 1.3 ObjectNav -->
+<!-- 1.3 ObjectNav -->
     <h3 style="color:var(--text);margin:30px 0 12px;">1.3 ObjectNav — 物体类别导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐</span></h3>
 
     <div class="info-box">
