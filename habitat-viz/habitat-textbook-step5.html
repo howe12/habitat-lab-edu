@@ -1201,41 +1201,80 @@ $ python -u -m habitat_baselines.run \
     </div>
 
     <!-- 1.5 InstanceImageNav -->
-    <h3 style="color:var(--text);margin:30px 0 12px;">1.5 InstanceImageNav — 实例级图像导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐</span></h3>
+    <h3 style="color:var(--text);margin:30px 0 12px;" id="sec-instnav">1.5 InstanceImageNav — 实例级图像导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐</span></h3>
 
-    <div class="info-box">
-      <div class="info-title">① 案例含义</div>
-      <b>InstanceImageNav</b> 是 ImageNav 的进阶版：不是找 "任意椅子"，而是找 <b>特定的那把椅子</b>。
-      给你一张 <b>目标实例的图片</b>，你需要找到场景中 <b>特定的物体实例</b>。
-      这比 ObjectNav 更难——你必须区分 "这把棕色皮椅" vs "那把黑色布椅"，而不是笼统地找 "椅子"。
+    <!-- Section TOC -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;font-size:0.82rem;color:#94a3b8;">
+      <span>📌 <a href="#instnav-goal" style="color:#60a5fa;">本节目标</a></span>
+      <span>📖 <a href="#instnav-what" style="color:#60a5fa;">是什么</a></span>
+      <span>📊 <a href="#instnav-compare" style="color:#60a5fa;">层级对比</a></span>
+      <span>🛠 <a href="#instnav-errors" style="color:#60a5fa;">常见错误</a></span>
+      <span>⚠️ <a href="#instnav-limits" style="color:#60a5fa;">工程限制</a></span>
     </div>
 
-    <div style="margin:14px 0;">
-      <div class="info-title">② 核心配置</div>
+    <!-- 📌 本节目标 -->
+    <div class="info-box" id="instnav-goal">
+      <div class="info-title">📌 学完本节你将能够</div>
+      区分 ObjectNav（类别级）和 InstanceImageNav（实例级）的本质差异<br>
+      理解为什么实例级识别比类别级识别难一个数量级<br>
+      了解 InstanceImageNav 的传感器体系和训练成本
+    </div>
 
-      <table class="compare-table">
-        <thead>
-          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
-        </thead>
+    <!-- 🤔 场景驱动问题 -->
+    <div style="margin:14px 0;padding:14px 18px;background:#1e293b;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;">
+      <span style="font-size:1.1rem;">🤔</span>
+      <span style="color:#e2e8f0;font-size:0.88rem;">
+        你在大教室里，任务是「找到一把椅子」。你扫了一圈——<b style="color:#60a5fa;">有 12 把椅子</b>。任何一把都算完成任务。这是 ObjectNav.<br><br>
+        但现在任务变了：「找到<b style="color:#fbbf24;">第三排靠窗那把棕色皮椅</b>」。<br>
+        你不能随便找一把椅子——必须是<b style="color:#fbbf24;">特定的那一个实例</b>。<br>
+        你必须区分「棕色皮椅」和「黑色布椅」、「第三排」和「第五排」——<br>
+        这在视觉上远比「有椅子吗」难得多。这就是 InstanceImageNav。<br>
+        给你一张<b style="color:#60a5fa;">目标实例的照片</b>，你必须找到那个<b style="color:#fbbf24;">独一无二的个体</b>。
+      </span>
+    </div>
+
+    <!-- 📖 InstanceImageNav 是什么 -->
+    <div class="info-box" id="instnav-what" style="margin-top:14px;">
+      <div class="info-title">📖 InstanceImageNav 是什么</div>
+      <b>InstanceImageNav</b>（Instance ImageGoal Navigation）是 ImageNav + ObjectNav 的<b>交集强化版</b>：<br><br>
+      <b>ObjectNav</b>：找类别 → "有椅子吗？"<br>
+      <b>ImageNav</b>：找位置 → "这地方长这样"<br>
+      <b>InstanceImageNav</b>：找<b style="color:#fbbf24;">特定实例</b> → "这把棕色的皮椅（不是其他 11 把）"<br><br>
+      传感器给出<b>目标实例的多视角照片</b>（不同 FOV），策略必须同时具备<b>实例辨别力</b>和<b>空间推理力</b>。
+    </div>
+
+    <!-- 📊 层级对比表 -->
+    <table class="compare-table" id="instnav-compare" style="margin-top:14px;">
+      <thead><tr><th style="width:12%;">对比维度</th><th style="width:22%;">ObjectNav</th><th style="width:22%;">ImageNav</th><th style="width:22%;">InstanceImageNav</th><th style="width:22%;">本质区别</th></tr></thead>
+      <tbody>
+        <tr><td><b>目标粒度</b></td><td>类别（chair）</td><td>位置（坐标的视觉快照）</td><td>实例（chair_3）</td><td>从「是什么」→「哪把」</td></tr>
+        <tr><td><b>传感器</b></td><td>objectgoal (类别ID)</td><td>imagegoal (单张RGB)</td><td>instance_imagegoal (多FOV)</td><td>多视角消除匹配歧义</td></tr>
+        <tr><td><b>GPS/Compass</b></td><td>有</td><td>无</td><td>有</td><td>有定位辅助，但实例识别是瓶颈</td></tr>
+        <tr><td><b>训练步数</b></td><td>2.7 亿步</td><td>3-5 亿步</td><td><b style="color:#f87171;">25 亿步</b></td><td>10 倍于 ObjectNav</td></tr>
+        <tr><td><b>数据集</b></td><td>HM3D/MP3D</td><td>复用 PointNav</td><td><b>HM3D 语义标注</b></td><td><b style="color:#f87171;">云端缺失</b></td></tr>
+      </tbody>
+    </table>
+
+    <!-- 🛠 常见错误 -->
+    <div class="warn-box" id="instnav-errors" style="margin-top:18px;">
+      <div class="warn-title">🛠 常见错误</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:35%;">错误信息</th><th style="width:25%;">可能原因</th><th style="width:40%;">解决方法</th></tr></thead>
         <tbody>
-          <tr><td><b>任务类型</b></td><td><code>InstanceImageNav-v1</code></td><td>instance_image_nav_task.py 注册</td></tr>
-          <tr><td><b>传感器</b></td><td>instance_imagegoal + instance_imagegoal_hfov</td><td>目标实例图片 + 不同 FOV 下的目标图片</td></tr>
-          <tr><td><b>辅助传感器</b></td><td>gps + compass</td><td>给一点绝对定位信息（仍然需要实例识别）</td></tr>
-          <tr><td><b>距离指标</b></td><td><code>VIEW_POINTS</code></td><td>同 ObjectNav，到能看到该实例的位置</td></tr>
-          <tr><td><b>训练配置</b></td><td><code>config/instance_imagenav/ddppo_instance_imagenav.yaml</code></td><td>总训练步数 25 亿步！样本效率极低</td></tr>
-          <tr><td><b>数据集</b></td><td>HM3D（semantic 标注）</td><td>需要实例级语义标注</td></tr>
+          <tr><td><code>FileNotFoundError: HM3D scene</code></td><td>HM3D 数据集未安装</td><td>InstanceImageNav 必须 HM3D——MP3D 不支持</td></tr>
+          <tr><td><code>KeyError: 'instance_imagegoal'</code></td><td>yaml 未启用 instance_imagegoal_sensor</td><td>确认 instance_imagenav 配置段</td></tr>
+          <tr><td><code>CUDA OOM</code></td><td>多 FOV 图片显存翻倍</td><td>减小 FOV 数量或降低分辨率</td></tr>
         </tbody>
       </table>
     </div>
 
-    <div class="code-block" style="margin-top:10px;">
-      <div class="info-title">③ 运行命令</div>
-<pre><span class="c"># InstanceImageNav 训练（需要 HM3D + 语义标注）</span>
-$ python -u -m habitat_baselines.run \
-    --config-name=instance_imagenav/ddppo_instance_imagenav.yaml
-
-<span class="c"># 注意: total_num_steps=2.5e9，训练成本极高</span>
-</pre>
+    <!-- ⚠️ 工程限制 -->
+    <div class="warn-box" id="instnav-limits" style="margin-top:10px;border-color:#f59e0b60;background:#f59e0b08;">
+      <div class="warn-title" style="color:#f59e0b;">⚠️ 工程限制：本课程无法运行 InstanceImageNav</div>
+      <b>不运行它的两个原因</b>：<br>
+      1. <b>数据集</b>：InstanceImageNav 需要 HM3D 的<b>实例级语义标注</b>（235 GB），云端只有 MP3D（754 MB 场景 + 语义）<br>
+      2. <b>训练成本</b>：官方配置 <code>total_num_steps=2.5e9</code>（25 亿步），单 A100 需 ≈ 3 个月——不适合教学演示<br><br>
+      <b>但理解它仍然重要</b>——实例级导航是研究前沿。它展示了「类别识别 → 实例识别」这一质变对导航任务的影响。
     </div>
 
     <!-- 1.6 VLN -->
