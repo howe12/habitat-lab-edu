@@ -121,6 +121,7 @@
 <div class="toc-bar">
   <div class="toc-grid">
     <a href="#sec0" class="toc-item"><span class="toc-num">0</span><span class="toc-dot" style="background:#64748b;"></span> 训练全景图</a>
+    <a href="#sec-glossary" class="toc-item"><span class="toc-num">🔤</span><span class="toc-dot" style="background:#22d3ee;"></span> 术语速查</a>
     <a href="#sec1" class="toc-item"><span class="toc-num">1</span><span class="toc-dot" style="background:#a78bfa;"></span> 导航任务全景</a>
     <a href="#sec2" class="toc-item"><span class="toc-num">2</span><span class="toc-dot" style="background:#8b5cf6;"></span> Policy 网络结构</a>
     <a href="#sec3" class="toc-item"><span class="toc-num">3</span><span class="toc-dot" style="background:#22d3ee;"></span> RL 环境包装链</a>
@@ -205,6 +206,46 @@
       <b>habitat-lab</b>：提供 <code>Env</code>、<code>RLEnv</code>、<code>Benchmark</code>、<code>Task</code>、<code>Simulator</code> — 环境基础设施。<br>
       <b>habitat-baselines</b>：提供 <code>run.py</code>、<code>PPOTrainer</code>、<code>PPO</code>、<code>Policy</code> — 训练算法和工具。<br>
       训练时，baselines 通过 Hydra <code>defaults</code> 引用 lab 的 benchmark 配置，统一在 <code>DictConfig</code> 中。
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ 术语速查 ═══════════════ -->
+<section>
+  <div class="container">
+    <h2 class="section-title" id="sec-glossary"><span class="dot" style="background:#22d3ee;"></span> 🔤 术语速查</h2>
+    <p class="section-subtitle">
+      以下术语在后续章节中频繁出现。新同学先扫一遍，不需要记住——遇到不认识的词再回来看。
+    </p>
+
+    <div class="info-box" style="margin-top:8px;">
+      <div class="info-title">训练相关</div>
+      <b>PPO</b> (Proximal Policy Optimization)：一种强化学习算法，通过限制每次更新的幅度来稳定训练。核心做法是 clipped objective。<br>
+      <b>DD-PPO</b> (Decentralized Distributed PPO)：PPO 的多 GPU 分布式版本。课程中我们加 <code>trainer_name=ppo</code> 降级为单 GPU 模式。<br>
+      <b>GAE</b> (Generalized Advantage Estimation)：用于计算"这个动作比平均好多少"的方法。平衡偏差和方差。<br>
+      <b>Rollout</b>：让策略在环境中跑 N 步，收集 (obs, action, reward) 数据的过程——相当于"采集训练样本"。
+    </div>
+
+    <div class="info-box" style="margin-top:8px;">
+      <div class="info-title">环境相关</div>
+      <b>Hydra</b>：Facebook 的配置管理框架，用 YAML 文件组织所有参数。你看到的 <code>--config-name=xxx.yaml</code> 就是 Hydra 的入口。<br>
+      <b>OmegaConf</b>：Hydra 使用的配置对象库。<code>DictConfig</code> 就是 OmegaConf 的数据类型——可以像 dict 一样访问，但有类型检查。<br>
+      <b>VectorEnv</b>：并行管理多个环境实例的包装器。1 个 VectorEnv = N 个独立场景同时运行，提高采样效率。<br>
+      <b>RLEnv</b>：在基础 Env 外面包的一层，加了 reward 计算、done 判断、info 收集——把原始环境变成 RL 可用的格式。
+    </div>
+
+    <div class="info-box" style="margin-top:8px;">
+      <div class="info-title">评估指标</div>
+      <b>SPL</b> (Success weighted by Path Length)：成功率 × (最短路径长度 / agent 实际路径长度)。既看是否到达，也看是否高效。<br>
+      <b>soft_spl</b>：SPL 的宽松版——即使 agent 没 STOP，只要走到了目标附近也算部分成功。ObjectNav 专用。<br>
+      <b>nDTW</b> (normalized Dynamic Time Warping)：衡量 agent 实际路径与参考路径的形状相似度。VLN 专用指标。
+    </div>
+
+    <div class="info-box" style="margin-top:8px;">
+      <div class="info-title">数据集</div>
+      <b>MP3D</b> (Matterport3D)：90 个真实室内场景的 3D 扫描。PointNav / ImageNav / VLN 的数据集。<br>
+      <b>HM3D</b> (Habitat-Matterport3D)：1000 个场景的更大规模数据集，带语义标注。ObjectNav / InstanceImageNav 需要它。<br>
+      <b>R2R</b> (Room-to-Room)：人类标注的导航指令数据集。每条数据 = MP3D 场景中的路径 + 自然语言指令。
     </div>
   </div>
 </section>
@@ -589,6 +630,11 @@ $ python -u -m habitat_baselines.run \
     </div>
 
 <!-- 1.3 ObjectNav -->
+
+    <!-- 🔗 递进过渡 -->
+    <div style="margin:0 0 14px;padding:8px 14px;background:#1e293b;border-left:2px solid #8b5cf6;border-radius:0 6px 6px 0;font-size:0.82rem;color:#94a3b8;">
+      <span style="color:#8b5cf6;font-weight:600;">🔗 从 PointNav 到 ObjectNav</span> — PointNav 给了你精确坐标。但如果任务变成「找一把椅子」，坐标就消失了。ObjectNav 把目标从<b>几何位置</b>改为<b>语义类别</b>——你不再知道目标在哪，只能边走边找。
+    </div>
     <h3 style="color:var(--text);margin:30px 0 12px;" id="sec-objnav">1.3 ObjectNav — 物体类别导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ★★★</span></h3>
 
     <!-- Section TOC -->
@@ -890,6 +936,11 @@ $ python -u -m habitat_baselines.run \
     </div>
 
 <!-- 1.4 ImageNav -->
+
+    <!-- 🔗 递进过渡 -->
+    <div style="margin:0 0 14px;padding:8px 14px;background:#1e293b;border-left:2px solid #8b5cf6;border-radius:0 6px 6px 0;font-size:0.82rem;color:#94a3b8;">
+      <span style="color:#8b5cf6;font-weight:600;">🔗 从 ObjectNav 到 ImageNav</span> — ObjectNav 给了你类别标签（「椅子」），但如果你连标签都没有——只有一张目标位置的照片呢？ImageNav 把任务从<b>语义理解</b>推向了<b>纯视觉匹配</b>：去掉 GPS，只靠一张图片导航。
+    </div>
     <h3 style="color:var(--text);margin:30px 0 12px;" id="sec-imagenav">1.4 ImageNav — 图片目标导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐</span></h3>
 
     <!-- Section TOC -->
@@ -1201,6 +1252,11 @@ $ python -u -m habitat_baselines.run \
     </div>
 
     <!-- 1.5 InstanceImageNav -->
+
+    <!-- 🔗 递进过渡 -->
+    <div style="margin:0 0 14px;padding:8px 14px;background:#1e293b;border-left:2px solid #8b5cf6;border-radius:0 6px 6px 0;font-size:0.82rem;color:#94a3b8;">
+      <span style="color:#8b5cf6;font-weight:600;">🔗 从 ImageNav 到 InstanceImageNav</span> — ImageNav 靠图片匹配导航到<b>任何</b>位置。但如果你要找<b>特定的那把椅子</b>（棕色皮椅，不是旁边那 11 把）呢？InstanceImageNav 把识别粒度从<b>位置级</b>提升到<b>实例级</b>——这才是真正的人类级导航。
+    </div>
     <h3 style="color:var(--text);margin:30px 0 12px;" id="sec-instnav">1.5 InstanceImageNav — 实例级图像导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐</span></h3>
 
     <!-- Section TOC -->
@@ -1279,6 +1335,11 @@ $ python -u -m habitat_baselines.run \
     </div>
 
     <!-- 1.6 VLN -->
+
+    <!-- 🔗 递进过渡 -->
+    <div style="margin:0 0 14px;padding:8px 14px;background:#1e293b;border-left:2px solid #8b5cf6;border-radius:0 6px 6px 0;font-size:0.82rem;color:#94a3b8;">
+      <span style="color:#8b5cf6;font-weight:600;">🔗 从 InstanceImageNav 到 VLN</span> — 前四个任务的目标都是<b>信号</b>（坐标→ID→像素→实例照片）。VLN 的目标是<b>自然语言</b>。这是一个范式的断裂——你不再有可计算的目标，只有一个模糊的人类指令。训练方法也必须从 RL 切换到 IL。
+    </div>
     <h3 style="color:var(--text);margin:30px 0 12px;" id="sec-vln">1.6 VLN — 视觉语言导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐⭐</span></h3>
 
     <!-- Section TOC -->
@@ -2036,6 +2097,21 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <p class="section-subtitle">
       Proximal Policy Optimization (Schulman et al., 2017) — Habitat 使用的核心 RL 算法。
     </p>
+
+    <!-- 🤔 场景驱动 -->
+    <div style="margin:14px 0;padding:14px 18px;background:#1e293b;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;">
+      <span style="font-size:1.1rem;">🤔</span>
+      <span style="color:#e2e8f0;font-size:0.88rem;">
+        假设你是 agent 的策略网络。你刚刚发现了一个<b style="color:#fbbf24;">"捷径"</b>——穿过墙直接到达目标。<br>
+        新策略给这个"穿墙"动作 100% 的概率，旧策略只给了 1%。<br>
+        如果你<b style="color:#f87171;">不加限制</b>地更新——ratio = 100/1 = 100——你会立刻忘记之前学会的一切，变成"只会穿墙的 agent"。<br><br>
+        <b style="color:#60a5fa;">PPO 的做法</b>：给更新加一个"<b style="color:#34d399;">刹车</b>"——ε = 0.2。<br>
+        不管新策略多想做一件旧策略没做过的事，实际用的 ratio 被 clip 到 [0.8, 1.2] 之间。<br>
+        这样你可以<b style="color:#60a5fa;">慢慢倾斜</b>向新策略，但不会一夜之间推翻旧策略。<br><br>
+        这就是 PPO 的核心思想——也是下面所有公式要表达的同一件事。
+      </span>
+    </div>
+
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       掌握 PPO clipped objective 公式和代码映射<br>
