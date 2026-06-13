@@ -483,9 +483,74 @@ $ python3 pointnav_env.py</pre>
     </div>
 
     <!-- 训练 ────────────────────── -->
-    <h4 style="color:var(--text);margin:24px 0 10px;">🏋 训练：启动 PPO 训练</h4>
+    <h4 id="pnav-training" style="color:var(--text);margin:24px 0 10px;">🏋 训练：PPO 策略学习</h4>
 
-    <div class="code-block" style="margin-top:10px;">
+    <!-- 设计理论 -->
+    <div style="margin-bottom:12px;">
+      <div style="color:#60a5fa;font-weight:600;font-size:0.85rem;margin-bottom:6px;">🤔 为什么要训练？</div>
+      <p style="font-size:0.85rem;color:var(--text-dim);line-height:1.8;">
+        上面我们用 <code>env.step(action)</code> 执行了随机动作——agent 在城堡里乱走，30 步过去离目标还是 10.9m。<br>
+        <b>训练的目的</b>：让神经网络学会「看 → 想 → 走」的闭环——<b style="color:#60a5fa;">看到 RGB 画面 → 结合目标方向 → 决定走哪步 → 执行 → 获得反馈 → 修正策略</b>。<br>
+        训练产物是一个 22MB 的 <code>.pth</code> 文件，里面存着 582 万参数的策略网络权重。
+      </p>
+    </div>
+
+    <!-- PPO 是什么 -->
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">📖 PPO（Proximal Policy Optimization）是什么</div>
+      PPO 是 Habitat 使用的核心强化学习算法（Schulman et al., 2017）。它的核心思想是：<b style="color:#fbbf24;">每次更新策略时，步子不要迈太大</b>——用 <code>clip_param</code> 限制新旧策略的差异。<br><br>
+      <b>简化类比</b>：你在学骑自行车。每次摔了之后调整重心——但如果你一次把重心从左边调到右边，很可能又摔。PPO 做的就是<b>每次只调整一点点</b>，让学习过程更稳定。<br><br>
+      详细的公式推导和代码映射见 <a href="#sec4" style="color:#60a5fa;">§4 PPO 训练算法</a>。
+    </div>
+
+    <!-- 训练模块分析表 -->
+    <table class="compare-table" style="margin-top:14px;">
+      <thead><tr><th style="width:25%;">组件</th><th style="width:35%;">作用</th><th style="width:40%;">关键点</th></tr></thead>
+      <tbody>
+        <tr><td><code>habitat_baselines.run</code></td><td>统一训练入口（约 100 行）</td><td>所有导航任务（PointNav/ObjectNav...）都用同一个入口</td></tr>
+        <tr><td><code>--config-name</code></td><td>选择训练配置 yaml</td><td>ppo_pointnav_example.yaml 定义了场景、模型、训练参数</td></tr>
+        <tr><td><code>PPOTrainer</code></td><td>管理训练循环</td><td>rollout 收集 → GAE 计算 → PPO update → 日志输出</td></tr>
+        <tr><td><code>VectorEnv</code></td><td>并行运行多个环境</td><td>num_environments=1,4,8... 越多越快但吃显存</td></tr>
+        <tr><td><code>checkpoint_folder</code></td><td>保存训练产物</td><td>每 N 步保存 ckpt.{N}.pth（22MB/个）</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 训练流程图 -->
+    <h4 style="font-size:0.9rem;margin:16px 0 6px;color:#93c5fd;">训练运行流程图</h4>
+    <div class="flow-box">
+      <div class="flow-step" style="border-top:3px solid #64748b;">
+        <b>① Hydra 加载配置</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">ppo_pointnav_example.yaml<br>场景 + 传感器 + PPO 参数</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #3b82f6;">
+        <b>② 创建 Trainer</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">PPOTrainer<br>Policy 网络 (5.8M 参数) + RolloutStorage</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+        <b>③ 创建 VectorEnv</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">N 个并行场景<br>每个独立运行 reset/step</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #f59e0b;">
+        <b>④ Rollout 收集</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">agent 在场景中交互<br>收集 (obs, action, reward)</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #10b981;">
+        <b>⑤ PPO Update</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">GAE 计算 advantage<br>clip 限制 → 梯度更新</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #ec4899;">
+        <b>⑥ 保存 Checkpoint</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">ckpt.{N}.pth (22MB)<br>可在中断后 resume 继续训练</p>
+      </div>
+    </div>
+
+    <!-- 运行命令 -->
+    <div class="code-block" style="margin-top:14px;">
       <div class="info-title">训练命令</div>
 <pre><span class="c"># PointNav PPO 训练（使用 habitat-test 数据，离线可用）</span>
 $ python -u -m habitat_baselines.run \
@@ -497,12 +562,26 @@ $ python -u -m habitat_baselines.run \
     habitat_baselines.evaluate=True</pre>
     </div>
 
+    <!-- 效果说明 -->
     <div class="tip-box" style="margin-top:10px;">
       <div class="tip-title">训练效果预览</div>
       上面的命令会在 skokloster-castle 场景上运行 5 次 PPO 更新（160 环境步）。<br>
-      这个阶段 <b>Success = 0%</b> 是正常的——课程明确说明「示例仅 100 万步，策略不会学会导航」。真正的训练需要 <b>2500 万步以上</b>。
+      这个阶段 <b>Success = 0%</b> 是正常的——课程明确说明「示例仅 100 万步，策略不会学会导航」。<br>
+      真正的训练需要 <b>2500 万步以上</b>，见 <a href="#sec8-cloud" style="color:#60a5fa;">§8.4 云端 GPU 训练</a>。
     </div>
 
+    <!-- 训练输出解读 -->
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">训练输出解读</div>
+      训练开始后，终端会打印类似：<br>
+      <code>agent number of parameters: 5821797</code><br>
+      <code>reward: -0.075 → -0.013 (step 32→160)</code> — reward 在缓慢上升<br>
+      <code>metrics/success: 0.000</code> — 5 次更新还不足以学会导航<br>
+      <code>perf/fps: 40 → 74</code> — GPU 渲染速度在逐步提升（缓存预热）<br><br>
+      详细的训练日志解读见 <a href="#sec8-curves" style="color:#60a5fa;">§8E 训练过程分析</a>。
+    </div>
+
+    <!-- 官方模型 -->
     <div class="info-box" style="margin-top:14px;border-left:3px solid #34d399;">
       <div class="info-title" style="color:#34d399;">官方预训练模型 (MP3D · 73,728,768 步训练)</div>
       <img src="images/mp3d_pointnav_official.png" alt="Official PointNav on MP3D" style="width:100%;max-width:600px;border-radius:8px;margin:8px 0;border:1px solid var(--border);">
