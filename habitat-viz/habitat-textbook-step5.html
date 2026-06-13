@@ -1273,7 +1273,8 @@ $ python -u -m habitat_baselines.run \
       <div class="warn-title" style="color:#f59e0b;">⚠️ 工程限制：本课程无法运行 InstanceImageNav</div>
       <b>不运行它的两个原因</b>：<br>
       1. <b>数据集</b>：InstanceImageNav 需要 HM3D 的<b>实例级语义标注</b>（235 GB），云端只有 MP3D（754 MB 场景 + 语义）<br>
-      2. <b>训练成本</b>：官方配置 <code>total_num_steps=2.5e9</code>（25 亿步），单 A100 需 ≈ 3 个月——不适合教学演示<br><br>
+      2. <b>训练成本</b>：官方配置 <code>total_num_steps=2.5e9</code>（25 亿步），单 A100 需 ≈ 3 个月——不适合教学演示<br>
+      3. <b>无官方权重</b>：Habitat-Baselines 官方发布的 <code>habitat_baselines_v2.zip</code> <b>只包含 PointNav 模型</b>，ObjectNav / ImageNav / InstanceImageNav 均无预训练权重发布<br><br>
       <b>但理解它仍然重要</b>——实例级导航是研究前沿。它展示了「类别识别 → 实例识别」这一质变对导航任务的影响。
     </div>
 
