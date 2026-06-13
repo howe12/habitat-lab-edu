@@ -1279,88 +1279,341 @@ $ python -u -m habitat_baselines.run \
     </div>
 
     <!-- 1.6 VLN -->
-    <h3 style="color:var(--text);margin:30px 0 12px;">1.6 VLN — 视觉语言导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐⭐</span></h3>
+    <h3 style="color:var(--text);margin:30px 0 12px;" id="sec-vln">1.6 VLN — 视觉语言导航 <span style="font-size:0.78rem;color:#94a3b8;">难度 ⭐⭐⭐⭐⭐</span></h3>
 
-    <div class="info-box">
-      <div class="info-title">① 案例含义</div>
-      <b>VLN</b>（Vision-and-Language Navigation）要求智能体根据 <b>自然语言指令</b>
-      在未知环境中导航到目标。这是 5 种任务中最具挑战性的：需要 <b>语言理解 + 视觉感知 + 决策</b>
-      三者紧密结合。典型指令如 "Go down the hallway, turn left at the bathroom,
-      and stop in front of the bed."
+    <!-- Section TOC -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:18px;font-size:0.82rem;color:#94a3b8;">
+      <span>📌 <a href="#vln-goal" style="color:#60a5fa;">本节目标</a></span>
+      <span>📖 <a href="#vln-what" style="color:#60a5fa;">是什么</a></span>
+      <span>📊 <a href="#vln-compare" style="color:#60a5fa;">五任务对比</a></span>
+      <span>💻 <a href="#vln-practice" style="color:#60a5fa;">实操</a></span>
+      <span>🛠 <a href="#vln-errors" style="color:#60a5fa;">常见错误</a></span>
+      <span>📖 <a href="#vln-api" style="color:#60a5fa;">API 详解</a></span>
+      <span>🏋 <a href="#vln-train" style="color:#60a5fa;">训练 (IL)</a></span>
     </div>
 
-    <div style="margin:14px 0;">
-      <div class="info-title">② 核心配置与关键调用</div>
+    <!-- 📌 本节目标 -->
+    <div class="info-box" id="vln-goal">
+      <div class="info-title">📌 学完本节你将能够</div>
+      用 Gym API 创建 VLN 环境，理解 <code>instruction_sensor</code> 的作用<br>
+      理解为什么 VLN 不能直接用 PPO 训练——奖励函数为何无法定义<br>
+      对比 Imitation Learning 和 Reinforcement Learning 在导航中的适用场景
+    </div>
 
-      <table class="compare-table">
-        <thead>
-          <tr><th style="width:22%;">配置项</th><th style="width:30%;">值</th><th style="width:48%;">说明</th></tr>
-        </thead>
+    <!-- 🤔 场景驱动问题 -->
+    <div style="margin:14px 0;padding:14px 18px;background:#1e293b;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;">
+      <span style="font-size:1.1rem;">🤔</span>
+      <span style="color:#e2e8f0;font-size:0.88rem;">
+        回忆一下前四个任务告诉你的目标：<br>
+        PointNav：<b style="color:#60a5fa;">坐标 (3.14, -2.71)</b> — 精确到小数点。<br>
+        ObjectNav：<b style="color:#60a5fa;">整数 0</b> — 代表"chair"。<br>
+        ImageNav：<b style="color:#60a5fa;">一张 256×256 的 RGB 图</b> — 像素精确。<br>
+        InstanceImageNav：<b style="color:#60a5fa;">特定椅子的多视角照片</b>。<br><br>
+        现在，你的目标变成了：<b style="color:#fbbf24;">&ldquo;Go down the hallway, past the bathroom on your left, and stop in front of the bed.&rdquo;</b><br><br>
+        没有坐标。没有类别标签。没有照片。只有一句<b style="color:#fbbf24;">模糊的人类语言</b>。<br>
+        &ldquo;bathroom&rdquo; 是什么样子的？&ldquo;hallway&rdquo; 有多长？&ldquo;in front of the bed&rdquo; — 从哪个角度？<br><br>
+        这就是<b style="color:#34d399;"> VLN —— 视觉语言导航</b>。<br>
+        它要求智能体同时理解<b style="color:#60a5fa;">语言</b>（&ldquo;past the bathroom&rdquo;）、<b style="color:#8b5cf6;">视觉</b>（哪个门是 bathroom？）、和<b style="color:#f59e0b;">决策</b>（在第几个门转弯？）。<br>
+        这对人类来说理所当然，但对 AI 来说是三个完全不同的子问题——而且必须同时解决。
+      </span>
+    </div>
+
+    <!-- 📖 VLN 是什么 -->
+    <div class="info-box" id="vln-what" style="margin-top:14px;">
+      <div class="info-title">📖 VLN 是什么</div>
+      <b>VLN</b>（Vision-and-Language Navigation）要求智能体根据<b>自然语言指令</b>在未知环境中导航。<br><br>
+      <b>与前四个任务的本质区别</b>：目标从「<b style="color:#f87171;">信号</b>」变成了「<b style="color:#fbbf24;">语言</b>」。<br>
+      坐标可以算距离。类别可以训练分类器。图像可以算特征相似度。<br>
+      但 <b>自然语言指令</b>——&ldquo;past the bathroom&rdquo;、&ldquo;stop in front of&rdquo;——这些词没有标准化的数学表达。<br><br>
+      因此 VLN 要求一种全新的能力：<b style="color:#60a5fa;">语言接地 (Language Grounding)</b>——将词语映射到视觉世界中的具体位置和动作。
+    </div>
+
+    <!-- 📊 五任务终极对比 -->
+    <table class="compare-table" id="vln-compare" style="margin-top:14px;">
+      <thead><tr><th style="width:10%;">对比维度</th><th style="width:16%;">PointNav</th><th style="width:16%;">ObjectNav</th><th style="width:16%;">ImageNav</th><th style="width:16%;">InstanceImageNav</th><th style="width:16%;">VLN</th><th style="width:10%;">质变点</th></tr></thead>
+      <tbody>
+        <tr><td><b>目标</b></td><td>坐标 (ρ,φ)</td><td>类别 ID</td><td>单张 RGB</td><td>实例多视角</td><td style="color:#fbbf24;"><b>自然语言</b></td><td>信号→语言</td></tr>
+        <tr><td><b>训练</b></td><td>PPO</td><td>PPO</td><td>PPO</td><td>PPO</td><td style="color:#f59e0b;"><b>Imitation Learning</b></td><td>RL→IL</td></tr>
+        <tr><td><b>奖励信号</b></td><td>距离差</td><td>VIEW_POINTS</td><td>距离差</td><td>VIEW_POINTS</td><td style="color:#f87171;"><b>不可定义</b></td><td>可算→不可算</td></tr>
+        <tr><td><b>数据来源</b></td><td>自动生成</td><td>自动生成</td><td>PointNav复用</td><td>自动生成</td><td style="color:#8b5cf6;"><b>人类标注</b></td><td>机器→人类</td></tr>
+        <tr><td><b>独特指标</b></td><td>SPL</td><td>soft_spl</td><td>—</td><td>—</td><td style="color:#10b981;"><b>nDTW</b></td><td>路径相似度</td></tr>
+        <tr><td><b>云端可运行</b></td><td>✅</td><td>✅</td><td>✅</td><td>❌</td><td style="color:#34d399;"><b>✅</b></td><td>R2R数据齐全</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 💻 实操 -->
+    <h4 id="vln-practice" style="color:var(--text);margin:24px 0 10px;">💻 实操：创建 VLN 环境</h4>
+
+    <!-- 设计理论 -->
+    <div style="margin-bottom:12px;">
+      <div style="color:#60a5fa;font-weight:600;font-size:0.85rem;margin-bottom:6px;">设计理论</div>
+      <p style="font-size:0.85rem;color:var(--text-dim);line-height:1.7;">
+        <b>核心任务</b>：创建 VLN 环境 → 读取 instruction（自然语言文本）→ 观察 R2R 数据集的组织方式。<br>
+        <b>关键点</b>：VLN 的 observation 中多了 <code>instruction</code> 字段——这是一段人类标注的自然语言文本，而非数值张量。<br>
+        <b>与 ImageNav 的对比</b>：ImageNav 的目标是图像（可以编码为特征向量计算相似度），VLN 的目标是文本（需要 NLP 模型编码语义）。
+      </p>
+    </div>
+
+    <!-- 模块化分析表 -->
+    <table class="compare-table" style="margin-top:10px;">
+      <thead><tr><th style="width:25%;">代码段</th><th style="width:35%;">作用</th><th style="width:40%;">关键点</th></tr></thead>
+      <tbody>
+        <tr><td><code>gym.make("Habitat-v0", cfg="vln_r2r.yaml")</code></td><td>创建 VLN 环境</td><td>4 动作 + instruction_sensor + R2R 数据集</td></tr>
+        <tr><td><code>obs["instruction"]</code></td><td>获取自然语言导航指令</td><td><b>纯文本</b>（非张量）——如 "Go down the hallway..."</td></tr>
+        <tr><td><code>env.current_episode</code></td><td>获取 episode 元信息</td><td>包含 scene_id / path_id / 参考路径坐标</td></tr>
+        <tr><td><code>env.action_space</code></td><td>动作空间</td><td>Discrete(4) — STOP / FWD / LEFT_15° / RIGHT_15°</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 完整代码 -->
+    <div class="code-block" style="margin-top:14px;">
+      <div class="info-title">完整代码</div>
+<pre><span class="kn">import</span> gym, habitat.gym  <span class="c"># 注册 Habitat-v0</span>
+
+<span class="c"># 1. 创建 VLN 环境 — 使用 R2R 数据集（云端 MP3D R2R 已有）</span>
+env = gym.make(<span class="s">"Habitat-v0"</span>,
+    cfg_file_path=<span class="s">"benchmark/nav/vln_r2r.yaml"</span>)
+
+<span class="c"># 2. 重置环境 — 随机 episode：随机场景 + 随机路径 + 对应指令</span>
+obs = env.reset()
+<span class="n">print</span>(obs.keys())
+<span class="c"># 输出: dict_keys(['rgb', 'depth', 'instruction'])</span>
+<span class="c"># 注意: 没有 gps/compass! VLN 只需要视觉 + 语言</span>
+
+<span class="c"># 3. 读取导航指令 — instruction 是纯文本字符串！</span>
+instr = obs[<span class="s">"instruction"</span>]
+<span class="n">print</span>(<span class="s">f"Instruction: {instr}"</span>)
+<span class="c"># 输出: Instruction: Go down the hallway past the bathroom on your left.</span>
+<span class="c">#        Stop when you reach the bedroom on the right.</span>
+
+<span class="c"># 4. 查看 episode 信息 — R2R 数据集的元数据</span>
+ep = env.current_episode
+<span class="n">print</span>(<span class="s">f"Scene: {ep.scene_id.split('/')[-1]}"</span>)
+<span class="c"># 输出: Scene: 17DRP5sb8fy.glb  (MP3D 场景ID)</span>
+<span class="n">print</span>(<span class="s">f"Path ID: {ep.episode_id}"</span>)
+<span class="c"># 输出: Path ID: 1234  (R2R 路径编号)</span>
+
+<span class="c"># 5. 参考路径（人类走过的轨迹 — 仅用于评估，不暴露给策略）</span>
+ref_path = ep.reference_path  <span class="c"># 参考路径坐标列表</span>
+<span class="n">print</span>(<span class="s">f"Reference path has {len(ref_path)} waypoints"</span>)
+<span class="c"># 输出: Reference path has 5 waypoints</span>
+
+<span class="c"># 6. 运行随机动作 — 纯随机策略在 VLN 中完全无效</span>
+total_reward = <span class="mf">0.0</span>
+<span class="kn">for</span> step <span class="kn">in</span> <span class="n">range</span>(<span class="mf">500</span>):
+    action = env.action_space.sample()
+    obs, reward, done, info = env.step(action)
+    total_reward += reward
+    <span class="kn">if</span> done:
+        <span class="n">print</span>(<span class="s">f"Episode done at step {step+1}, "</span>
+              <span class="s">f"success={info.get('success', 0)}"</span>)
+        <span class="kn">break</span>
+env.close()  <span class="c"># 释放 GPU 资源</span>
+</pre>
+    </div>
+
+    <!-- 运行流程 -->
+    <h4 style="font-size:0.9rem;margin:16px 0 6px;color:#93c5fd;">程序运行流程图</h4>
+    <div class="flow-box">
+      <div class="flow-step" style="border-top:3px solid #64748b;">
+        <b>① import habitat.gym</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">注册 Habitat-v0<br>Gym 环境入口</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #3b82f6;">
+        <b>② gym.make()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">加载 vln_r2r.yaml<br>R2R MP3D 数据集</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+        <b>③ env.reset()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">随机 MP3D 场景<br>随机 R2R 路径 + 指令</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #f59e0b;">
+        <b>④ 读取 instruction</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">自然语言文本<br>如 "Go down the hallway..."</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #10b981;">
+        <b>⑤ 循环 step()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">策略解析语言 → 选择动作<br>关键：语言接地</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #ec4899;">
+        <b>⑥ env.close()</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">释放 GPU 显存<br>清理渲染上下文</p>
+      </div>
+    </div>
+
+    <!-- 运行命令 + 效果截图 -->
+    <div class="code-block" style="margin-top:10px;">
+      <div class="info-title">运行命令</div>
+<pre><span class="c"># 运行上面的 Python 代码</span>
+$ python3 vln_env.py</pre>
+    </div>
+
+    <div class="screenshot-frame" style="margin:14px 0;">
+      <img src="images/vln_mp3d.png" alt="VLN MP3D R2R" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">
+        <span style="color:#60a5fa;font-weight:600;">📋 运行上面代码的实际输出</span><br>
+        VLN 环境 — MP3D R2R 数据集 — obs["instruction"] 为人类标注的自然语言导航指令 — 云端可直接运行
+      </p>
+    </div>
+
+    <!-- 🛠 常见错误 -->
+    <div class="warn-box" id="vln-errors" style="margin-top:18px;">
+      <div class="warn-title">🛠 常见错误</div>
+      <table class="compare-table" style="margin-top:8px;">
+        <thead><tr><th style="width:35%;">错误信息</th><th style="width:25%;">可能原因</th><th style="width:40%;">解决方法</th></tr></thead>
         <tbody>
-          <tr><td><b>任务类型</b></td><td><code>VLN-v0</code></td><td>nav.py 中注册的 VLN 任务变体</td></tr>
-          <tr><td><b>任务配置</b></td><td><code>config/habitat/task/vln_r2r.yaml</code></td><td>4 个动作，instruction_sensor</td></tr>
-          <tr><td><b>目标传感器</b></td><td><code>instruction_sensor</code></td><td>输出自然语言指令文本</td></tr>
-          <tr><td><b>基准配置</b></td><td><code>config/benchmark/nav/vln_r2r.yaml</code></td><td>MP3D 的 R2R 数据集</td></tr>
-          <tr><td><b>数据集</b></td><td>R2R (Room-to-Room) — MP3D 场景</td><td>人类标注的路径+指令对，训练/验证/测试 分集</td></tr>
-          <tr><td><b>动作空间</b></td><td>4 个离散动作</td><td>STOP/MOVE_FWD(0.25m)/TURN_LEFT(15°)/TURN_RIGHT(15°)</td></tr>
-          <tr><td><b>关键指标</b></td><td>nDTW (normalized Dynamic Time Warping)</td><td>衡量 agent 实际路径与参考路径的相似度</td></tr>
-          <tr><td><b>RL 训练支持</b></td><td>⚠️ 无官方 PPO 配置</td><td>baselines 中没有 VLN 的 RL 训练配置，主要用 Imitation Learning</td></tr>
+          <tr><td><code>KeyError: 'instruction'</code></td><td>yaml 未启用 instruction_sensor</td><td>确认使用了 <code>vln_r2r.yaml</code> 而非其他配置</td></tr>
+          <tr><td><code>FileNotFoundError: R2R episodes</code></td><td>R2R 数据集缺失</td><td>下载 R2R 数据集到 data/datasets/vln/r2r/</td></tr>
+          <tr><td><code>PPO trainer: task VLN-v0 not supported</code></td><td>尝试用 PPO 训练 VLN</td><td>VLN 不支持 PPO——见下方训练章节</td></tr>
+          <tr><td><code>TypeError: instruction is str, not tensor</code></td><td>直接将文本传给 CNN</td><td>需要 NLP 编码器（LSTM/Transformer）处理文本</td></tr>
         </tbody>
       </table>
     </div>
 
-    <div class="code-block" style="margin-top:14px;">
-<pre><span class="kn">import</span> gym, habitat.gym
+    <!-- 📖 API 详解 -->
+    <h4 id="vln-api" style="color:var(--text);margin:24px 0 10px;">📖 核心 API 详解</h4>
 
-env = gym.make(<span class="s">&quot;Habitat-v0&quot;</span>,
-    cfg_file_path=<span class="s">&quot;benchmark/nav/vln_r2r.yaml&quot;</span>,
-)
-
-obs = env.reset()
-<span class="n">print</span>(obs.keys())
-<span class="c"># dict_keys(['rgb', 'depth', 'instruction'])</span>
-
-<span class="c"># instruction = 自然语言导航指令</span>
-instr = obs[<span class="s">&quot;instruction&quot;</span>]
-<span class="n">print</span>(<span class="s">f&quot;Instruction: {instr}&quot;</span>)
-<span class="c"># 例如: "Go down the hallway past the bathroom on your left.</span>
-<span class="c">#         Stop when you reach the bedroom on the right."</span>
-
-<span class="c"># VLN 的核心挑战: 将自然语言转化为时空动作序列</span>
-env.close()
-</pre>
-
-    <div class="screenshot-frame" style="margin:14px 0;">
-      <img src="images/vln_mp3d.png" alt="VLN MP3D R2R" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.6 代码: obs["instruction"] 为自然语言指令 → R2R MP3D 数据集</span><br>VLN 环境 — MP3D R2R 数据集 — 自然语言导航指令 — 训练方式: Imitation Learning (非 RL) — 云端 MP3D R2R 数据齐全</p>
-    </div>
+    <div class="info-box">
+      <div class="info-title">instruction_sensor — 自然语言导航指令</div>
+      <code>obs["instruction"]</code> 返回一个<b>字符串</b>（而非数值张量），由 R2R 数据集的人类标注者编写。<br><br>
+      <b>这意味着什么</b>：PointNav/ObjectNav/ImageNav 的目标传感器返回的是数值（坐标、ID、图像像素），可以直接输入神经网络。<br>
+      但 VLN 的 instruction 是文本——需要<b>额外的 NLP 模型</b>（如 LSTM、Transformer）将文本编码为特征向量，才能与视觉特征融合。<br>
+      这就是为什么 VLN 的策略网络比 PointNav 复杂一个量级——它需要<b>双模态编码器</b>（视觉 CNN + 语言 LSTM/Transformer）。
     </div>
 
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">R2R (Room-to-Room) 数据集</div>
+      R2R 是 VLN 的标准数据集，包含 <b>Matterport3D 场景中的人类标注路径+指令对</b>。<br><br>
+      <b>数据结构</b>：每个 episode = (scene_id, start_position, goal_position, reference_path, instruction)<br>
+      — scene_id: 哪个 MP3D 场景<br>
+      — reference_path: 人类实际走过的路径（用于计算 nDTW）<br>
+      — instruction: 人类写的导航指令（如 "Go down the hallway...stop in front of the bed"）<br><br>
+      <b>关键</b>：instruction 和 reference_path 来自<b>同一个人</b>——他看到路径后写出指令。训练时策略学习从指令预测路径。
+    </div>
+
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">nDTW — 路径相似度评估</div>
+      <b>nDTW</b>（normalized Dynamic Time Warping）衡量 agent 实际路径与参考路径的<b>形状相似度</b>。<br><br>
+      为什么不用简单的 success（到达目标 3m 内）？<br>
+      因为 VLN 要求 agent <b>按照指令描述的路径走</b>——"先直走，经过浴室后左转"。<br>
+      如果 agent 绕了一大圈最终到达目标，success=1 但 nDTW 很低——它没有遵循指令。
+    </div>
+
+    <div class="tip-box" style="margin-top:10px;">
+      <div class="tip-title">VLN 为什么比前四个任务难一个维度？</div>
+      <b>1. 语言模糊性</b>: "past the bathroom" — 经过几米算"past"？agent 必须从训练数据中学习这个模糊边界。<br>
+      <b>2. 指代消解</b>: "the bedroom <b>on the right</b>" — 如果右边有两个门，哪个是卧室？<br>
+      <b>3. 时空推理</b>: "Go down the hallway, <b>then</b> turn left" — "then" 意味着顺序依赖，不能在 hallway 之前就 left。<br>
+      <b>4. 组合泛化</b>: 训练时见过 "Go to the kitchen"，测试时可能遇到 "Go to the bathroom" ——虽然物体不同但结构相同，必须泛化。<br>
+      <b>5. 奖励黑洞</b>: "走偏了"在坐标导航中可以用距离惩罚来表示。但在语言导航中——"应该在浴室左转但你右转了"——怎么用数字衡量这个错误？这就是为什么 <b>RL 在 VLN 中几乎不适用</b>。
+    </div>
+
+    <!-- 🏋 训练 (Imitation Learning) -->
+    <h4 id="vln-train" style="color:var(--text);margin:24px 0 10px;">🏋 训练：为什么 VLN 不用 PPO？</h4>
+
+    <!-- 为什么要用 IL 而不是 RL -->
+    <div style="margin-bottom:12px;padding:12px 16px;background:#1e293b;border-left:3px solid #fbbf24;border-radius:0 8px 8px 0;">
+      <span style="font-size:1.1rem;">🤔</span>
+      <span style="color:#e2e8f0;font-size:0.88rem;">
+        前四个任务都有<b>可计算的奖励信号</b>：<br>
+        PointNav：<code>reward = −(新距离 − 旧距离)</code> — 靠近目标 + 分。<br>
+        ObjectNav：<code>reward = distance_to_VIEW_POINT</code> — 能看到物体 + 分。<br>
+        ImageNav：同 PointNav — 距离差。<br><br>
+        现在试想 VLN 的奖励函数：agent 看到 "turn left at the bathroom" → 它直走了（没看到浴室）。<br>
+        <b style="color:#fbbf24;">你怎么给它打分？</b><br>
+        它最终到达了目标（success=1），但路径完全不对（没在浴室处左转）。<br>
+        success 无法捕捉"路径质量"——所以需要 nDTW。<br>
+        而 nDTW 需要知道<b>参考路径</b>——这信息 agent 不该看到（那是答案）。<br><br>
+        <b style="color:#fbbf24;">结论</b>：VLN 的奖励函数不可定义——因为你无法在不泄露答案的情况下评价路径质量。<br>
+        因此，VLN 使用 <b style="color:#60a5fa;">Imitation Learning</b> 而非 RL——让 agent 模仿人类标注的路径。
+      </span>
+    </div>
+
+    <!-- 📖 Imitation Learning 概念 -->
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">📖 Imitation Learning 两种方法</div>
+      <b>1. Behavioral Cloning (BC，行为克隆)</b>：把人类路径当作"正确答案"，训练策略直接预测人类在每一步会做什么动作。<br>
+      → 优点：简单。缺点：训练和测试分布不同（"协变量偏移"）——策略犯错后越走越偏，但从未学过如何从错误中恢复。<br><br>
+      <b>2. DAgger (Dataset Aggregation)</b>：让策略自己走一遍 → 人类标注者纠正每一步 → 把纠正后的数据加入训练集 → 重复。<br>
+      → 优点：解决了协变量偏移。缺点：需要人类实时标注，成本高。<br><br>
+      详见 <a href="#sec4" style="color:#60a5fa;">§4 PPO 训练算法</a> 末尾对 IL vs RL 的对比讨论。
+    </div>
+
+    <!-- 🧱 模块分析表 -->
+    <table class="compare-table" style="margin-top:12px;">
+      <thead><tr><th style="width:22%;">模块</th><th style="width:18%;">文件</th><th style="width:60%;">作用</th></tr></thead>
+      <tbody>
+        <tr><td><b>训练入口</b></td><td><code>habitat_baselines/run.py</code></td><td>Hydra 加载 IL 配置 → 构建 IL Trainer</td></tr>
+        <tr><td><b>IL Trainer</b></td><td><code>habitat_baselines/il/trainers/pacman.py</code></td><td>PACMAN: 多任务 IL 训练器（含 VLN）</td></tr>
+        <tr><td><b>数据加载</b></td><td><code>habitat_baselines/il/dataset.py</code></td><td>读取 R2R 数据（指令 + 轨迹对）</td></tr>
+        <tr><td><b>策略网络</b></td><td>指令编码器 (LSTM) + 视觉编码器 (CNN)</td><td>双模态融合：文本特征 + 视觉特征 → 动作分布</td></tr>
+        <tr><td><b>评估指标</b></td><td><code>nDTW</code> + <code>success</code> + <code>SPL</code></td><td>nDTW 衡量路径相似度；success 衡量是否到达</td></tr>
+      </tbody>
+    </table>
+
+    <!-- 📊 训练流程图 -->
+    <h4 style="font-size:0.9rem;margin:16px 0 6px;color:#93c5fd;">IL 训练流程图</h4>
+    <div class="flow-box">
+      <div class="flow-step" style="border-top:3px solid #64748b;">
+        <b>① Hydra 加载 IL 配置</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">eqa/il_pacman_nav.yaml<br>含 BC 或 DAgger 设置</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #3b82f6;">
+        <b>② 加载 R2R 数据</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">(instruction, reference_path)<br>人类标注的指令-路径对</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+        <b>③ 编码指令</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">LSTM/Transformer<br>文本 → 特征向量</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #f59e0b;">
+        <b>④ 预测动作</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">语言特征 + 视觉特征<br>→ 动作分布</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #10b981;">
+        <b>⑤ 计算 Cross-Entropy Loss</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">预测动作 vs 人类动作<br>逐步比较</p>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step" style="border-top:3px solid #ec4899;">
+        <b>⑥ 更新权重</b>
+        <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">反向传播 → 梯度更新<br>模仿人类轨迹</p>
+      </div>
+    </div>
+
+    <!-- 💻 训练命令 -->
     <div class="code-block" style="margin-top:10px;">
-      <div class="info-title">③ 运行命令</div>
-<pre><span class="c"># VLN 评估（使用 imitation learning 训练的模型）</span>
-<span class="c"># 注意: baselines 中没有 VLN 的 PPO 训练配置</span>
-<span class="c"># VLN 主要通过 Imitation Learning (DAgger / BC) 训练</span>
+      <div class="info-title">训练命令</div>
+<pre><span class="c"># VLN Imitation Learning 训练（PACMAN 多任务 IL）</span>
+<span class="c"># 注意: 这不是 PPO — 不需要 total_num_steps 参数</span>
+<span class="c"># 使用 BC (Behavioral Cloning) 或 DAgger 模式</span>
 $ python -u -m habitat_baselines.run \
     --config-name=eqa/il_pacman_nav.yaml
-</pre>
+
+<span class="c"># 评估（使用 IL 训练的 checkpoint）</span>
+$ python -u -m habitat_baselines.run \
+    --config-name=eqa/il_pacman_nav.yaml \
+    habitat_baselines.evaluate=True \
+    habitat_baselines.eval_ckpt_path_dir=data/checkpoints/il</pre>
     </div>
 
-    <div class="warn-box" style="margin-top:14px;">
-      <div class="info-title">VLN 的独特挑战与局限</div>
-      1. <b>语言接地 (Language Grounding)</b>: "turn left at the bathroom" → 必须先识别 bathroom，再决定在哪里转弯<br>
-      2. <b>时序推理</b>: 指令是时序的："先走到走廊尽头，然后右转" → 必须按顺序执行<br>
-      3. <b>部分可观测性</b>: 看不到的物体需要记忆或推理<br>
-      5. <b>评估复杂</b>: 除了 success/SPL，还需要 nDTW 来衡量路径与参考路径的相似度
-    </div>
-
-    <div class="warn-box" style="margin-top:10px;border-color:#ef444460;background:#ef444408;">
-      <div class="warn-title" style="color:#f87171;">⚠️ VLN 在这个工程中<b>不是</b>用 RL 训练的</div>
-      Habitat-Baselines 的 PPO Trainer 硬编码了 <code>supported_tasks = ["Nav-v0"]</code>，
-      而 VLN 注册为 <code>VLN-v0</code> → PPO 无法直接用于 VLN。
-      VLN 使用 <b>Imitation Learning</b>（DAgger / 行为克隆）而非 RL。
-      为什么？因为语言指令导航的<b>奖励函数极难定义</b>——"在浴室处左转" 走偏了，
-      无法用简单的距离差来衡量。学术界有少量 RL+IL 混合方案，但 Habitat-Baselines 未收录。
+    <!-- 📋 输出解读 -->
+    <div class="info-box" style="margin-top:10px;">
+      <div class="info-title">📋 训练输出解读</div>
+      <b>loss</b>：Cross-Entropy Loss — 策略预测的动作分布与人类实际动作的差异（越低越好）<br>
+      <b>success</b>：到达目标 3m 内的比例。BC 的 success 一般 20-40%（很容易分布偏移）<br>
+      <b>nDTW</b>：VLN 特有—路径形状相似度 0~1。这是比 success 更严格的指标<br>
+      <b>SPL</b>：路径效率。如果 agent 到达了但绕了很多弯路，SPL 会偏低<br>
+      <b>关键认知</b>：VLN 的 success 很难超过 50%（SOTA ~60%）。这是具身 AI 中公认最难的任务之一。
     </div>
 
     <!-- 1.7 选择指南 -->
