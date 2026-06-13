@@ -101,6 +101,20 @@
   <p class="subtitle">
     从配置到训练，从 checkpoint 到评估指标。理解 PPO 训练流程、RL 环境包装链、以及如何解释训练结果。
   </p>
+  
+  <div class="driving-questions" style="max-width:800px;margin:20px auto 0;padding:18px 24px;background:#1e293b;border-radius:12px;border:1px solid #334155;">
+    <div style="color:#fbbf24;font-weight:700;font-size:0.9rem;margin-bottom:10px;">本课将回答四个核心问题</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;">
+      <div style="color:#e2e8f0;font-size:0.85rem;">🤖 机器人是怎么学会「看」着走的？</div>
+      <div style="color:#e2e8f0;font-size:0.85rem;">🧠 训练出来的 .pth 文件里到底存了什么？</div>
+      <div style="color:#e2e8f0;font-size:0.85rem;">🔒 PPO 如何保证策略不会「学坏」？</div>
+      <div style="color:#e2e8f0;font-size:0.85rem;">📊 那些数值（reward/loss/SPL）到底在说什么？</div>
+    </div>
+    <div style="color:#94a3b8;font-size:0.75rem;margin-top:8px;">带着这四个问题读完本章，你将能自己训练一个导航策略，并理解每一个指标的含义。</div>
+  </div>
+
+  <p class="subtitle" style="display:none;">，从 checkpoint 到评估指标。理解 PPO 训练流程、RL 环境包装链、以及如何解释训练结果。
+  </p>
 </header>
 
 <!-- ═══════════════ TOC ═══════════════ -->
@@ -133,6 +147,11 @@
     <p class="section-subtitle">
       一次完整的训练涉及 4 层结构：CLI 入口 → Trainer → VectorEnv → RLEnv → Core Env。
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      理解 CLI → Trainer → VectorEnv → RLEnv 四层架构<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：如果去掉 Trainer 层直接调 Env，会发生什么？</span>
+    </div>
 
     <div class="arch-diagram">
       <div class="arch-row">
@@ -197,6 +216,11 @@
     <p class="section-subtitle">
       PointNav 只是导航的起点。Habitat 支持 5 种目标类型——从几何坐标到语言指令，覆盖 Embodied AI 导航的全谱系。
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      掌握 PointNav/ObjectNav/ImageNav/VLN 五种任务的输入输出差异<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：如果机器人没有 GPS，还能用 PointNav 吗？</span>
+    </div>
 
     <!-- 3.1 五型对比总表 -->
     <h3 style="color:var(--text);margin:30px 0 12px;">1.1 五种目标类型对比总表</h3>
@@ -317,7 +341,7 @@ env.close()
 
     <div class="screenshot-frame" style="margin:14px 0;">
       <img src="images/pointnav_rgb_depth.png" alt="PointNav Environment" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">PointNav 环境渲染 — skokloster-castle 城堡走廊 — L40 GPU 实时渲染 — RGB(256x256) + Depth(256x256) + PointGoal(distance, angle)</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.2 代码: gym.make("Habitat-v0", ...) → env.reset() → obs["rgb"] 的实际输出</span><br>PointNav 环境渲染 — skokloster-castle 城堡走廊 — L40 GPU 实时渲染 — RGB(256x256) + Depth(256x256) + PointGoal(distance, angle)</p>
     </div>
     </div>
 
@@ -444,7 +468,7 @@ env.close()
 </pre>
     <div class="screenshot-frame" style="margin:14px 0;">
       <img src="images/objectnav_mp3d.png" alt="ObjectNav MP3D" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">ObjectNav 环境 — MP3D 场景 — 目标: object ID — 6 个动作 — 云端 MP3D val 数据可用 (11 场景)</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.3 代码: gym.make("Habitat-v0", cfg="objectnav_mp3d.yaml") → env.reset() 的实际输出</span><br>ObjectNav 环境 — MP3D 场景 — 目标: object ID — 6 个动作 — 云端 MP3D val 数据可用 (11 场景)</p>
     </div>
     </div>
 
@@ -566,7 +590,7 @@ env.close()
 
     <div class="screenshot-frame" style="margin:14px 0;">
       <img src="images/imagenav_mp3d_goal.png" alt="ImageNav Goal Match" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">ImageNav — 左: Agent 当前 RGB 观测 — 右: 目标位置 RGB 图片 — 无 GPS！全靠视觉匹配 — 复用 PointNav MP3D 数据集，云端可运行</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.4 代码: obs["rgb"] (左) 和 obs["imagegoal"] (右) — 无 GPS，纯视觉匹配</span><br>ImageNav — 左: Agent 当前 RGB 观测 — 右: 目标位置 RGB 图片 — 无 GPS！全靠视觉匹配 — 复用 PointNav MP3D 数据集，云端可运行</p>
     </div>
     </div>
 
@@ -683,7 +707,7 @@ env.close()
 
     <div class="screenshot-frame" style="margin:14px 0;">
       <img src="images/vln_mp3d.png" alt="VLN MP3D R2R" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">VLN 环境 — MP3D R2R 数据集 — 自然语言导航指令 — 训练方式: Imitation Learning (非 RL) — 云端 MP3D R2R 数据齐全</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.6 代码: obs["instruction"] 为自然语言指令 → R2R MP3D 数据集</span><br>VLN 环境 — MP3D R2R 数据集 — 自然语言导航指令 — 训练方式: Imitation Learning (非 RL) — 云端 MP3D R2R 数据齐全</p>
     </div>
     </div>
 
@@ -803,7 +827,7 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <h3 id="sec-avail" style="color:var(--text);margin:30px 0 12px;">1.8 数据可用性总览 <span style="font-size:0.78rem;color:#94a3b8;">Cloud L40</span></h3>
     <div class="screenshot-frame" style="margin-bottom:14px;">
       <img src="images/data_availability_matrix.png" alt="Data Availability" style="width:100%;max-width:700px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">五种导航任务 × 四种数据集的可用性矩阵 — FULL=场景+数据齐全 / CFG ONLY=仅配置文件 / NONE=不可用</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 统计云端 /root/gpufree-data/habitat-lab-edu/data/datasets/ 的实际文件</span><br>五种导航任务 × 四种数据集的可用性矩阵 — FULL=场景+数据齐全 / CFG ONLY=仅配置文件 / NONE=不可用</p>
     </div>
     <div class="info-box">
       <div class="info-title">云端 L40 服务器数据集清单</div>
@@ -817,7 +841,7 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <h3 id="sec-self-vs-official" style="color:var(--text);margin:30px 0 12px;">1.9 自训练 vs 官方预训练模型 <span style="font-size:0.78rem;color:#94a3b8;">对比分析</span></h3>
     <div class="screenshot-frame" style="margin-bottom:14px;">
       <img src="images/self_vs_official.png" alt="Self-trained vs Official" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">自训练 (5 次 PPO 更新, Success 0%) vs 官方模型 (7373 万步, Success ~75%) — 相同架构，云泥之别</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 对比 §1.2 自训练 (5 updates) 和 官方模型 (73.7M steps) 的实际训练日志</span><br>自训练 (5 次 PPO 更新, Success 0%) vs 官方模型 (7373 万步, Success ~75%) — 相同架构，云泥之别</p>
     </div>
     <div class="info-box" style="margin-top:10px;">
       <div class="info-title">下载官方预训练模型</div>
@@ -848,11 +872,16 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
       <code>PointNavResNetPolicy</code> — Habitat 中 PointNav 任务的标准策略网络。
       理解网络的每一层，才能回答核心问题：<b>RL 到底在训练什么？</b>
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      理解 CNN+RNN+Actor/Critic 每层的作用和参数量<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：为什么视觉编码器占了 90% 的参数，但 Actor 头只占 3%？</span>
+    </div>
 
     <h3>2.1 网络全景：CNN + RNN + Actor/Critic</h3>
 <div class="screenshot-frame" style="margin-bottom:14px;">
       <img src="images/policy_architecture.png" alt="Policy Architecture" style="width:100%;max-width:600px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">PointNav Policy 参数分布 — 视觉编码器 (ResNet18) 占主体 — 总计 5,820,236 参数 — 基于官方 MP3D 模型</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 分析 torch.load("mp3d-rgb-best.pth")["state_dict"] 的参数分布 → 5,820,236 参数</span><br>PointNav Policy 参数分布 — 视觉编码器 (ResNet18) 占主体 — 总计 5,820,236 参数 — 基于官方 MP3D 模型</p>
     </div>
 
     <h3>2.1 网络全景：CNN + RNN + Actor/Critic</h3>
@@ -1060,6 +1089,11 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <p class="section-subtitle">
       从最内层的 <code>Env</code> 到最外层的 <code>VectorEnv</code>，每一层封装增加一个能力维度。
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      理解 VectorEnv → RLEnv → Env 逐层封装的作用<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：RLEnv 的 reward 是从哪里计算出来的？</span>
+    </div>
 
     <div class="arch-diagram">
       <div class="arch-row">
@@ -1124,15 +1158,448 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <p class="section-subtitle">
       Proximal Policy Optimization (Schulman et al., 2017) — Habitat 使用的核心 RL 算法。
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      掌握 PPO clipped objective 公式和代码映射<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：clip_param=0.2 时，如果 ratio=1.5，实际用的 ratio 是多少？</span>
+    </div>
 
     <h3>4.1 PPO 训练循环 (PPOTrainer.train)</h3>
 <div class="screenshot-frame" style="margin-bottom:14px;">
       <div class="info-title">实际训练曲线 (L40 GPU · 5 次 PPO 更新 · 160 环境步)</div>
       <img src="images/pointnav_training_curves.png" alt="Training Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">skokloster-castle 场景 · 5.8M 参数 · Reward 仍为负, Success=0% (此阶段预期行为) · FPS 40-74</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §1.2 训练命令: python -m habitat_baselines.run --config-name=pointnav/ppo_pointnav_example.yaml 的训练日志 (TensorBoard)</span><br>skokloster-castle 场景 · 5.8M 参数 · Reward 仍为负, Success=0% (此阶段预期行为) · FPS 40-74</p>
     </div>
 
     <h3>4.1 PPO 训练循环 (PPOTrainer.train)</h3>
+<!-- ============================================ -->
+<!-- Section 4.1: PPO 公式分析与代码映射           -->
+<!-- Habitat Step 5 — PPO Training Algorithm       -->
+<!-- ============================================ -->
+
+<h3 id="4.1A">4.1A PPO 核心思想</h3>
+
+<div class="info-box">
+<b>💡 一句话总结：</b>PPO（Proximal Policy Optimization，近端策略优化）是当前深度强化学习中最主流的策略梯度算法。它解决了「如何在更新策略时既<code>学得快</code>，又<code>不翻车</code>」这一核心矛盾。
+</div>
+
+<p>在强化学习中，策略梯度方法面临一个老问题：<b>学习率太大，策略更新过猛，训练直接崩溃；学习率太小，训练慢如蜗牛，永远学不会。</b>TRPO（Trust Region Policy Optimization）通过复杂的二阶优化来约束更新幅度，但实现难度极高。PPO 的提出者 John Schulman 团队在 2017 年给出了一个巧妙的替代方案：<b>用一阶优化的代价，实现近似的信任域约束</b>——这就是「裁剪替代目标函数」（Clipped Surrogate Objective）的核心直觉。</p>
+
+<p>想象你在「微调」一个旧策略来得到新策略：对每一步动作，新策略的概率和旧策略的概率之比，叫做 <b>概率比率 r<sub>t</sub>(θ)</b>。如果这个比率偏离 1 太远（比如旧策略给动作 FORWARD 的概率是 0.4，新策略猛拉到 0.9，比率=2.25），说明策略变化太剧烈。PPO 的做法是：<b>用 clip 操作把比率强行限制在 [1−ε, 1+ε] 范围内</b>，然后取裁剪前后两个损失的最小值。这样，当更新方向「好」时（优势 > 0），不会无限制拉高概率；当更新方向「不好」时（优势 < 0），也不会无限制压低概率。<b>PPO 就像给策略更新装了一个「安全阀」</b>，在学得快和安全之间找到了最佳平衡点。</p>
+
+<div class="key-finding">
+<b>🔑 关键理解：</b>PPO 的精髓不在于它「发明了什么新东西」，而在于它用最简单的裁剪操作（<code>clip</code>），近似实现了 TRPO 的信任域效果，同时保持了极低的实现复杂度。这就是为什么 Habitat 团队选择 PPO 作为 PointNav、ObjectNav、VLN 等导航任务的默认训练算法。
+</div>
+
+<!-- ============================================ -->
+
+<h3 id="4.1B">4.1B 公式推导</h3>
+
+<p>下面从核心到外围，逐步拆解 PPO 的完整损失函数。先看懂每个符号的含义，再用 Habitat 的代码去对应。</p>
+
+<h4>1. 概率比率 (Probability Ratio)</h4>
+
+<div class="code-block"><pre>
+r<sub>t</sub>(θ) = π<sub>θ</sub>(a<sub>t</sub> | s<sub>t</sub>) / π<sub>θ_old</sub>(a<sub>t</sub> | s<sub>t</sub>)
+</pre></div>
+
+<table>
+  <tr><th>符号</th><th>含义</th></tr>
+  <tr><td><code>π<sub>θ</sub>(a<sub>t</sub> | s<sub>t</sub>)</code></td><td>新策略（正在训练的策略）在状态 s<sub>t</sub> 下选择动作 a<sub>t</sub> 的概率</td></tr>
+  <tr><td><code>π<sub>θ_old</sub>(a<sub>t</sub> | s<sub>t</sub>)</code></td><td>旧策略（收集数据时的策略）在同样状态下选择同样动作的概率</td></tr>
+  <tr><td><code>r<sub>t</sub>(θ)</code></td><td>概率比率——衡量新旧策略对该动作的「偏好变化」</td></tr>
+</table>
+
+<div class="tip-box">
+<b>📌 直观理解：</b>r<sub>t</sub> = 1 表示新旧策略完全一致（没学到东西）；r<sub>t</sub> > 1 表示新策略更偏爱这个动作；r<sub>t</sub> < 1 表示新策略变得不太喜欢这个动作。
+</div>
+
+<h4>2. 优势函数 (Advantage Function)</h4>
+
+<div class="code-block"><pre>
+Â<sub>t</sub> = A(s<sub>t</sub>, a<sub>t</sub>)  ← 由 GAE (Generalized Advantage Estimation) 计算
+</pre></div>
+
+<p><b>优势 Â<sub>t</sub></b> 回答一个核心问题：「在状态 s<sub>t</sub> 下执行动作 a<sub>t</sub>，比「平均水平」好多少？」优势 > 0 说明这个动作是「好动作」，应该鼓励；优势 < 0 说明是「坏动作」，应该抑制。GAE 通过在偏差（bias）和方差（variance）之间引入 λ 参数做折中，得到更稳定的优势估计。</p>
+
+<div class="info-box">
+<b>💡 Habitat 中的 GAE：</b>在 <code>rollout_storage.py</code> 中，<code>compute_returns</code> 方法利用 Value 网络的预测值 + 实际奖励，结合 <code>gamma</code>（折扣因子）和 <code>tau</code>（GAE-λ 的 λ）计算出每个时间步的优势值。这一步骤发生在数据收集完成之后、PPO 更新之前。
+</div>
+
+<h4>3. 裁剪替代目标函数 (Clipped Surrogate Objective)</h4>
+
+<div class="code-block"><pre>
+L<sup>CLIP</sup>(θ) = E<sub>t</sub>[ min( r<sub>t</sub>(θ) · Â<sub>t</sub> ,  clip(r<sub>t</sub>(θ), 1−ε, 1+ε) · Â<sub>t</sub> ) ]
+</pre></div>
+
+<p>这个公式是 PPO 的灵魂，分三层理解：</p>
+
+<ul>
+  <li><b>第一项 r<sub>t</sub>(θ) · Â<sub>t</sub>：</b>标准策略梯度项，用概率比率加权优势。这是「想学多少就学多少」的版本。</li>
+  <li><b>第二项 clip(r<sub>t</sub>(θ), 1−ε, 1+ε) · Â<sub>t</sub>：</b>把概率比率裁剪到 [1−ε, 1+ε] 区间内，限制单次更新的最大幅度。这是「装安全阀」的版本。</li>
+  <li><b>外层 min(·, ·)：</b>取两者最小值。当 Â<sub>t</sub> > 0 时，裁剪阻止 r<sub>t</sub> 变得太大（不要让好动作的概率涨太多）；当 Â<sub>t</sub> < 0 时，裁剪阻止 r<sub>t</sub> 变得太小（不要让坏动作的概率跌太多）。</li>
+</ul>
+
+<div class="key-finding">
+<b>🔑 ε（裁剪范围）的含义：</b>ε 控制策略更新的最大幅度。ε = 0.2 意味着新策略的概率比率最多偏离 1 的 ±20%（即 r<sub>t</sub> ∈ [0.8, 1.2]）。Habitat 默认使用 <code>clip_param = 0.1</code> 或 <code>0.2</code>：ε=0.1 更保守、更稳定但学习慢；ε=0.2 更激进、学得快但可能不稳定。对于导航任务，0.1~0.2 之间都是合理选择。
+</div>
+
+<h4>4. 完整 PPO 损失函数</h4>
+
+<div class="code-block"><pre>
+L<sup>total</sup>(θ) = L<sup>CLIP</sup>(θ)  −  c<sub>1</sub> · L<sup>VF</sup>(θ)  +  c<sub>2</sub> · S[π<sub>θ</sub>]
+</pre></div>
+
+<p>PPO 不是只有一个损失，它由三个部分加权组成：</p>
+
+<table>
+  <tr><th>组成部分</th><th>公式</th><th>作用</th><th>Habitat YAML 参数</th></tr>
+  <tr>
+    <td><b>策略损失</b></td>
+    <td><code>L<sup>CLIP</sup>(θ)</code></td>
+    <td>让策略产出更高优势的动作（核心优化目标）</td>
+    <td><code>clip_param</code> 控制 ε</td>
+  </tr>
+  <tr>
+    <td><b>价值损失</b></td>
+    <td><code>L<sup>VF</sup>(θ) = (V<sub>θ</sub>(s<sub>t</sub>) − V<sub>target</sub>)<sup>2</sup></code></td>
+    <td>让 Value 网络更准确地预测未来累积奖励（MSE 损失）</td>
+    <td><code>value_loss_coef</code> = c<sub>1</sub></td>
+  </tr>
+  <tr>
+    <td><b>熵奖励</b></td>
+    <td><code>S[π<sub>θ</sub>] = −Σπ(a|s)·log π(a|s)</code></td>
+    <td>鼓励策略保持一定程度的探索（防止过早收敛到次优解）</td>
+    <td><code>entropy_coef</code> = c<sub>2</sub></td>
+  </tr>
+</table>
+
+<div class="tip-box">
+<b>📌 符号注意：</b>价值损失项前面是「减号」（−c<sub>1</sub>），因为我们要 <b>最大化</b> 整体目标。在代码实现中，通常转为求最小化（加负号），所以你会看到 <code>loss = -policy_loss + c1 * value_loss - c2 * entropy</code> 的写法。Habitat 代码中采用「最大化」范式，因此减去价值损失（让它变小更好）。
+</div>
+
+<!-- ============================================ -->
+
+<h3 id="4.1C">4.1C 代码映射：公式到 Habitat-Baselines 源码</h3>
+
+<p>下面将每个公式组件精确映射到 Habitat-Baselines 的实际文件和代码行。</p>
+
+<h4>映射总览</h4>
+
+<table>
+  <tr><th>公式组件</th><th>代码文件</th><th>关键类/方法</th><th>对应 YAML 参数</th></tr>
+  <tr>
+    <td><code>L<sup>CLIP</sup>(θ)</code> + 整体损失</td>
+    <td><code>habitat_baselines/rl/ppo/ppo.py</code></td>
+    <td><code>PPO.update()</code> 方法</td>
+    <td><code>clip_param</code></td>
+  </tr>
+  <tr>
+    <td><code>π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>)</code> 新策略概率</td>
+    <td><code>habitat_baselines/rl/ppo/ppo.py</code></td>
+    <td><code>ActorCritic.act()</code> → <code>action_distribution.log_probs</code></td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><code>π<sub>θ_old</sub>(a<sub>t</sub>|s<sub>t</sub>)</code> 旧策略概率</td>
+    <td><code>habitat_baselines/common/rollout_storage.py</code></td>
+    <td><code>RolloutStorage</code> 中存储的 <code>action_log_probs</code></td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><code>Â<sub>t</sub></code> (GAE 优势)</td>
+    <td><code>habitat_baselines/common/rollout_storage.py</code></td>
+    <td><code>RolloutStorage.compute_returns()</code></td>
+    <td><code>gamma</code>, <code>tau</code></td>
+  </tr>
+  <tr>
+    <td><code>L<sup>VF</sup></code> 价值损失</td>
+    <td><code>habitat_baselines/rl/ppo/ppo.py</code></td>
+    <td><code>PPO.update()</code> 中 value_loss</td>
+    <td><code>value_loss_coef</code></td>
+  </tr>
+  <tr>
+    <td><code>S[π<sub>θ</sub>]</code> 熵奖励</td>
+    <td><code>habitat_baselines/rl/ppo/ppo.py</code></td>
+    <td><code>PPO.update()</code> 中 action_distribution.entropy</td>
+    <td><code>entropy_coef</code></td>
+  </tr>
+  <tr>
+    <td>PPO 更新循环</td>
+    <td><code>habitat_baselines/rl/ppo/ppo_updater.py</code></td>
+    <td><code>PPOUpdater.update()</code>（调用 PPO.update 的包装器）</td>
+    <td><code>ppo_epoch</code>, <code>num_mini_batch</code></td>
+  </tr>
+</table>
+
+<h4>关键代码位置详解</h4>
+
+<div class="info-box">
+<b>📁 文件 1：<code>habitat_baselines/rl/ppo/ppo.py</code></b> — PPO 算法核心类
+
+<p><b>类 <code>PPO</code> 的方法 <code>update()</code></b> 是公式的直接翻译。其核心逻辑（伪代码重构）如下：</p>
+
+<div class="code-block"><pre>
+# ppo.py — PPO.update() 的核心逻辑 (简化版)
+
+def update(self, rollouts):
+    # 从 RolloutStorage 取数据
+    values, action_log_probs, actions, advantages, returns = rollouts.get_data()
+    
+    # 遍历多个 epoch（ppo_epoch）和 mini-batch
+    for epoch in range(self.ppo_epoch):
+        for batch in data_generator:
+            # === 第 1 步：计算新策略的概率 ===
+            new_action_dist = self.actor_critic.act(batch.observations, ...)
+            new_action_log_probs = new_action_dist.log_probs(batch.actions)
+            
+            # === 第 2 步：计算概率比率 r_t(θ) ===
+            ratio = torch.exp(new_action_log_probs - batch.action_log_probs)
+            #  batch.action_log_probs 是旧策略的 log π_old
+            
+            # === 第 3 步：计算裁剪损失 L^CLIP ===
+            surr1 = ratio * batch.advantages           # r_t * Â_t
+            surr2 = torch.clamp(ratio, 1.0 - clip_param, 1.0 + clip_param) * batch.advantages
+            action_loss = -torch.min(surr1, surr2).mean()  # 取 min，负号因为要最小化
+            
+            # === 第 4 步：计算价值损失 L^VF ===
+            value_loss = F.mse_loss(new_values, batch.returns)
+            
+            # === 第 5 步：完整损失 = L^CLIP + c1·L^VF − c2·S ===
+            total_loss = (
+                action_loss
+                + self.value_loss_coef * value_loss        # c1 * L^VF
+                - self.entropy_coef * new_action_dist.entropy().mean()  # -c2 * S
+            )
+            
+            # === 第 6 步：反向传播 ===
+            self.optimizer.zero_grad()
+            total_loss.backward()
+            torch.nn.utils.clip_grad_norm_(..., self.max_grad_norm)
+            self.optimizer.step()
+</pre></div>
+
+<b>符号对应关系：</b>
+<ul>
+  <li><code>ratio</code> → <code>r<sub>t</sub>(θ)</code>（通过 exp(log 差值) 计算，数值更稳定）</li>
+  <li><code>batch.advantages</code> → <code>Â<sub>t</sub></code>（已在 rollout_storage 中 GAE 计算好）</li>
+  <li><code>clip_param</code> → <code>ε</code>（来自 YAML，默认 0.1 或 0.2）</li>
+  <li><code>value_loss_coef</code> → <code>c<sub>1</sub></code>（来自 YAML）</li>
+  <li><code>entropy_coef</code> → <code>c<sub>2</sub></code>（来自 YAML）</li>
+</ul>
+</div>
+
+<div class="info-box">
+<b>📁 文件 2：<code>habitat_baselines/rl/ppo/ppo_updater.py</code></b> — PPO 更新调度器
+
+<p><code>PPOUpdater</code> 是 <code>PPO.update()</code> 的外层包装，负责控制 <b>「何时更新」</b> 而不是「如何更新」：</p>
+
+<div class="code-block"><pre>
+# ppo_updater.py 核心逻辑
+
+class PPOUpdater:
+    def update(self, rollouts):
+        # 1. 先让 RolloutStorage 计算 GAE 优势和回报
+        rollouts.compute_returns(
+            next_value,        # 最后一步的 V(s_{T+1})
+            use_gae=True,      # 使用 GAE 而非简单 n-step 回报
+            gamma=self.gamma,
+            tau=self.tau,      # GAE 的 λ 参数
+        )
+        
+        # 2. 调用 PPO.update() 执行实际的网络更新
+        value_loss, action_loss, dist_entropy = self.agent.update(rollouts)
+        
+        # 3. 清空 rollout 缓冲区，准备下一轮数据收集
+        rollouts.after_update()
+        
+        return value_loss, action_loss, dist_entropy
+</pre></div>
+
+<b>关键点：</b><code>rollouts.compute_returns()</code> 必须在 <code>agent.update()</code> 之前调用，因为 PPO 更新需要预先计算好的 <code>advantages</code> 和 <code>returns</code>。
+</div>
+
+<div class="info-box">
+<b>📁 文件 3：<code>habitat_baselines/common/rollout_storage.py</code></b> — GAE 优势计算
+
+<p><code>RolloutStorage.compute_returns()</code> 是 <code>Â<sub>t</sub></code> 的实际计算场所：</p>
+
+<div class="code-block"><pre>
+# rollout_storage.py — GAE 优势计算
+
+def compute_returns(self, next_value, use_gae, gamma, tau):
+    if use_gae:
+        # Generalized Advantage Estimation (GAE)
+        self.value_preds[-1] = next_value
+        gae = 0
+        for step in reversed(range(self.rewards.size(0))):
+            delta = (
+                self.rewards[step]
+                + gamma * self.value_preds[step + 1] * masks[step]
+                - self.value_preds[step]
+            )
+            # GAE 核心公式：Â_t = Σ (γτ)^l · δ_{t+l}
+            gae = delta + gamma * tau * masks[step] * gae
+            self.returns[step] = gae + self.value_preds[step]
+            
+            # ^ 注意：returns = advantages + value_preds（用于 Value 网络训练）
+            #    advantages = gae（用于策略网络训练）
+    else:
+        # 不带 GAE 的 n-step 回报（备用方案）
+        ...
+</pre></div>
+
+<b>GAE 公式对应：</b>
+<ul>
+  <li><code>delta</code> → TD 误差：δ<sub>t</sub> = r<sub>t</sub> + γ·V(s<sub>t+1</sub>) − V(s<sub>t</sub>)</li>
+  <li><code>gae</code> → GAE 优势累积：Â<sub>t</sub><sup>GAE</sup> = Σ<sub>l=0</sub><sup>∞</sup> (γτ)<sup>l</sup> · δ<sub>t+l</sub></li>
+  <li><code>self.returns</code> → 用于 Value 网络 MSE 训练的目标：R<sub>t</sub> = Â<sub>t</sub> + V(s<sub>t</sub>)</li>
+  <li><code>gamma</code> → γ（折扣因子，通常 0.99）</li>
+  <li><code>tau</code> → τ（GAE 的 λ 参数，通常 0.95——注意 Habitat 用 <code>tau</code> 而非 <code>lambda</code> 命名）</li>
+</ul>
+</div>
+
+<h4>YAML 配置参数到公式的完整映射</h4>
+
+<div class="code-block"><pre>
+# 典型 Habitat PPO 训练配置 (ppo_pointnav.yaml)
+RL:
+  PPO:
+    clip_param: 0.2          # → ε（裁剪范围）
+    ppo_epoch: 4             # → 每轮数据重复训练几次
+    num_mini_batch: 2        # → mini-batch 切分数
+    value_loss_coef: 0.5     # → c₁（价值损失权重）
+    entropy_coef: 0.01       # → c₂（熵奖励权重）
+    max_grad_norm: 0.5       # → 梯度裁剪阈值（额外保护）
+    lr: 2.5e-4               # → 优化器学习率
+    eps: 1e-5                # → Adam 优化器的 ε（非 PPO 的 ε！）
+    gamma: 0.99              # → γ（折扣因子，影响返回值计算）
+    tau: 0.95                # → τ（GAE 的 λ 参数）
+    use_gae: True            # → 是否启用 GAE
+    use_clipped_value_loss: True  # → 是否也对 L^VF 做裁剪（额外稳定）
+</pre></div>
+
+<div class="tip-box">
+<b>📌 常见混淆：</b>YAML 中 <code>eps: 1e-5</code> 是 Adam 优化器的数值稳定参数（防止除零），<b>不是</b> PPO 的 <code>epsilon</code>（裁剪范围）。PPO 的 ε 对应 <code>clip_param</code>。
+</div>
+
+<!-- ============================================ -->
+
+<h3 id="4.1D">4.1D 直观理解：一个完整数值例子</h3>
+
+<p>让我们用一个具体场景，把公式从头到尾走一遍。这是理解 PPO 内部分数流动的最佳方式。</p>
+
+<div class="info-box">
+<b>🎬 场景设定：</b>Agent 在 Habitat 场景中导航。在 <b>step 5</b>，Agent 执行了动作 <code>FORWARD</code>（向前走一步）。
+</div>
+
+<h4>Step 1：获取新旧策略概率</h4>
+
+<table>
+  <tr><th>指标</th><th>值</th><th>来源</th></tr>
+  <tr><td>旧策略 π<sub>old</sub>(FORWARD | s<sub>5</sub>)</td><td><b>0.4</b></td><td>收集 rollout 数据时，ActorCritic 网络输出的概率分布中对 FORWARD 的概率</td></tr>
+  <tr><td>新策略 π<sub>new</sub>(FORWARD | s<sub>5</sub>)</td><td><b>0.6</b></td><td>PPO 更新时，当前 ActorCritic 网络对同一状态重新计算的概率</td></tr>
+</table>
+
+<h4>Step 2：计算概率比率</h4>
+
+<div class="code-block"><pre>
+r<sub>t</sub>(θ) = π<sub>new</sub> / π<sub>old</sub> = 0.6 / 0.4 = <b>1.5</b>
+</pre></div>
+
+<p>比率 1.5 > 1，说明新策略比旧策略更「喜欢」FORWARD 这个动作——训练正在鼓励这个动作。</p>
+
+<h4>Step 3：查看优势值和裁剪参数</h4>
+
+<table>
+  <tr><th>参数</th><th>值</th><th>含义</th></tr>
+  <tr><td>Â<sub>5</sub>（优势）</td><td><b>+0.3</b></td><td>正值 → FORWARD 是个「好动作」，它的回报比 Value 网络预测的基线更好</td></tr>
+  <tr><td>ε（clip_param）</td><td><b>0.2</b></td><td>概率比率最多偏差 20%，即 r<sub>t</sub> 被限制在 [0.8, 1.2]</td></tr>
+</table>
+
+<h4>Step 4：应用裁剪</h4>
+
+<div class="code-block"><pre>
+无裁剪版本：  r<sub>t</sub> · Â<sub>t</sub>       = 1.5 × 0.3 = <b>0.45</b>
+裁剪版本：    clip(r<sub>t</sub>, 0.8, 1.2) × Â<sub>t</sub>
+            = 1.2 × 0.3
+            = <b>0.36</b>
+</pre></div>
+
+<p>因为 r<sub>t</sub> = 1.5 超出了裁剪上限 1.2，PPO 把它强行「按住」在 1.2，<b>牺牲了 0.09 的潜在收益（0.45 − 0.36 = 0.09），换来了策略更新的稳定性。</b></p>
+
+<h4>Step 5：min 操作最终裁决</h4>
+
+<div class="code-block"><pre>
+目标值 = min(无裁剪版, 裁剪版) = min(0.45, 0.36) = <b>0.36</b>
+</pre></div>
+
+<p>本例中裁剪版本更小，所以 <code>min</code> 选择了裁剪版本 0.36。<b>PPO 宁愿少学一点，也不想冒策略崩溃的风险。</b></p>
+
+<div class="key-finding">
+<b>🔑 关键领悟：</b>这个数值例子展示了 PPO 裁剪机制的精妙之处。当优势为正（Â<sub>t</sub> = +0.3）且新策略对动作偏好大幅上升（r<sub>t</sub> = 1.5）时，<code>clip</code> + <code>min</code> 的组合阻止了本轮更新将该动作的概率拉升得过高。下一次数据收集时，旧策略会更新为这一轮收敛后的策略，概率比率重新从 1.0 开始计算——PPO 以这种逐轮小幅更新的方式，确保策略平稳改进。
+</div>
+
+<h4>反向场景（优势为负）的补充说明</h4>
+
+<div class="tip-box">
+<b>📌 假设同一场景中 Â<sub>5</sub> = −0.3（FORWARD 是个坏动作）：</b>
+<ul>
+  <li>无裁剪版：1.5 × (−0.3) = <b>−0.45</b></li>
+  <li>裁剪版：clip(1.5, 0.8, 1.2) × (−0.3) = 1.2 × (−0.3) = <b>−0.36</b></li>
+  <li>min(−0.45, −0.36) = <b>−0.45</b>（无裁剪版本更小，被选中）</li>
+</ul>
+<p>当优势为负时，<code>min</code> 会选择「让损失更负」的版本，即<b>无裁剪版本 −0.45</b>（因为裁剪版 −0.36 更大）。这等价于：当应该减少概率时，PPO 允许充分减少，不会被裁剪限制——因为裁剪只限制了概率比率的最低值（1−ε），而 r<sub>t</sub> = 1.5 并不会触发下限。</p>
+<p>只有当 r<sub>t</sub> < 0.8（新策略把概率降得太低）时，裁剪下限才会介入。这是 PPO 设计的精妙之处：<b>对好动作限制涨幅，对坏动作允许充分跌幅</b>。</p>
+</div>
+
+<!-- ============================================ -->
+<!-- 总结卡片                                       -->
+<!-- ============================================ -->
+
+<div class="key-finding">
+<h4>📋 PPO 公式快速参考卡</h4>
+<table>
+  <tr><th>公式</th><th>Habitat 参数</th><th>推荐值</th><th>一句话作用</th></tr>
+  <tr>
+    <td><code>r<sub>t</sub> = π<sub>new</sub> / π<sub>old</sub></code></td>
+    <td>—（隐式计算）</td>
+    <td>—</td>
+    <td>衡量新旧策略对同一动作的偏好变化</td>
+  </tr>
+  <tr>
+    <td><code>clip(r<sub>t</sub>, 1−ε, 1+ε)</code></td>
+    <td><code>clip_param</code> = ε</td>
+    <td>0.1 ~ 0.2</td>
+    <td>限制单次更新幅度，防止训练崩溃</td>
+  </tr>
+  <tr>
+    <td><code>Â<sub>t</sub>（GAE）</code></td>
+    <td><code>gamma</code>, <code>tau</code></td>
+    <td>0.99, 0.95</td>
+    <td>评估动作的「好/坏」程度</td>
+  </tr>
+  <tr>
+    <td><code>L<sup>VF</sup>（MSE）</code></td>
+    <td><code>value_loss_coef</code> = c<sub>1</sub></td>
+    <td>0.5</td>
+    <td>让 Value 网络学会预测未来回报</td>
+  </tr>
+  <tr>
+    <td><code>S[π<sub>θ</sub>]（熵）</code></td>
+    <td><code>entropy_coef</code> = c<sub>2</sub></td>
+    <td>0.01</td>
+    <td>鼓励探索，防止过早收敛</td>
+  </tr>
+  <tr>
+    <td><code>L<sup>total</sup></code></td>
+    <td>—（三部分加权和）</td>
+    <td>—</td>
+    <td>PPO 的完整优化目标</td>
+  </tr>
+</table>
+</div>
+
     <div class="arch-diagram">
       <div class="arch-row">
         <div class="arch-layer" style="background:#ec489920;border:1px solid #ec489940;">
@@ -1344,6 +1811,11 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
       在深入 PPO 算法之前，先用一个完整的 Demo 理解 RL 如何让 agent 学会导航。
       <b>观测什么、输出什么、奖励什么</b>——这三个问题是一切 RL 训练的基础。
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      运行完整的训练流程，理解观测→动作→奖励的闭环<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：reward 的三个组成部分（slack/distance/success）各占多少？</span>
+    </div>
 
     <h3>6.1 传统导航 vs RL 导航</h3>
     <p style="font-size:0.88rem;color:var(--text-dim);margin-bottom:14px;">
@@ -1627,6 +2099,11 @@ policy.<span class="fn">eval</span>()
     <p class="section-subtitle">
       训练完成后，使用 <code>habitat.Benchmark</code> 或 trainer 的 <code>eval()</code> 评估模型性能。
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      掌握 success/SPL/distance_to_goal 三个核心指标<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：SPL 和 Success 的区别是什么？为什么需要两个指标？</span>
+    </div>
 
     <h3>7.1 Benchmark 评估流程</h3>
     <div class="code-block"><span class="cmt"># 方式 1：直接使用 Benchmark</span>
@@ -1640,7 +2117,7 @@ metrics = benchmark.<span class="fn">evaluate</span>(agent, num_episodes=<span c
     <div class="screenshot-frame" style="margin:14px 0;">
       <div class="info-title">评估指标可视化 (5 次 PPO 更新 · 160 环境步)</div>
       <img src="images/pointnav_eval_curves.png" alt="Evaluation Curves" style="width:100%;max-width:750px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">Checkpoint 评估 — Average Reward / Distance to Goal / Success Rate — 160 步总计</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 运行 §7 评估: habitat_baselines.evaluate=True 的输出指标可视化</span><br>Checkpoint 评估 — Average Reward / Distance to Goal / Success Rate — 160 步总计</p>
     </div>
 
     <h3 style="margin-top:20px;">7.2 评估指标详解</h3>
@@ -1738,6 +2215,11 @@ python -u -m habitat_baselines.run \
     <p class="section-subtitle">
       从安装到首次训练成功的步骤清单。
     </p>
+    <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
+      <div class="info-title" style="color:#60a5fa;">学习目标</div>
+      学会解读训练日志、调优参数、估算训练时间<br>
+      <span style="color:#fbbf24;font-size:0.82rem;">思考：你的 loss 不降了，是应该加大 lr 还是减小？</span>
+    </div>
 
     <h3>8.1 训练前检查清单</h3>
     <table class="compare-table">
@@ -2105,7 +2587,7 @@ $ python -u -m habitat_baselines.run \
     <p class="section-subtitle">NVIDIA L40 (46GB) — 如何最大化 GPU 利用率完成 PointNav 训练</p>
     <div class="screenshot-frame" style="margin-bottom:14px;">
       <img src="images/l40_optimization.png" alt="L40 Optimization" style="width:100%;max-width:800px;border-radius:8px;border:1px solid var(--border);">
-      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;">FPS 和 VRAM 随 num_environments 变化 — 24 envs ~450 FPS, ~6.5GB VRAM (L40 上限 46GB)</p>
+      <p style="font-size:0.78rem;color:#94a3b8;margin-top:6px;"><span style="color:#60a5fa;font-weight:600;">📋 在 L40 上实测 num_environments=1/6/12/24 的 FPS 和 VRAM 占用</span><br>FPS 和 VRAM 随 num_environments 变化 — 24 envs ~450 FPS, ~6.5GB VRAM (L40 上限 46GB)</p>
     </div>
     <div class="info-box" style="margin-top:14px;">
       <div class="info-title">云端服务器 (120.209.70.195:30334)</div>
