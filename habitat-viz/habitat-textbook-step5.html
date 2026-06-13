@@ -103,14 +103,14 @@
   </p>
   
   <div class="driving-questions" style="max-width:800px;margin:20px auto 0;padding:18px 24px;background:#1e293b;border-radius:12px;border:1px solid #334155;">
-    <div style="color:#fbbf24;font-weight:700;font-size:0.9rem;margin-bottom:10px;">本课将回答四个核心问题</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;">
-      <div style="color:#e2e8f0;font-size:0.85rem;">🤖 机器人是怎么学会「看」着走的？</div>
-      <div style="color:#e2e8f0;font-size:0.85rem;">🧠 训练出来的 .pth 文件里到底存了什么？</div>
-      <div style="color:#e2e8f0;font-size:0.85rem;">🔒 PPO 如何保证策略不会「学坏」？</div>
-      <div style="color:#e2e8f0;font-size:0.85rem;">📊 那些数值（reward/loss/SPL）到底在说什么？</div>
+    <div style="color:#fbbf24;font-weight:700;font-size:0.9rem;margin-bottom:12px;">想象一下这个场景</div>
+    <div style="color:#e2e8f0;font-size:0.85rem;line-height:1.8;">
+      你在一个陌生的城堡里，有人告诉你：<b style="color:#60a5fa;">"往前走 10 米，然后右转——目标就在你右前方"</b>。<br>
+      你可以看周围的环境，但不知道自己在城堡的哪个位置。<br><br>
+      现在换成一个<b>机器人</b>来做这件事——它没有直觉，只有一堆像素和数字。<br>
+      <b style="color:#fbbf24;">你怎么让它学会这个能力？你要训练它多少步？训练完的产物是什么？</b>
     </div>
-    <div style="color:#94a3b8;font-size:0.75rem;margin-top:8px;">带着这四个问题读完本章，你将能自己训练一个导航策略，并理解每一个指标的含义。</div>
+    <div style="color:#94a3b8;font-size:0.75rem;margin-top:10px;">本章将通过 PointNav 任务的完整训练流程，回答上面每一个问题。</div>
   </div>
 
   <p class="subtitle" style="display:none;">，从 checkpoint 到评估指标。理解 PPO 训练流程、RL 环境包装链、以及如何解释训练结果。
@@ -150,7 +150,7 @@
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       理解 CLI → Trainer → VectorEnv → RLEnv 四层架构<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：如果去掉 Trainer 层直接调 Env，会发生什么？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 你敲下 python -m habitat_baselines.run 之后，Habitat 内部经历了哪些步骤才让 agent 开始移动？</span>
     </div>
 
     <div class="arch-diagram">
@@ -219,7 +219,7 @@
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       掌握 PointNav/ObjectNav/ImageNav/VLN 五种任务的输入输出差异<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：如果机器人没有 GPS，还能用 PointNav 吗？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 如果给你一个坐标 (x,y) 让你走过去，和给你一张照片让你找到这个地方，哪个更难？为什么 Habitat 要设计五种不同的导航任务？</span>
     </div>
 
     <!-- 3.1 五型对比总表 -->
@@ -875,7 +875,7 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       理解 CNN+RNN+Actor/Critic 每层的作用和参数量<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：为什么视觉编码器占了 90% 的参数，但 Actor 头只占 3%？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 训练出来的 .pth 文件有 22MB，里面到底存了什么？为什么视觉编码器占了 90% 的参数，而做决策的 Actor 头只占 3%？</span>
     </div>
 
     <h3>2.1 网络全景：CNN + RNN + Actor/Critic</h3>
@@ -1092,7 +1092,7 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       理解 VectorEnv → RLEnv → Env 逐层封装的作用<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：RLEnv 的 reward 是从哪里计算出来的？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 Habitat 的 Env 返回的是一个字典 {rgb, depth, pointgoal}，但 PPO 算法需要 (obs, reward, done, info) 元组——谁在中间做了转换？</span>
     </div>
 
     <div class="arch-diagram">
@@ -1161,7 +1161,7 @@ env.step({<span class="str">"action"</span>: AnswerAction.name, <span class="str
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       掌握 PPO clipped objective 公式和代码映射<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：clip_param=0.2 时，如果 ratio=1.5，实际用的 ratio 是多少？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 PPO 论文里说 "clip the ratio to 1±ε"——如果新策略想做一件旧策略从来没想过的事（ratio=100），PPO 会怎么阻止它？clip 之后实际用的 ratio 是多少？</span>
     </div>
 
     <h3>4.1 PPO 训练循环 (PPOTrainer.train)</h3>
@@ -1814,7 +1814,7 @@ r<sub>t</sub>(θ) = π<sub>new</sub> / π<sub>old</sub> = 0.6 / 0.4 = <b>1.5</b>
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       运行完整的训练流程，理解观测→动作→奖励的闭环<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：reward 的三个组成部分（slack/distance/success）各占多少？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 agent 往前走了一步，reward 是 +0.3 还是 -0.01？这个数字是怎么算出来的？如果我把 success_distance 从 0.2m 改成 0.1m，reward 会变吗？</span>
     </div>
 
     <h3>6.1 传统导航 vs RL 导航</h3>
@@ -2102,7 +2102,7 @@ policy.<span class="fn">eval</span>()
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       掌握 success/SPL/distance_to_goal 三个核心指标<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：SPL 和 Success 的区别是什么？为什么需要两个指标？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 训练 loss 一直在降，但 agent 在测试场景里一动不动——SPL=0, Success=0。这是过拟合吗？还是你的评估方式有问题？</span>
     </div>
 
     <h3>7.1 Benchmark 评估流程</h3>
@@ -2218,7 +2218,7 @@ python -u -m habitat_baselines.run \
     <div class="info-box" style="margin-top:8px;margin-bottom:14px;border-left:3px solid #60a5fa;">
       <div class="info-title" style="color:#60a5fa;">学习目标</div>
       学会解读训练日志、调优参数、估算训练时间<br>
-      <span style="color:#fbbf24;font-size:0.82rem;">思考：你的 loss 不降了，是应该加大 lr 还是减小？</span>
+      <span style="color:#fbbf24;font-size:0.82rem;">🤔 你盯着 TensorBoard 看了一个小时，reward 曲线像心电图一样上下跳动——这是在"学习"还是在"抽风"？你怎么判断训练是正常的？</span>
     </div>
 
     <h3>8.1 训练前检查清单</h3>
