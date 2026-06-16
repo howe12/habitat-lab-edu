@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>§N 避坑实战：一个 VLN 训练管线的诊断与修复 — Habitat 从零理解</title>
+<link rel="stylesheet" href="assets/css/theme.css">
+<style>
+  :root {
+    --accent-bug: #f87171;
+    --accent-fix: #4ade80;
+    --accent-insight: #facc15;
+  }
+  .compare-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin: 18px 0;
+  }
+  .bug-card {
+    background: #7f1d1d15; border: 1px solid #7f1d1d40;
+    border-radius: 8px; padding: 16px 20px;
+  }
+  .fix-card {
+    background: #16653415; border: 1px solid #16653440;
+    border-radius: 8px; padding: 16px 20px;
+  }
+  .bug-card h4 { color: var(--accent-bug); margin: 0 0 8px; }
+  .fix-card h4 { color: var(--accent-fix); margin: 0 0 8px; }
+  .insight-box {
+    background: #713f1215; border: 1px solid #713f1240;
+    border-radius: 8px; padding: 18px 22px; margin: 18px 0;
+  }
+  .insight-box h4 { color: var(--accent-insight); margin: 0 0 8px; }
+  .val-curve {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem; color: #94a3b8;
+    white-space: pre; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html">🏠 门户</a>
+  <span class="sep">|</span>
+  <a href="habitat-textbook.html">📗 教科书</a>
+  <span class="sep">/</span>
+  <a href="habitat-textbook-step6.html">第6步：VLN 仿真训练</a>
+  <span class="sep">/</span>
+  <span class="current">§N 避坑实战</span>
+</nav>
+
+<header class="hero">
+  <div class="step-badge">§N · 避坑实战 · 预计 2 小时</div>
+  <h1>一个 VLN 训练管线是如何被修好的</h1>
+  <p class="subtitle">
+    你接手了一个 VLN 训练项目，val_acc = 94.9%——看起来非常好。但这是真的吗？<br>
+    本章带你逐一发现并修复 5 个工程暗坑，最终面对一个诚实但残酷的结论。
+  </p>
+</header>
+
+<!-- ═══════════════ §N.1 初见：好得可疑的 94.9% ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-bug);"></span> §N.1 初见：好得可疑的 94.9%</h2>
+  <p class="section-subtitle">
+    用项目原始代码训练 10 个 epoch，观察训练曲线。
+  </p>
+
+  <div class="info-box" style="border-color:#f8717140; background:#f8717108;">
+    <div class="info-title">① 先跑一遍看看</div>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      在你开始修改任何代码之前，先用原始版本完整训练一次，并保存日志。<br>
+      这个日志是你后续诊断的<b>唯一参照物</b>——没有它，你就不知道"修对了没有"。
+    </p>
+  </div>
+
+  <h3 style="font-size:1rem; margin:24px 0 8px; color:#cbd5e1;">② 训练命令</h3>
+  <div class="code-block"><span class="kw">cd</span> habitat-lab-edu
+<span class="fn">python</span> training/train.py --split val_unseen --num_episodes 500 --epochs 10 \
+    <span class="num">2</span>&gt;<span class="num">&amp;1</span> | <span class="kw">tee</span> logs/run1_before_fix.log</div>
+
+  <h3 style="font-size:1rem; margin:24px 0 8px; color:#cbd5e1;">③ 训练曲线</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>Epoch</th><th>train_loss</th><th>val_loss</th><th>val_acc</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>0.625</td><td>0.467</td><td style="color:#f87171;">79.7%</td></tr>
+      <tr><td>2</td><td>0.463</td><td>0.478</td><td style="color:#f87171;">80.7%</td></tr>
+      <tr><td>3</td><td>0.435</td><td>0.424</td><td style="color:#f87171;">81.4%</td></tr>
+      <tr><td>4</td><td>0.422</td><td>0.366</td><td style="color:#fbbf24;">84.0%</td></tr>
+      <tr><td>5</td><td>0.364</td><td>0.342</td><td style="color:#fbbf24;">86.7%</td></tr>
+      <tr><td>6</td><td>0.319</td><td>0.340</td><td style="color:#fbbf24;">83.5%</td></tr>
+      <tr><td>7</td><td>0.261</td><td>0.227</td><td style="color:#4ade80;">92.5%</td></tr>
+      <tr><td>8</td><td>0.257</td><td>0.301</td><td style="color:#4ade80;">89.1%</td></tr>
+      <tr><td>9</td><td>0.227</td><td>0.228</td><td style="color:#4ade80;">91.1%</td></tr>
+      <tr><td><b>10</b></td><td style="color:#67e8f9;"><b>0.199</b></td><td style="color:#67e8f9;"><b>0.155</b></td><td style="color:#4ade80;font-weight:700;">94.1%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box">
+    <div class="tip-title">停下想一想</div>
+    <p>
+      val_acc = 94.1%，而且 10 个 epoch 就到了。你见过几个 ML 项目有这么快的收敛速度和这么高的准确率？<br>
+      <b>在继续之前，问自己：这个数字有可能是真的吗？</b>
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.2 五重暗坑 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-bug);"></span> §N.2 五重暗坑：逐一揭示</h2>
+  <p class="section-subtitle">
+    高 val_acc 并不等于好模型。以下是藏在训练管线中的 5 个问题。
+  </p>
+
+  <!-- ── 坑 1 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🔴 坑 1：文本输入是随机噪声</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">def</span> <span class="fn">fake_text_input</span>(instrs, B, T, ...):
+    <span class="kw">return</span> torch.randn(B, <span class="num">10</span>, <span class="num">300</span>)  <span class="cmt"># 每轮都不同！</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="cmt"># 从 R2R 指令构建词表 1369 词</span>
+<span class="fn">batch_encode</span>(instructions) → Embedding → LSTM
+<span class="cmt"># 同一条指令永远得到相同向量</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      指令文本从未被使用。模型实际学的是<b>"看 RGB 序列推测方向"</b>——这不是 VLN。
+    </p>
+  </div>
+
+  <!-- ── 坑 2 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🔴 坑 2：Train / Val 数据泄漏</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;">train_ds = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
+val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
+<span class="cmt"># ↑ 同一个 split！</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;">train_ds = VLNDataset(split=<span class="str">"train"</span>, ...)
+val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
+<span class="cmt"># ↑ 完全隔离</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      验证集的前 50 个 episode 也在训练集中。模型见过验证数据——94.1% 是<b>过拟合</b>，不是泛化。
+    </p>
+  </div>
+
+  <!-- ── 坑 3 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🟡 坑 3：Action 标签缺失 RIGHT</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">if</span> abs(dx) &gt; abs(dy):
+    actions.append(<span class="num">1</span>)  <span class="cmt"># FWD</span>
+<span class="kw">else</span>:
+    actions.append(<span class="num">2</span>)  <span class="cmt"># LEFT——RIGHT 从未出现</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">if</span> dx &gt; <span class="num">0.05</span>:
+    actions.append(<span class="num">3</span>)  <span class="cmt"># RIGHT</span>
+<span class="kw">elif</span> dx &lt; <span class="num">-0.05</span>:
+    actions.append(<span class="num">2</span>)  <span class="cmt"># LEFT</span>
+<span class="kw">else</span>: actions.append(<span class="num">1</span>)  <span class="cmt"># FWD</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      模型训练时从未见过正确的右转标签。一个不会右转的导航模型。
+    </p>
+  </div>
+
+  <!-- ── 坑 4 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🟡 坑 4：SPL 指标公式错误</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">def</span> <span class="fn">spl</span>(success, agent_len, gt_len):
+    <span class="kw">return</span> gt_len / max(agent_len, gt_len)
+    <span class="cmt"># ↑ 缺了 success 因子！失败时 SPL≠0</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">def</span> <span class="fn">spl</span>(success, agent_len, gt_len):
+    <span class="kw">if not</span> success: <span class="kw">return</span> <span class="num">0.0</span>
+    <span class="kw">return</span> success * gt_len / max(agent_len, gt_len)</div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      标准 SPL 公式是 <code>success × (gt_len / max(agent_len, gt_len))</code>。缺少 success 因子导致失败 episode 也有正的 SPL。
+    </p>
+  </div>
+
+  <!-- ── 坑 5 ── -->
+  <div class="bug-card">
+    <h4>🟡 坑 5：训练日志丢失</h4>
+    <p style="font-size:0.85rem; color:#cbd5e1;">
+      原始 train.py 只打印到终端，训练结束后<b>没有任何记录</b>。当你想对比修复前后的效果时，没有对照数据。<br>
+      修复：加入 <code>Tee</code> 类，同时输出到 stdout 和 <code>logs/</code> 目录。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.3 修复后重新训练 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-fix);"></span> §N.3 修复后重新训练</h2>
+  <p class="section-subtitle">
+    修复全部 5 个问题后，用分离的 split 重新训练 10 epoch。
+  </p>
+
+  <table class="compare-table">
+    <thead><tr><th>Epoch</th><th>train_loss</th><th>val_loss</th><th>val_acc</th><th>vs 修复前</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>1.207</td><td>1.051</td><td style="color:#f87171;">49.9%</td><td style="color:#f87171;">-29.8%</td></tr>
+      <tr><td>2</td><td>0.990</td><td>0.925</td><td style="color:#f87171;">63.9%</td><td style="color:#f87171;">-16.8%</td></tr>
+      <tr><td>3</td><td>0.874</td><td>0.768</td><td style="color:#fbbf24;">70.8%</td><td style="color:#f87171;">-10.6%</td></tr>
+      <tr><td>4</td><td>0.738</td><td>0.672</td><td style="color:#fbbf24;">75.2%</td><td style="color:#f87171;">-8.8%</td></tr>
+      <tr><td>5</td><td>0.659</td><td>0.757</td><td style="color:#fbbf24;">72.0%</td><td style="color:#f87171;">-14.7%</td></tr>
+      <tr><td>6</td><td>0.491</td><td>0.393</td><td style="color:#4ade80;">86.9%</td><td style="color:#4ade80;">+3.4%</td></tr>
+      <tr><td>7</td><td>0.400</td><td>0.302</td><td style="color:#4ade80;">91.2%</td><td style="color:#f87171;">-1.3%</td></tr>
+      <tr><td>8</td><td>0.293</td><td>0.259</td><td style="color:#4ade80;">92.2%</td><td style="color:#4ade80;">+3.1%</td></tr>
+      <tr><td>9</td><td>0.266</td><td>0.232</td><td style="color:#4ade80;">93.3%</td><td style="color:#4ade80;">+2.2%</td></tr>
+      <tr><td><b>10</b></td><td style="color:#67e8f9;"><b>0.182</b></td><td style="color:#67e8f9;"><b>0.176</b></td><td style="color:#4ade80;font-weight:700;">94.7%</td><td style="color:#4ade80;">+0.6%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight-box">
+    <h4>💡 意料之外：val_acc 几乎没变</h4>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      修复了文本噪声、数据泄漏、标签缺失、指标公式之后，val_acc 从 <b>94.1% → 94.7%</b>。<br><br>
+      我们原本预期 val_acc 会<b>大幅下降</b>（因为消除了数据泄漏和随机文本作弊），但它纹丝不动。<br><br>
+      <b>这意味着：这 5 个问题从来不是 val_acc 的瓶颈。</b>
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.4 真正的考验：评估 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-insight);"></span> §N.4 真正的考验：环境评估</h2>
+  <p class="section-subtitle">
+    val_acc 测量的是"给定预渲染帧，预测 action 标签"，不是"在 3D 场景中导航"。
+  </p>
+
+  <table class="compare-table">
+    <thead><tr><th>指标</th><th>修复前 (作弊版)</th><th>修复后 (诚实版)</th><th>变化</th></tr></thead>
+    <tbody>
+      <tr><td><b>val_acc</b></td><td>94.1%</td><td>94.7%</td><td style="color:#4ade80;">+0.6%</td></tr>
+      <tr><td><b>Eval SR</b> (50 eps)</td><td>~30% *</td><td>32.0%</td><td style="color:#fbbf24;">+2%</td></tr>
+      <tr><td><b>Eval SPL</b></td><td>— (公式错误)</td><td>0.320</td><td>—</td></tr>
+      <tr><td><b>Eval nDTW</b></td><td>—</td><td>0.107</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:0.78rem; color:#64748b; margin-top:4px;">* 修复前的简化版 eval 把 action 硬编码为 MOVE_FORWARD，所以 SR 约 30% 只是"一直向前走"的 baseline。</p>
+
+  <div class="insight-box">
+    <h4>💡 val_acc 94.7% vs SR 32.0%：3:1 的鸿沟</h4>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      同一个模型，在预渲染帧上预测 action 标签有 94.7% 准确率，但在 3D 场景中实际导航只有 32% 成功率。<br><br>
+      这个 3:1 的差距揭示了比文本噪声、数据泄漏、标签错误<b>更深层的问题</b>。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.5 深层结论 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-insight);"></span> §N.5 深层结论：图像分布偏移</h2>
+  <p class="section-subtitle">
+    当你排除了所有表面问题，剩下的那个——无论多么隐蔽——就是根因。
+  </p>
+
+  <div class="info-box" style="border-color:#facc1540; background:#facc1508;">
+    <div class="info-title">根因：训练和评估的图像来自不同分布</div>
+    <div class="compare-grid" style="margin-top:12px;">
+      <div class="fix-card" style="margin:0;">
+        <h4>训练时的图像</h4>
+        <p style="font-size:0.85rem; line-height:1.7;">
+          来自 <b>预渲染</b>（env.reset → 5×MOVE_FORWARD → 保存 .npz）<br><br>
+          每帧都是 <b>最短路径上的画面</b>——干净、正确、标准化。
+        </p>
+      </div>
+      <div class="bug-card" style="margin:0;">
+        <h4>评估时的图像</h4>
+        <p style="font-size:0.85rem; line-height:1.7;">
+          来自 <b>实时渲染</b>（每步根据模型预测的 action 获取下一帧）<br><br>
+          每帧都是 <b>模型自己走出来的画面</b>——可能偏离、撞墙、迷路。
+        </p>
+      </div>
+    </div>
+
+    <p style="font-size:0.88rem; line-height:1.7; margin-top:16px;">
+      两个分布下的 RGB 完全不同——同一场景、不同视角、不同光照条件。<br>
+      ResNet 提取的特征在两个分布之间<b>无法泛化</b>。<br><br>
+      这解释了为什么修复了 5 个表面问题后 SR 仍然只有 32%：<br>
+      <b>模型从未见过"自己走错时看到的画面"。</b>
+    </p>
+  </div>
+
+  <div class="warn-box" style="margin-top:18px;">
+    <div class="warn-title">⚡ 这为什么比文本问题更难修</div>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      要消除分布偏移，训练必须也走<b>在线 rollout</b>：每步用模型预测的 action 获取下一帧。<br>
+      但这会让训练慢 10 倍（无法并行预取 DataLoader），且需要动态 env 管理。<br><br>
+      混合训练方案（先在预渲染上启蒙，再逐步加在线 rollout）是可行的折中。<br><br>
+      ——这不是 §N 要解决的问题，它是阶段 3（真正的 VLN 训练）的核心挑战。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.6 学到的教训 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> §N.6 你从这一章学到的</h2>
+
+  <table class="compare-table">
+    <thead><tr><th>#</th><th>教训</th><th>适用范围</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>val_acc 高 ≠ 模型好</b>。先检查数据有没有泄漏。</td><td>所有 ML 项目</td></tr>
+      <tr><td>2</td><td><b>保存训练日志</b>。没有 before 对照，after 没有意义。</td><td>所有 ML 项目</td></tr>
+      <tr><td>3</td><td><b>查指标公式</b>。你自己写的 SPL 可能和论文定义不同。</td><td>复现论文时</td></tr>
+      <tr><td>4</td><td><b>查标签分布</b>。如果某个类别从未出现，模型不会学到它。</td><td>分类任务</td></tr>
+      <tr><td>5</td><td><b>训练和推理的输入必须同分布</b>。预渲染帧≠实时渲染帧。</td><td>所有 ML 项目</td></tr>
+      <tr><td>6</td><td><b>修复表面问题后效果没变 → 根因在更深层</b>。别停。</td><td>调试方法论</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:18px;">
+    <div class="tip-title">继续学习</div>
+    <p>
+      这一章教的是"如何诊断"。下一阶段（阶段 3：真正的 VLN 训练）教的是"如何做对"——<br>
+      teacher-forcing、cross-modal attention、在线训练、数据增强。<br>
+      <a href="habitat-textbook-step6.html">→ 回到第6步：VLN 仿真训练</a>
+    </p>
+  </div>
+</div>
+</section>
+
+</body>
+</html>
