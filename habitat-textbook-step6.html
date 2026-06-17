@@ -737,20 +737,35 @@ config = {
     <div class="info-title">① 案例含义</div>
     <p>
       6-3 和 §N 中我们训练了一个 <b>2700 万</b> 参数的 Seq2Seq 模型，在 val_unseen 上达到 SR = 32%。
-      现在我们跑一个真正的 <b>SOTA 模型——JanusVLN（ICLR 2026，~80 亿参数，300 倍）</b>——在同一套数据上评估，
-      亲眼看看"参数量差距意味着什么"。
+      现在我们跑一个真正的 <b>SOTA 模型——JanusVLN</b>——在同一套数据上评估，亲眼看看"参数量差距意味着什么"。
       <br><br>
       <b>前置条件：</b>完成 6-3 训练（理解 VLN 任务）。需要单卡 NVIDIA GPU（≥ 46GB 显存，如 L40/A100）。
     </p>
   </div>
 
+  <!-- 论文与项目背景 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">论文与开源项目</h3>
+
+  <div class="info-box">
+    <div class="info-title">JanusVLN: Decoupling Semantics and Spatiality with Dual Implicit Memory for VLN</div>
+    <p>
+      <b>发表：</b>ICLR 2026<br>
+      <b>机构：</b>Amap（高德地图，阿里巴巴集团）+ 西安交通大学（MIV-XJTU）<br>
+      <b>论文：</b><a href="https://arxiv.org/abs/2509.22548" target="_blank">arXiv:2509.22548</a><br>
+      <b>代码：</b><a href="https://github.com/MIV-XJTU/JanusVLN" target="_blank">github.com/MIV-XJTU/JanusVLN</a><br>
+      <b>权重：</b><a href="https://www.modelscope.cn/models/misstl/JanusVLN_Base" target="_blank">ModelScope: JanusVLN_Base</a>（18GB）<br>
+      <b>数据：</b><a href="https://www.modelscope.cn/datasets/misstl/JanusVLN_Trajectory_Data" target="_blank">ModelScope: DAgger 轨迹数据</a>
+    </p>
+  </div>
+
+  <p style="margin-top:12px;">
+    核心创新：<b>双隐式记忆（Dual Implicit Memory）</b>。名字来源于罗马神话两面神 Janus，
+    寓意同时拥有"语义理解"（左脑）和"空间感知"（右脑）两种能力。
+    论文报告 val_unseen SR 约 <b>50-55%</b>（全景输入，1839 episode）。
+  </p>
+
   <!-- ② 模型架构 -->
   <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 模型架构：双隐式记忆</h3>
-
-  <p>
-    JanusVLN 的核心创新是 <b>双隐式记忆（Dual Implicit Memory）</b>——名字来源于罗马神话中的两面神 Janus，
-    寓意模型同时拥有"看向语义"和"看向空间"的两副面孔：
-  </p>
 
   <table class="compare-table">
     <thead><tr><th>记忆类型</th><th>负责模型</th><th>参数量</th><th>类比</th></tr></thead>
@@ -759,185 +774,232 @@ config = {
         <td><b>语义记忆</b> (Semantic)</td>
         <td>Qwen2.5-VL-7B</td>
         <td>~70 亿</td>
-        <td>"左脑"：理解"拱门""楼梯"长什么样</td>
+        <td>"左脑"：理解"拱门""楼梯"的含义和视觉外观</td>
       </tr>
       <tr>
         <td><b>空间记忆</b> (Spatial)</td>
         <td>VGGT-1B</td>
         <td>~10 亿</td>
-        <td>"右脑"：推理深度、几何、3D 结构</td>
+        <td>"右脑"：推理深度、几何、3D 空间结构</td>
       </tr>
       <tr>
         <td><b>融合层</b></td>
         <td>VGGTMerger</td>
         <td>~200 万</td>
-        <td>将 3D 特征注入 VLM 的隐藏状态</td>
+        <td>将 3D 特征注入 VLM 的每层隐藏状态</td>
       </tr>
     </tbody>
   </table>
 
-  <div class="info-box" style="margin-top:20px;">
-    <div class="info-title">Qwen2.5-VL-7B：视觉语言基座</div>
-    <p>
-      在 <b>万亿 token 级别</b> 的图文数据上预训练。输入一张室内图像 + 文本指令，
-      输出对场景的理解。它已经知道"拱门""走廊""沙发""楼梯"是什么、长什么样——
-      这是我们的 ResNet50（仅 R2R 几千张图训练）完全不具备的能力。
-    </p>
-  </div>
-
-  <div class="info-box" style="margin-top:16px;">
-    <div class="info-title">VGGT-1B：3D 几何理解</div>
-    <p>
-      VGGT（Visual Geometry Grounded Transformer）从单张 2D 图像预测深度图和 3D 点云。
-      JanusVLN 移除了 VGGT 的相机位姿头和追踪头，只保留 3D 特征提取能力。
-      这些特征通过 <code>VGGTMerger</code>（RMSNorm + MLP）降维后融入 Qwen2.5-VL 的每层隐藏状态。
-    </p>
-  </div>
-
-  <div class="info-box" style="margin-top:16px;">
+  <div class="info-box" style="margin-top:12px;">
     <div class="info-title">关键设计：跨步空间记忆</div>
     <p>
       模型维护一个 <code>past_key_values_vggt</code> 缓存，每次导航开始时清空，
-      每步推理后更新。这使得模型在移动过程中"记住"之前看到的 3D 结构——
+      每步推理后更新。这让模型在移动过程中"记住"之前看到的 3D 结构——
       就像一个边走边构建的<b>隐式 3D 地图</b>。
     </p>
   </div>
 
-  <!-- ②.5 数据流 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">②.5 数据流：从观测到动作</h3>
-
-  <p>每执行一步导航，JanusVLN 内部经过以下流水线：</p>
+  <!-- ③ 数据流 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 数据流：每步从观测到动作</h3>
 
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="cmt"># === 输入阶段 ===</span>
-<span class="cmt"># 1. Habitat 渲染当前视角的 RGB 图像（224×224）</span>
-observation = env.step(action)
-rgb = observation["rgb"]  <span class="cmt"># np.ndarray (H, W, 3)</span>
+    <div class="code-block"><span class="cmt"># 1. Habitat 渲染当前前向 RGB（224×224）</span>
+rgb = env.step(action)["rgb"]
 
-<span class="cmt"># 2. 收集历史帧（用于跨步上下文）</span>
-<span class="cmt">#    num_history=4：取最近 4 帧 + 当前帧</span>
-history_images = rgb_list[-5:]  <span class="cmt"># 5 张 PIL Image</span>
+<span class="cmt"># 2. 收集历史帧（num_history=4：最近 4 帧 + 当前）</span>
+history = rgb_list[-5:]
 
-<span class="cmt"># === VGGT 3D 处理（并行） ===</span>
-<span class="cmt"># 3. 每张图通过 VGGT 提取 3D 特征（深度、几何）</span>
-vggt_features = load_and_preprocess_images(history_images)
-<span class="cmt">#    输出: List[Tensor (C, H, W)]，每人 1 个</span>
+<span class="cmt"># 3. VGGT：每张图提取 3D 特征（深度、几何）——并行</span>
+vggt_feats = [VGGT(img) for img in history]
 
-<span class="cmt"># === Qwen2.5-VL 语义处理 ===</span>
-<span class="cmt"># 4. 构建多模态消息</span>
-messages = [
-    {"role": "system", "content": "You are a VLN model..."},
-    {"role": "user", "content": [
-        {"type": "image", "image": img1},  <span class="cmt"># 历史帧</span>
-        {"type": "image", "image": img2},
-        ...
-        {"type": "image", "image": img5},  <span class="cmt"># 当前帧</span>
-        {"type": "text", "text": f"Task: {instruction}\nActions: FORWARD/LEFT/RIGHT/STOP"}
-    ]}
-]
+<span class="cmt"># 4. Qwen2.5-VL：图像 → patch tokens + 指令文本 → token IDs</span>
+inputs = processor(text=instruction, images=history)
 
-<span class="cmt"># 5. Processor 编码：图像→patch tokens + 文本→token IDs</span>
-inputs = processor(
-    text=processor.apply_chat_template(messages),
-    images=history_images,
-    max_pixels=1605632  <span class="cmt"># ~1.6M 像素上限</span>
-)
+<span class="cmt"># 5. 融合：VGGT 特征通过 VGGTMerger 注入 Qwen hidden states</span>
+<span class="cmt"># 6. 生成：Qwen2.5-VL 自回归解码（max 24 tokens, temperature=0）</span>
+output = model.generate(**inputs, images_vggt=vggt_feats, max_new_tokens=24)
 
-<span class="cmt"># === 融合 + 推理 ===</span>
-<span class="cmt"># 6. VGGT 特征通过 VGGTMerger 融入 Qwen2.5-VL 的 hidden states</span>
-<span class="cmt"># 7. Qwen2.5-VL 自回归生成（max 24 tokens，temperature=0）</span>
-output_tokens = model.generate(
-    **inputs,
-    images_vggt=vggt_features,
-    max_new_tokens=24,
-    temperature=0,      <span class="cmt"># 贪婪解码</span>
-    num_beams=1         <span class="cmt"># 无 beam search</span>
-)
-
-<span class="cmt"># === 输出解析 ===</span>
-<span class="cmt"># 8. 解码 token → 动作字符串</span>
-answer = processor.batch_decode(output_tokens)  <span class="cmt"># "MOVE_FORWARD"</span>
-
-<span class="cmt"># 9. 映射到 Habitat action index</span>
-action = actions2idx[answer]  <span class="cmt"># {"MOVE_FORWARD": 1, "TURN_LEFT": 2, ...}</span></div>
+<span class="cmt"># 7. 解析：token → 动作字符串 → Habitat action index</span>
+action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWARD, 2=LEFT, 3=RIGHT, 0=STOP</span></div>
   </div>
 
-  <table class="compare-table" style="margin-top:16px;">
-    <thead><tr><th>阶段</th><th>耗时（约）</th><th>瓶颈</th></tr></thead>
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>阶段</th><th>耗时</th><th>占比</th></tr></thead>
     <tbody>
-      <tr><td>Habitat 渲染</td><td>~0.1s</td><td>GPU 渲染</td></tr>
-      <tr><td>VGGT 3D 特征提取</td><td>~0.1s</td><td>CNN 前向</td></tr>
-      <tr><td>Processor 编码</td><td>~0.1s</td><td>图像 patchify</td></tr>
-      <tr><td><b>Qwen2.5-VL 生成</b></td><td><b>~1.5s</b></td><td><b>7B 参数自回归解码</b></td></tr>
-      <tr><td>Token 解码 + 动作映射</td><td>~0.2s</td><td>字符串解析</td></tr>
-      <tr style="font-weight:bold;background:rgba(244,114,182,0.08);"><td>合计</td><td>~2 秒/步</td><td>95% 在 VLM 推理</td></tr>
+      <tr><td>Habitat 渲染 + VGGT</td><td>~0.3s</td><td>15%</td></tr>
+      <tr><td>Processor 编码</td><td>~0.2s</td><td>10%</td></tr>
+      <tr><td><b>Qwen2.5-VL 生成（7B 参数）</b></td><td><b>~1.5s</b></td><td><b>75%</b></td></tr>
+      <tr style="background:rgba(244,114,182,0.08);"><td><b>合计</b></td><td><b>~2 秒/步</b></td><td></td></tr>
     </tbody>
   </table>
 
-  <!-- ④ 评估参数 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 推理参数：为什么这样设置</h3>
-
-  <table class="compare-table">
-    <thead><tr><th>参数</th><th>值</th><th>原因</th></tr></thead>
-    <tbody>
-      <tr><td><code>num_history</code></td><td>4</td><td>给模型看最近 4 帧历史，平衡上下文与推理速度</td></tr>
-      <tr><td><code>max_steps</code></td><td>100</td><td>超过 100 步还没到 → 几乎不可能到了</td></tr>
-      <tr><td><code>max_new_tokens</code></td><td>24</td><td>输出只是 "MOVE_FORWARD"，不需要长文本</td></tr>
-      <tr><td><code>temperature</code></td><td>0</td><td>导航需要确定性，不需要多样性</td></tr>
-      <tr><td><code>max_pixels</code></td><td>1,605,632</td><td>~1260×1260 分辨率，平衡细节与显存</td></tr>
-    </tbody>
-  </table>
-
-  <!-- ⑤ 环境准备 -->
+  <!-- ④ 环境准备 -->
   <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 环境准备</h3>
 
-  <p><b>Step 1 — 克隆代码</b></p>
+  <p><b>Step 1 — 克隆 + 权重</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="kw">cd</span> /your/workspace
-<span class="kw">git clone</span> https://github.com/MIV-XJTU/JanusVLN.git
-<span class="kw">cd</span> JanusVLN</div>
+    <div class="code-block"><span class="kw">git clone</span> https://github.com/MIV-XJTU/JanusVLN.git && <span class="kw">cd</span> JanusVLN
+<span class="kw">pip install</span> modelscope
+<span class="kw">python</span> -c <span class="str">"from modelscope import snapshot_download; snapshot_download('misstl/JanusVLN_Base', cache_dir='./weights')"</span></div>
   </div>
 
-  <p style="margin-top:16px;"><b>Step 2 — 下载权重（ModelScope，18GB）</b></p>
+  <p style="margin-top:12px;"><b>Step 2 — 单卡适配</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="kw">pip install</span> modelscope
-<span class="kw">python</span> -c <span class="str">"
-from modelscope import snapshot_download
-snapshot_download('misstl/JanusVLN_Base', cache_dir='./weights')
-"</span></div>
+    <div class="code-block"><span class="cmt"># 依赖（国内用 douban 镜像）</span>
+<span class="kw">pip install</span> transformers==4.48 accelerate qwen_vl_utils -i https://pypi.doubanio.com/simple
+
+<span class="cmt"># 修改 src/evaluation.py：</span>
+<span class="cmt">#   flash-attn → torch.nn.functional.scaled_dot_product_attention</span>
+<span class="cmt">#   world_size=1, gpu=0（原代码需要 8 卡 DeepSpeed）</span></div>
   </div>
 
-  <p style="margin-top:16px;"><b>Step 3 — 安装依赖 + 单卡适配</b></p>
-  <div class="code-block-wrapper">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="cmt"># 安装依赖（国内用 douban 镜像）</span>
-<span class="kw">pip install</span> transformers==4.48 accelerate qwen_vl_utils \
-    -i https://pypi.doubanio.com/simple
-
-<span class="cmt"># 单卡适配（原代码需要 8 卡 DeepSpeed）</span>
-<span class="cmt"># 修改 src/evaluation.py：flash-attn → torch SDPA</span>
-<span class="cmt"># 修改 config：world_size=1, gpu=0</span></div>
-  </div>
-
-  <div class="warn-box" style="margin-top:16px;">
-    <div class="warn-title">⚠️ 为什么不装 flash-attn</div>
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 单卡适配要点</div>
     <p>
-      flash-attn 编译极慢（30+ 分钟），且容易因 CUDA 版本不匹配失败。
-      改用 PyTorch 内置的 <code>scaled_dot_product_attention</code>（SDPA），速度略慢但稳定得多。
+      原代码需要 8 卡 DeepSpeed 分布式训练。单卡跑只需改两处：
+      flash-attn → PyTorch SDPA（避免 30 分钟编译）、world_size=1。
+      推理精度不受影响，速度略慢（SDPA vs flash-attn 差距约 10%）。
     </p>
   </div>
 
-  <!-- ⑤ 运行评估 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑤ 运行评估 + 结果对比</h3>
+  <!-- ⑤ 实验结果 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑤ 15-episode 抽样实验结果</h3>
 
-  <p>用 20 个随机 episode 快速验证。完整 1839 episode 需要数小时，仅在教学环境验证可行性时不需要。</p>
+  <p>
+    在 L40 单卡上，用 <code>max_steps=100, num_history=4</code> 跑 15 个随机 episode，
+    耗时约 <b>48 分钟</b>。
+  </p>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>场景</th><th>✅/总数</th><th>场景 SR</th></tr></thead>
+    <tbody>
+      <tr><td>2azQ1b91cZZ</td><td>1/1</td><td>100%</td></tr>
+      <tr style="background:rgba(244,114,182,0.05);"><td>EU6Fwq7SyZv</td><td>0/3</td><td>0% ⚠️</td></tr>
+      <tr><td>QUCTc6BB5sX</td><td>1/1</td><td>100%</td></tr>
+      <tr><td>TbHJrupSAjP</td><td>1/3</td><td>33%</td></tr>
+      <tr style="background:rgba(244,114,182,0.05);"><td>X7HyMhZNoso</td><td>0/1</td><td>0%</td></tr>
+      <tr><td>oLBMNvg9in8</td><td>2/2</td><td>100%</td></tr>
+      <tr style="background:rgba(244,114,182,0.05);"><td>pLe4wQe7qrG</td><td>0/1</td><td>0%</td></tr>
+      <tr><td>zsNo4HB9uLZ</td><td>2/3</td><td>67%</td></tr>
+      <tr style="font-weight:bold;background:rgba(244,114,182,0.12);"><td>总计</td><td>7/15</td><td>46.7%</td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;"><b>与我们的模型对比：</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>模型</th><th>参数量</th><th>SR (抽样)</th><th>输入</th><th>训练数据</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>我们的 Seq2Seq</td>
+        <td>2700 万</td>
+        <td>32.0%</td>
+        <td>预渲染离散帧</td>
+        <td>R2R 几千条指令</td>
+      </tr>
+      <tr style="background:rgba(244,114,182,0.08);">
+        <td><b>JanusVLN</b></td>
+        <td><b>~80 亿（300×）</b></td>
+        <td><b>46.7%</b></td>
+        <td>实时 RGB</td>
+        <td>万亿 token VLM 预训练 + DAgger</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ⑥ SR 分析 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ SR 46.7% 深度分析</h3>
+
+  <div class="info-box">
+    <div class="info-title">为什么没到论文报告的 50-55%？</div>
+    <p>
+      <b>最可能原因：单视角 vs 全景输入。</b>原论文使用 360° 全景（12 个方向的 RGB），
+      而我们的 eval 只传了单张前向 RGB。模型无法看到左右和后方的场景，
+      每次转向都是一次"盲猜"，尤其影响需要精细空间判断的指令。
+      <br><br>
+      <b>其他因素：</b>15-episode 抽样方差大、max_steps=100 偏紧（有 episode 只差 0.12m 就成功）。
+    </p>
+  </div>
+
+  <div class="info-box" style="margin-top:12px;">
+    <div class="info-title">场景差异：EU6Fwq7SyZv 全败之谜</div>
+    <p>
+      EU6Fwq7SyZv 3 个 episode 全部走到 100 步上限（NE 4.6-7.0m）。
+      三条指令都涉及复杂的空间关系："绕过椅子""穿过柱子""停在楼梯和栏杆之间"。
+      在只有前向视角的情况下，模型无法验证"是否已经绕过"——它看不到侧面。
+    </p>
+  </div>
+
+  <div class="info-box" style="margin-top:12px;">
+    <div class="info-title">为什么比我们的 32% 好？</div>
+    <p>
+      不是"方法更好"，而是 <b>VLM 预训练带来的世界知识</b>：
+      Qwen2.5-VL 在预训练阶段见过海量室内场景——它已经知道"拱门""楼梯""沙发"长什么样。
+      我们的 ResNet50 只在 R2R 几千张图上从头学，对室内场景的理解完全从零开始。
+      <br><br>
+      这 14.7% 的差距 = <b>万亿 token 图文预训练 vs 几千条 R2R 数据</b> 的差距。
+    </p>
+  </div>
+
+  <!-- ⑦ 训练方式 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑦ 如何训练：DAgger 算法</h3>
+
+  <p>
+    JanusVLN 使用 <b>DAgger（Dataset Aggregation）</b>，
+    "模型在实践中学习，专家在旁兜底"：
+  </p>
+
+  <div class="code-block-wrapper" style="margin-top:8px;">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">for</span> iteration <span class="kw">in</span> range(num_iterations):
+    beta = p ** iteration  <span class="cmt"># 专家干预概率指数衰减</span>
+
+    <span class="cmt"># 采集阶段：在 Habitat 中 rollout</span>
+    <span class="kw">for</span> episode <span class="kw">in</span> dataset:
+        <span class="kw">while not</span> episode_over:
+            <span class="kw">if</span> random() < beta:
+                action = expert.next_action()  <span class="cmt"># ShortestPathFollower</span>
+            <span class="kw">else</span>:
+                action = model.predict(obs)     <span class="cmt"># 模型自己走</span>
+            obs = env.step(action)
+
+    <span class="cmt"># 训练阶段：交叉熵 loss(action_pred, action_gt)</span>
+    <span class="kw">for</span> epoch <span class="kw">in</span> range(train_epochs):
+        loss = CrossEntropy(model(obs), action_gt)
+        loss.backward(); optimizer.step()</div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>迭代</th><th>β (p=0.95)</th><th>专家占比</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>0.95</td><td>95%</td><td>几乎全专家带</td></tr>
+      <tr><td>5</td><td>0.77</td><td>77%</td><td>模型开始承担</td></tr>
+      <tr><td>10</td><td>0.60</td><td>60%</td><td>逐步放手</td></tr>
+      <tr><td>20</td><td>0.36</td><td>36%</td><td>模型主导，专家偶尔纠正</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">💡 这和我们的训练有什么不同？</div>
+    <p>
+      <b>我们的 Seq2Seq：</b>仅在预渲染的最短路径帧上做分类训练。模型从未在 3D 环境中"自己走"过。
+      <br><br>
+      <b>JanusVLN 的 DAgger：</b>模型在真实 3D 环境中交互并收集自己走出来的轨迹。
+      这些轨迹包含偏离、徘徊、撞墙——正是 §N.5 讨论的"在线 rollout 数据"。
+      DAgger 的核心价值就是让模型<b>见到并学会修正自己的错误</b>。
+    </p>
+  </div>
+
+  <!-- ⑧ 运行命令 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑧ 完整运行命令</h3>
 
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="kw">export</span> HF_ENDPOINT=https://hf-mirror.com  <span class="cmt"># 国内镜像</span>
+    <div class="code-block"><span class="kw">export</span> HF_ENDPOINT=https://hf-mirror.com
 
 <span class="kw">python</span> src/evaluation.py \
     --model_path ./weights/misstl/JanusVLN_Base \
@@ -946,102 +1008,18 @@ snapshot_download('misstl/JanusVLN_Base', cache_dir='./weights')
     --output_path ./results/val_unseen \
     --max_episodes 20 \
     --max_steps 100 \
-    --num_history 4</div>
-  </div>
+    --num_history 4
 
-  <p style="margin-top:20px;"><b>结果对比（在同一 val_unseen 数据上）：</b></p>
-
-  <table class="compare-table">
-    <thead><tr><th>模型</th><th>参数量</th><th>SR</th><th>SPL</th><th>备注</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>我们的 Seq2Seq</td>
-        <td>2700 万</td>
-        <td>32.0%</td>
-        <td>0.320</td>
-        <td>ResNet50 + LSTM，预渲染训练</td>
-      </tr>
-      <tr style="background:rgba(244,114,182,0.08);">
-        <td><b>JanusVLN (SOTA)</b></td>
-        <td><b>~80 亿</b></td>
-        <td><b>XX%</b></td>
-        <td><b>X.XX</b></td>
-        <td>Qwen2.5-VL-7B + VGGT-1B，20-episode 抽样</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <!-- ⑥ 微调 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ JanusVLN 是如何训练的：DAgger</h3>
-
-  <p>
-    JanusVLN 使用 <b>DAgger（Dataset Aggregation）</b> 算法训练，核心思路是
-    "让模型在实践中学习，同时有专家兜底"：
-  </p>
-
-  <div class="info-box" style="margin-top:16px;">
-    <div class="info-title">DAgger 训练流程</div>
-    <p>
-      <b>1. 数据采集（Collect）</b><br>
-      在 Habitat 环境中 rollout，每步根据概率 <b>β</b> 决定：
-      <br>• 以 β 概率 → 使用 <b>专家动作</b>（ShortestPathFollower，走最短路径）
-      <br>• 以 1-β 概率 → 使用 <b>模型自己预测</b>的动作
-      <br><br>
-      β = p<sup>iteration</sup>，随训练轮次指数衰减。
-      第 1 轮 β=1.0（纯专家），第 10 轮 β≈0.35（多数自己走）。
-      <br><br>
-      <b>2. 训练（Train）</b><br>
-      用采集的 (观测, 动作) 对训练模型，loss = cross-entropy(action_pred, action_gt)。
-      <br><br>
-      <b>3. 迭代</b><br>
-      重复采集→训练，每轮模型变强 → β 降低 → 模型承担更多 → 遇到新错误 → 下一轮修复。
-    </p>
-  </div>
-
-  <div class="code-block-wrapper" style="margin-top:12px;">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="cmt"># DAgger 核心逻辑（简化）</span>
-<span class="kw">for</span> iteration <span class="kw">in</span> range(num_iterations):
-    beta = p ** iteration  <span class="cmt"># 专家干预概率递减</span>
-
-    <span class="cmt"># 采集阶段：在环境中 rollout</span>
-    trajectories = []
-    <span class="kw">for</span> episode <span class="kw">in</span> dataset:
-        obs_seq, action_seq = [], []
-        <span class="kw">while not</span> episode_over:
-            <span class="kw">if</span> random() < beta:
-                action = expert.get_next_action()  <span class="cmt"># 最短路径动作</span>
-            <span class="kw">else</span>:
-                action = model.predict(obs_history)  <span class="cmt"># 模型预测</span>
-            obs_seq.append(obs)
-            action_seq.append(action)
-            obs = env.step(action)
-        trajectories.append((obs_seq, action_seq))
-
-    <span class="cmt"># 训练阶段：在采集数据上微调</span>
-    <span class="kw">for</span> epoch <span class="kw">in</span> range(train_epochs):
-        <span class="kw">for</span> (obs, action_gt) <span class="kw">in</span> trajectories:
-            action_pred = model(obs)
-            loss = cross_entropy(action_pred, action_gt)
-            loss.backward()
-            optimizer.step()</div>
-  </div>
-
-  <div class="warn-box" style="margin-top:16px;">
-    <div class="warn-title">💡 为什么 SR 差这么多？</div>
-    <p>
-      300 倍的参数量差距是主因，但仅是"模型更大"还不够——<b>VLM 预训练 + 3D 理解</b> 才是关键：
-      <br>• Qwen2.5-VL 在万亿 token 图文数据上预训练，知道"拱门""楼梯"长什么样
-      <br>• VGGT 提供 3D 几何感知，理解空间纵深
-      <br>• DAgger 让模型在真实轨迹上学习，而不是仅在预渲染的最短路径帧上
-      <br><br>
-      我们的 ResNet50+LSTM（2700 万参数）只在 R2R 的几千条指令 + 预渲染帧上训练，
-      既没有预训练的世界知识，也没有 3D 理解能力，更没有在线交互训练。
-    </p>
+<span class="cmt"># 保存可视化图片</span>
+<span class="kw">python</span> src/evaluation.py ... --save_video --save_video_ratio 1.0
+<span class="cmt"># 图片保存到 results/val_unseen/vis_0/*.jpg</span></div>
   </div>
 
 </div>
 </section>
+
+
+
 
 
 
