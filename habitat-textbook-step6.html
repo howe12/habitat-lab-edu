@@ -911,6 +911,39 @@ action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWAR
     </tbody>
   </table>
 
+  <!-- 可视化结果 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">可视化：成功 vs 失败</h3>
+
+  <p>在场景 <b>2azQ1b91cZZ</b> 上跑的两个 episode（6 FPS）：</p>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;">
+    <div style="flex:1;min-width:300px;">
+      <p style="text-align:center;color:#f87171;font-weight:600;">❌ Episode 10 — SR=0</p>
+      <video controls width="100%" style="border-radius:8px;border:2px solid #f87171;">
+        <source src="images/janusvln/fail_ep10.mp4" type="video/mp4">
+      </video>
+      <p style="font-size:0.85em;color:var(--text-dim);margin-top:4px;">
+        指令："走过客厅，到阳台下的入口"<br>
+        NE=8.27m，101步走到上限
+      </p>
+    </div>
+    <div style="flex:1;min-width:300px;">
+      <p style="text-align:center;color:#4ade80;font-weight:600;">✅ Episode 11 — SR=1.0</p>
+      <video controls width="100%" style="border-radius:8px;border:2px solid #4ade80;">
+        <source src="images/janusvln/success_ep11.mp4" type="video/mp4">
+      </video>
+      <p style="font-size:0.85em;color:var(--text-dim);margin-top:4px;">
+        指令："穿过地板，在拱门等"<br>
+        SPL=1.0，34步精确到达
+      </p>
+    </div>
+  </div>
+
+  <p style="margin-top:12px;font-size:0.9em;color:var(--text-dim);">
+    视频展示的是模型的第一人称视角（RGB + Top-down 地图）。注意失败案例中模型一直在客厅转圈，
+    而成功案例中模型直接走向拱门并精确停止。
+  </p>
+
   <!-- ⑥ SR 分析 -->
   <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ SR 46.7% 深度分析</h3>
 
