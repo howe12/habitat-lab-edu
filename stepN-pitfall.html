@@ -79,23 +79,12 @@
 <span class="fn">python</span> training/train.py --split val_unseen --num_episodes 500 --epochs 10 \
     <span class="num">2</span>&gt;<span class="num">&amp;1</span> | <span class="kw">tee</span> logs/run1_before_fix.log</div>
 
-  <h3 style="font-size:1rem; margin:24px 0 8px; color:#cbd5e1;">③ 训练曲线</h3>
+  <h3 style="font-size:1rem; margin:24px 0 8px; color:#cbd5e1;">③ 训练曲线（真实日志）</h3>
 
-  <table class="compare-table">
-    <thead><tr><th>Epoch</th><th>train_loss</th><th>val_loss</th><th>val_acc</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>0.625</td><td>0.467</td><td style="color:#f87171;">79.7%</td></tr>
-      <tr><td>2</td><td>0.463</td><td>0.478</td><td style="color:#f87171;">80.7%</td></tr>
-      <tr><td>3</td><td>0.435</td><td>0.424</td><td style="color:#f87171;">81.4%</td></tr>
-      <tr><td>4</td><td>0.422</td><td>0.366</td><td style="color:#fbbf24;">84.0%</td></tr>
-      <tr><td>5</td><td>0.364</td><td>0.342</td><td style="color:#fbbf24;">86.7%</td></tr>
-      <tr><td>6</td><td>0.319</td><td>0.340</td><td style="color:#fbbf24;">83.5%</td></tr>
-      <tr><td>7</td><td>0.261</td><td>0.227</td><td style="color:#4ade80;">92.5%</td></tr>
-      <tr><td>8</td><td>0.257</td><td>0.301</td><td style="color:#4ade80;">89.1%</td></tr>
-      <tr><td>9</td><td>0.227</td><td>0.228</td><td style="color:#4ade80;">91.1%</td></tr>
-      <tr><td><b>10</b></td><td style="color:#67e8f9;"><b>0.199</b></td><td style="color:#67e8f9;"><b>0.155</b></td><td style="color:#4ade80;font-weight:700;">94.1%</td></tr>
-    </tbody>
-  </table>
+  <div style="margin:16px 0;">
+    <img src="images/before_fix_curves.png" alt="Before Fix Training Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid #1e293b;">
+  </div>
+  <p style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">▲ 从左图可见：train_loss 和 val_loss 快速下降且始终接近——典型的过拟合信号（train/val 数据泄漏）。val_acc 从 79.7% 飙升至 94.1%。</p>
 
   <div class="tip-box">
     <div class="tip-title">停下想一想</div>
@@ -224,21 +213,15 @@ val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
     修复全部 5 个问题后，用分离的 split 重新训练 10 epoch。
   </p>
 
-  <table class="compare-table">
-    <thead><tr><th>Epoch</th><th>train_loss</th><th>val_loss</th><th>val_acc</th><th>vs 修复前</th></tr></thead>
-    <tbody>
-      <tr><td>1</td><td>1.207</td><td>1.051</td><td style="color:#f87171;">49.9%</td><td style="color:#f87171;">-29.8%</td></tr>
-      <tr><td>2</td><td>0.990</td><td>0.925</td><td style="color:#f87171;">63.9%</td><td style="color:#f87171;">-16.8%</td></tr>
-      <tr><td>3</td><td>0.874</td><td>0.768</td><td style="color:#fbbf24;">70.8%</td><td style="color:#f87171;">-10.6%</td></tr>
-      <tr><td>4</td><td>0.738</td><td>0.672</td><td style="color:#fbbf24;">75.2%</td><td style="color:#f87171;">-8.8%</td></tr>
-      <tr><td>5</td><td>0.659</td><td>0.757</td><td style="color:#fbbf24;">72.0%</td><td style="color:#f87171;">-14.7%</td></tr>
-      <tr><td>6</td><td>0.491</td><td>0.393</td><td style="color:#4ade80;">86.9%</td><td style="color:#4ade80;">+3.4%</td></tr>
-      <tr><td>7</td><td>0.400</td><td>0.302</td><td style="color:#4ade80;">91.2%</td><td style="color:#f87171;">-1.3%</td></tr>
-      <tr><td>8</td><td>0.293</td><td>0.259</td><td style="color:#4ade80;">92.2%</td><td style="color:#4ade80;">+3.1%</td></tr>
-      <tr><td>9</td><td>0.266</td><td>0.232</td><td style="color:#4ade80;">93.3%</td><td style="color:#4ade80;">+2.2%</td></tr>
-      <tr><td><b>10</b></td><td style="color:#67e8f9;"><b>0.182</b></td><td style="color:#67e8f9;"><b>0.176</b></td><td style="color:#4ade80;font-weight:700;">94.7%</td><td style="color:#4ade80;">+0.6%</td></tr>
-    </tbody>
-  </table>
+  <div style="margin:16px 0;">
+    <img src="images/after_fix_curves.png" alt="After Fix Training Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid #1e293b;">
+  </div>
+  <p style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">▲ 修复后 train/val 曲线明显分离（无数据泄漏）。val_acc 从 49.9% 起步，最终达到 94.7%——几乎和修复前一样。</p>
+
+  <div style="margin:24px 0 16px;">
+    <img src="images/val_acc_comparison.png" alt="Val ACC Before vs After Fix" style="width:100%;max-width:800px;border-radius:8px;border:1px solid #1e293b;">
+  </div>
+  <p style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">▲ 修复前（红线）：起点高（79.7%），快速收敛。修复后（绿线）：起点低（49.9%），逐步追赶——最终持平。两者终点几乎重叠，说明这些表面问题不是瓶颈。</p>
 
   <div class="insight-box">
     <h4>💡 意料之外：val_acc 几乎没变</h4>
