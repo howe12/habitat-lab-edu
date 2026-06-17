@@ -355,5 +355,120 @@ val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
 </div>
 </section>
 
+<section class="content-section">
+  <h2>§N.7 量化证据：图像分布偏移到底多大？</h2>
+  <p class="section-desc">
+    §N.5 提出"图像分布偏移是根因"——但这是定性的推断。我们需要用实验把它量化。<br>
+    设计一个对照实验：用 ResNet（模型的眼睛）和 CLIP（通用的眼睛）分别编码两组图像，计算分布距离。
+  </p>
+
+  <h3>实验设计</h3>
+
+  <div class="info-box">
+    <div class="info-title">两组图像</div>
+    <ul>
+      <li><b>A 组 · 预渲染帧：</b>9,195 帧，来自 1,839 个 episode 的最短路径，每帧都是"正确答案"。</li>
+      <li><b>B 组 · 在线 rollout 帧：</b>2,790 帧，来自 93 个 episode，强制模型走 30 步（禁用 stop），收集模型自己走出来的画面——包括走偏、撞墙、绕路。</li>
+    </ul>
+  </div>
+
+  <div class="info-box">
+    <div class="info-title">两个编码器</div>
+    <ul>
+      <li><b>ResNet18：</b>模型实际使用的视觉编码器。如果 A 和 B 对它来说是不同分布，那就是模型的"主观"分布偏移。</li>
+      <li><b>CLIP ViT-B/32：</b>通用视觉模型，作为"客观"参照。如果 CLIP 也认为两组不同，那偏移就是客观的。</li>
+    </ul>
+  </div>
+
+  <h3>结果：MMD 分布距离</h3>
+
+  <div class="compare-table">
+  <table>
+    <thead><tr><th>编码器</th><th>MMD（越低越相似）</th><th>解读</th></tr></thead>
+    <tbody>
+      <tr><td>ResNet18</td><td><b>0.0058</b></td><td>模型的眼睛认为两组帧几乎一样</td></tr>
+      <tr><td>CLIP ViT-B/32</td><td><b>0.0053</b></td><td>通用的眼睛也认为两组帧几乎一样</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="warn-box">
+    <div class="warn-title">⚡ 意料之外：两个 MMD 都极低</div>
+    <p>
+      我们预期在线帧（走偏、撞墙）和预渲染帧（最短路径）会有显著分布差异。<br>
+      但 ResNet 和 CLIP 都给出了 &lt; 0.006 的 MMD——<b>两组帧在特征空间中几乎完全重叠</b>。
+    </p>
+  </div>
+
+  <h3>可视化：t-SNE 降维</h3>
+
+  <p>把 512 维特征降到 2 维，蓝色 = 预渲染帧，红色 = 在线帧：</p>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin:16px 0;">
+    <div style="flex:1;min-width:300px;">
+      <img src="images/tsne_resnet.png" alt="t-SNE ResNet" style="width:100%;border-radius:8px;">
+      <p style="text-align:center;font-size:0.9em;color:#888;">ResNet18 t-SNE (MMD=0.0058)</p>
+    </div>
+    <div style="flex:1;min-width:300px;">
+      <img src="images/tsne_clip.png" alt="t-SNE CLIP" style="width:100%;border-radius:8px;">
+      <p style="text-align:center;font-size:0.9em;color:#888;">CLIP t-SNE (MMD=0.0053)</p>
+    </div>
+  </div>
+
+  <p>在 ResNet 的 t-SNE 图中，红色和蓝色完全混在一起——预渲染帧和在线帧在特征空间中无法区分。</p>
+
+  <h3>余弦相似度分布</h3>
+
+  <div style="margin:16px 0;">
+    <img src="images/cosine_similarity.png" alt="Cosine Similarity" style="width:100%;max-width:700px;border-radius:8px;">
+  </div>
+
+  <p>两组直方图几乎完全重叠：预渲染帧之间的相似度，和预渲染 vs 在线帧之间的相似度，分布一致。</p>
+
+  <h3>§N.5 的结论需要修正</h3>
+
+  <div class="tip-box">
+    <div class="tip-title">从"图像分布偏移"到"行为偏差累积"</div>
+    <p>
+      数据推翻了 §N.5 的假设。不是图像分布不同导致 SR 只有 32%——<br>
+      而是模型在几乎相同的画面上，做出了<b>不同的 action 决策</b>。
+    </p>
+    <p>
+      预渲染帧是 teacher-forcing 下的画面（最短路径，每步都是"对"的下一步），<br>
+      在线帧是模型自由行动的画面（可能走偏，但场景纹理、墙壁、地板和预渲染帧几乎一样）。
+    </p>
+    <p>
+      <b>32% 的 SR 不是因为模型"看到了没见过的画面"，而是模型在熟悉的画面中做出了错误的 action。</b><br>
+      每步差一点，30 步后离目标越来越远——这就是<b>行为偏差累积</b>。
+    </p>
+  </div>
+
+  <h3>实验教会我们的</h3>
+
+  <div class="compare-table">
+  <table>
+    <thead><tr><th>#</th><th>教训</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>假设需要实验验证。</b>我们确信"图像分布偏移是根因"，但数据说不。</td></tr>
+      <tr><td>2</td><td><b>模型的眼睛（ResNet）和通用的眼睛（CLIP）意见一致。</b>这不是编码器选择的问题。</td></tr>
+      <tr><td>3</td><td><b>低 MMD 不代表问题不存在。</b>它只是说明问题不在帧层面，而在决策层面。</td></tr>
+      <tr><td>4</td><td><b>证伪假设比证实假设更有价值。</b>它迫使你寻找更深层的根因。</td></tr>
+      <tr><td>5</td><td><b>下一步不是修图像，是修决策。</b>Teacher-forcing → Student-forcing，强化学习，cross-modal attention。</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="info-box" style="margin-top:18px;">
+    <div class="info-title">实验复现</div>
+    <p>
+      所有代码和特征数据在 L40 云端：<br>
+      <code>training/collect_online_frames.py</code> — 强制 30 步 rollout 采集<br>
+      <code>training/extract_features.py</code> — ResNet + CLIP 特征提取<br>
+      <code>training/analyze_distribution.py</code> — MMD + t-SNE + 余弦相似度分析<br>
+      <code>screenshots/clip_comparison/</code> — 完整图表输出
+    </p>
+  </div>
+</section>
+
 </body>
 </html>
