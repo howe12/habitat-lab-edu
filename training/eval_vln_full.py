@@ -35,7 +35,8 @@ def load_model_and_encoder(ckpt_path, device="cuda"):
     text_encoder = TextEncoder(len(vocab), hidden_dim=256).to(device)
     model = Seq2SeqAgent(hidden_dim=256, num_actions=5, pretrained=False).to(device)
     ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
-    model.load_state_dict(ckpt["model_state_dict"])
+    sd = {k:v for k,v in ckpt["model_state_dict"].items() if "txt_encoder" not in k}
+    model.load_state_dict(sd, strict=False)
     if "text_encoder_state_dict" in ckpt:
         text_encoder.load_state_dict(ckpt["text_encoder_state_dict"])
     model.eval()
