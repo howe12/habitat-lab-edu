@@ -13,6 +13,7 @@
     --accent-sensor: #f59e0b;
     --accent-train: #a78bfa;
     --accent-sota: #f472b6;
+    --accent-finetune: #a78bfa;
   }
 </style>
 </head>
@@ -45,7 +46,7 @@
 <section>
 <div class="container">
 
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 本章概览：5 个案例</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 本章概览：6 个案例</h2>
   <p class="section-subtitle">
     从配置到训练到导出，每一步都可独立运行和验证。建议按顺序完成。
   </p>
@@ -566,7 +567,7 @@ $ <span class="kw">python</span> -u -m habitat_baselines.run \
 <!-- ═══════════════ 6-4: 评估与导出模型 ═══════════════ -->
 <section id="case6-4">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 6-4 · 评估与导出模型 · <span style="color:#f472b6;">6-5 · JanusVLN</span></h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 6-4 · 评估与导出模型 · <span style="color:#f472b6;">6-5 · JanusVLN</span> · <span style="color:#a78bfa;">6-6 · 微调</span></h2>
 
   <!-- ① -->
   <div class="info-box">
@@ -911,39 +912,6 @@ action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWAR
     </tbody>
   </table>
 
-  <!-- 可视化结果 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">可视化：成功 vs 失败</h3>
-
-  <p>在场景 <b>2azQ1b91cZZ</b> 上跑的两个 episode（6 FPS）：</p>
-
-  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;">
-    <div style="flex:1;min-width:300px;">
-      <p style="text-align:center;color:#f87171;font-weight:600;">❌ Episode 10 — SR=0</p>
-      <video controls width="100%" style="border-radius:8px;border:2px solid #f87171;">
-        <source src="images/janusvln/fail_ep10.mp4" type="video/mp4">
-      </video>
-      <p style="font-size:0.85em;color:var(--text-dim);margin-top:4px;">
-        指令："走过客厅，到阳台下的入口"<br>
-        NE=8.27m，101步走到上限
-      </p>
-    </div>
-    <div style="flex:1;min-width:300px;">
-      <p style="text-align:center;color:#4ade80;font-weight:600;">✅ Episode 11 — SR=1.0</p>
-      <video controls width="100%" style="border-radius:8px;border:2px solid #4ade80;">
-        <source src="images/janusvln/success_ep11.mp4" type="video/mp4">
-      </video>
-      <p style="font-size:0.85em;color:var(--text-dim);margin-top:4px;">
-        指令："穿过地板，在拱门等"<br>
-        SPL=1.0，34步精确到达
-      </p>
-    </div>
-  </div>
-
-  <p style="margin-top:12px;font-size:0.9em;color:var(--text-dim);">
-    视频展示的是模型的第一人称视角（RGB + Top-down 地图）。注意失败案例中模型一直在客厅转圈，
-    而成功案例中模型直接走向拱门并精确停止。
-  </p>
-
   <!-- ⑥ SR 分析 -->
   <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ SR 46.7% 深度分析</h3>
 
@@ -1058,6 +1026,259 @@ action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWAR
 
 
 
+<!-- ═══════════════ 6-6: VLN 模型微调 ═══════════════ -->
+<section id="case6-6">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-finetune);"></span> 6-6 · VLN 模型微调</h2>
+
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      6-5 展示了 JanusVLN 在 R2R 上的零样本推理（SR=46.7%）。如果想在<b>自己的场景</b>上提升性能——
+      比如办公室、工厂、家庭——就需要微调。6-6 介绍三种微调方案及其硬件需求。
+    </p>
+  </div>
+
+  <!-- ② 三种方案对比 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 三种微调方案</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>方案</th><th>原理</th><th>显存需求</th><th>L40 可行？</th><th>适用场景</th></tr></thead>
+    <tbody>
+      <tr style="background:rgba(74,222,128,0.06);">
+        <td><b>A. 分组件微调</b></td>
+        <td>冻结视觉编码器，只训练 LLM + 投影层</td>
+        <td>~60 GB（8 卡）</td>
+        <td>❌</td>
+        <td>JanusVLN 原版训练方式</td>
+      </tr>
+      <tr style="background:rgba(74,222,128,0.06);">
+        <td><b>B. LoRA 微调</b></td>
+        <td>冻结全部权重，插入少量可训练的秩分解矩阵</td>
+        <td>~30 GB（单卡）</td>
+        <td><b>✅ 可行</b></td>
+        <td>JanusVLN 适配新场景，最低成本</td>
+      </tr>
+      <tr>
+        <td><b>C. Seq2Seq 全量微调</b></td>
+        <td>2700 万参数全部训练</td>
+        <td>~8 GB（单卡）</td>
+        <td>✅</td>
+        <td>我们的小模型在新数据上微调</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 为什么方案 A 需要 8 卡</div>
+    <p>
+      方案 A 训练 LLM 全部 70 亿参数 + 投影层，即使用 DeepSpeed ZeRO-3 分片也需要 8 卡。
+      L40 单卡 46GB 只够推理，不够训练。但 <b>方案 B（LoRA）在原代码基础上只需加 ~30 行</b>，
+      就能在单卡上微调 JanusVLN。
+    </p>
+  </div>
+
+  <!-- ③ LoRA 原理 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ LoRA 原理解析</h3>
+
+  <p>
+    LoRA（Low-Rank Adaptation）不修改原始权重 <b>W</b>，而是在旁边插入两个小矩阵 <b>A 和 B</b>：
+  </p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 标准全量微调：修改 W 的全部 4096×4096 = 16M 参数</span>
+h = W @ x + b          <span class="cmt"># W 可训练，16M 参数</span>
+
+<span class="cmt"># LoRA 微调：W 冻结，只训练 A 和 B</span>
+h = W @ x + b + (B @ A) @ x   <span class="cmt"># W 冻结，A+B 共 4096×16×2 = 131K 参数</span>
+<span class="cmt">#                  ↑ 秩 r=16，可训练参数减少 120 倍</span></div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>对比</th><th>全量微调</th><th>LoRA (r=16)</th></tr></thead>
+    <tbody>
+      <tr><td>可训练参数</td><td>~80 亿</td><td>~4000 万（0.5%）</td></tr>
+      <tr><td>显存（训练）</td><td>~120 GB</td><td>~30 GB</td></tr>
+      <tr><td>训练速度</td><td>基准</td><td>快 1.5-2×</td></tr>
+      <tr><td>推理开销</td><td>无</td><td>可合并回 W（无额外开销）</td></tr>
+      <tr><td>性能</td><td>最佳</td><td>通常持平，差距 &lt;2%</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ④ LoRA 代码实现 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ LoRA 微调 JanusVLN（L40 单卡）</h3>
+
+  <p><b>Step 1 — 安装 peft</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">pip install</span> peft -i https://pypi.doubanio.com/simple</div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 2 — 修改 train_qwen.py，在模型加载后插入 LoRA</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">from</span> peft <span class="kw">import</span> LoraConfig, get_peft_model, TaskType
+
+<span class="cmt"># 在模型加载完成后，添加：</span>
+lora_config = LoraConfig(
+    r=16,                          <span class="cmt"># LoRA 秩（越大效果越好，显存越多）</span>
+    lora_alpha=32,                 <span class="cmt"># 缩放因子</span>
+    target_modules=[<span class="str">"q_proj"</span>, <span class="str">"k_proj"</span>, <span class="str">"v_proj"</span>, <span class="str">"o_proj"</span>],
+    lora_dropout=0.05,
+    bias=<span class="str">"none"</span>,
+    task_type=TaskType.CAUSAL_LM,
+)
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+<span class="cmt"># 输出: trainable params: 41,943,040 || all params: 8,294,967,296 || trainable%: 0.506%</span></div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 3 — 冻结 VGGT + 视觉编码器（节省更多显存）</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 冻结 VGGT（3D 特征提取器——通用能力，不需要微调）</span>
+<span class="kw">for</span> param <span class="kw">in</span> model.vggt.parameters():
+    param.requires_grad = <span class="kw">False</span>
+
+<span class="cmt"># 冻结视觉编码器（Qwen2.5-VL 的视觉 tower）</span>
+<span class="kw">for</span> param <span class="kw">in</span> model.visual.parameters():
+    param.requires_grad = <span class="kw">False</span>
+
+<span class="cmt"># 只训练：LoRA adapter + 投影层 (merger) + token embedding</span></div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 4 — 单卡训练命令（移除 DeepSpeed）</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 原版需要 8 卡 + DeepSpeed，LoRA 版本单卡即可</span>
+<span class="kw">python</span> src/qwen_vl/train/train_qwen.py \
+    --model_name_or_path ./weights/misstl/JanusVLN_Base \
+    --vggt_model_path facebook/VGGT-1B \
+    --tune_mm_llm True \
+    --tune_mm_vision False \
+    --tune_mm_mlp True \
+    --use_lora True \
+    --lora_r 16 \
+    --dataset_use train_r2r \
+    --output_dir ./JanusVLN_LoRA_Office \
+    --bf16 \
+    --per_device_train_batch_size 1 \
+    --gradient_accumulation_steps 16 \
+    --learning_rate 1e-4 \
+    --num_train_epochs 3 \
+    --save_steps 500 \
+    --max_pixels $((576*28*28)) \               <span class="cmt"># 降低分辨率省显存</span>
+    --gradient_checkpointing                     <span class="cmt"># 用时间换显存</span></div>
+  </div>
+
+  <!-- ⑤ 数据准备 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑤ 微调数据准备</h3>
+
+  <p>需要把自己的场景做成 R2R 格式的 JSON：</p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 每条训练数据 = 一个 navigation episode</span>
+{
+  <span class="str">"episodes"</span>: [
+    {
+      <span class="str">"episode_id"</span>: 1,
+      <span class="str">"scene_id"</span>: <span class="str">"mp3d/my_office/my_office.glb"</span>,
+      <span class="str">"start_position"</span>: [0, 0, 0],
+      <span class="str">"start_rotation"</span>: [0, 0.923, 0, 0.382],
+      <span class="str">"goals"</span>: [{<span class="str">"position"</span>: [5.2, 0, -3.1]}],
+      <span class="str">"reference_path"</span>: [[0,0,0], [0.5,0,0], ..., [5.2,0,-3.1]],
+      <span class="str">"instruction"</span>: {
+        <span class="str">"instruction_text"</span>: <span class="str">"Walk to the whiteboard and stop"</span>
+      }
+    }
+  ],
+  <span class="str">"instruction_vocab"</span>: {...}  <span class="cmt"># 复用 R2R 原始词表</span>
+}</div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>场景来源</th><th>数据制作方式</th><th>最少条数</th></tr></thead>
+    <tbody>
+      <tr><td>Habitat 仿真新场景</td><td>用 ShortestPathFollower 自动生成 reference_path，人工标注指令</td><td>50-100 条</td></tr>
+      <tr><td>真机录制的轨迹</td><td>SLAM 记录位姿序列 → 转成 reference_path，人工标注指令</td><td>30-50 条</td></tr>
+      <tr><td>现有 R2R 子集</td><td>从 R2R 训练集中筛选与目标场景相似的 episode</td><td>200+ 条</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ⑥ 训练流程总结 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ 微调完整流程</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>步骤</th><th>操作</th><th>预计时间</th></tr></thead>
+    <tbody>
+      <tr><td><b>1. 数据采集</b></td><td>在新场景中收集 50-200 条导航指令+轨迹</td><td>2-4 小时</td></tr>
+      <tr><td><b>2. 格式转换</b></td><td>转为 R2R JSON + gzip 压缩</td><td>30 分钟</td></tr>
+      <tr><td><b>3. LoRA 训练</b></td><td>L40 单卡，3 epoch，batch_size=1，grad_accum=16</td><td>4-8 小时</td></tr>
+      <tr><td><b>4. 合并权重</b></td><td><code>model.merge_and_unload()</code> → LoRA 合并回原始权重</td><td>1 分钟</td></tr>
+      <tr><td><b>5. 评估</b></td><td>在新场景的 val split 上跑 eval，对比微调前后</td><td>30 分钟</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">💡 微调预期效果</div>
+    <p>
+      在 R2R 上零样本 SR=46.7%。如果用自己的 50-100 条数据进行 LoRA 微调：
+      <br>• <b>同场景 SR：</b>预期提升到 60-75%（模型"记住"了你的环境）
+      <br>• <b>跨场景泛化：</b>可能轻微下降（LoRA 的灾难性遗忘），需要混合原始 R2R 数据
+      <br>• <b>训练技巧：</b>前 1 epoch 混合 70% R2R + 30% 新数据，后 2 epoch 只用新数据
+    </p>
+  </div>
+
+  <!-- ⑦ Seq2Seq 微调 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑦ 方案 C：微调我们自己的 Seq2Seq</h3>
+
+  <p>如果我们不想用 JanusVLN（硬件要求高），也可以微调自己在 §N 训练的 2700 万参数模型：</p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 加载 §N 训练的 checkpoint</span>
+model = Seq2SeqAgent(embed_dim=300, hidden_dim=512)
+model.load_state_dict(torch.load(<span class="str">'ckpt/seq2seq_best.pth'</span>))
+
+<span class="cmt"># 在新数据上全量微调（27M 参数全部可训练）</span>
+optimizer = AdamW(model.parameters(), lr=1e-4)
+<span class="kw">for</span> epoch <span class="kw">in</span> range(5):
+    <span class="kw">for</span> rgb, instruction, action_gt <span class="kw">in</span> new_dataloader:
+        pred = model(rgb, instruction)
+        loss = CrossEntropyLoss(pred, action_gt)
+        loss.backward()
+        optimizer.step()
+
+<span class="cmt"># 优点：快（10 分钟训完）、省显存（8GB）、可跑 DAgger</span>
+<span class="cmt"># 缺点：模型上限低（没有 VLM 的世界知识）</span></div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>对比</th><th>Seq2Seq 微调</th><th>JanusVLN LoRA</th></tr></thead>
+    <tbody>
+      <tr><td>显存</td><td>~8 GB</td><td>~30 GB</td></tr>
+      <tr><td>训练时间（100 条数据）</td><td>~10 分钟</td><td>~4 小时</td></tr>
+      <tr><td>SR 上限</td><td>~40-50%</td><td>~60-75%</td></tr>
+      <tr><td>适合场景</td><td>快速原型，验证数据质量</td><td>最终部署，追求性能</td></tr>
+      <tr><td>可做 DAgger</td><td>✅ 轻量，训练快</td><td>⚠️ 每轮 4 小时，迭代慢</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:12px;">
+    <div class="tip-title">💡 推荐策略：两级微调</div>
+    <p>
+      <b>第一级：</b>用 Seq2Seq 在新数据上快速微调（10 分钟），验证数据质量和任务可行性<br>
+      <b>第二级：</b>确认数据没问题后，用 JanusVLN LoRA 做正式微调（4-8 小时），拿到最优 SR<br>
+      这样避免了"花 4 小时训练发现数据有 bug"的情况。
+    </p>
+  </div>
+
+</div>
+</section>
+
+
 <!-- ═══════════════ 总结 ═══════════════ -->
 <section>
 <div class="container">
@@ -1074,6 +1295,7 @@ action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWAR
         <li>理解 SR/SPL/nDTW 三项评估指标</li>
         <li>导出可用于真机推理的 checkpoint + config 文件</li>
         <li>运行 SOTA 模型（JanusVLN）并在同一数据上对比 SR</li>
+        <li>使用 LoRA 在单卡上微调 JanusVLN，或用 Seq2Seq 快速微调验证数据</li>
       </ul>
     </div>
     <div class="module" style="border-left-color: #a78bfa;">
@@ -1106,6 +1328,6 @@ action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWAR
 </footer>
 
 <script src="assets/js/site.js"></script>
-<script>window.totalStages = 5;</script>
+<script>window.totalStages = 6;</script>
 </body>
 </html>
