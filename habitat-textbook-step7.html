@@ -55,7 +55,7 @@
 <section>
 <div class="container">
 
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-ros);"></span> 本章概览：4 个案例</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-ros);"></span> 本章概览：6 个案例</h2>
   <p class="section-subtitle">
     从理解架构到在真实机器人上跑通 VLN。每个案例建立在前一个之上。
   </p>
@@ -85,6 +85,19 @@
         <td style="color:#fbbf24;font-weight:700;">7-4</td>
         <td><a href="#case7-4">联调与部署</a></td>
         <td>启动全部节点、发送指令、观察导航全流程、调试技巧</td>
+        <td>⭐⭐</td>
+      </tr>
+
+      <tr>
+        <td style="color:#38bdf8;font-weight:700;">7-5</td>
+        <td><a href="#case7-5">云-边-端 VLN 架构</a></td>
+        <td>真机采集+云端推理的分离架构、FastAPI 推理服务、延迟预算</td>
+        <td>⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td style="color:#a3e635;font-weight:700;">7-6</td>
+        <td><a href="#case7-6">仿真与真机测试计划</a></td>
+        <td>Phase 1 Gazebo 7 项测试 + Phase 2 真机 6 项测试 + 安全守则</td>
         <td>⭐⭐</td>
       </tr>
     </tbody>
@@ -664,6 +677,317 @@ $ ros2 launch vln_ros vln_nav_bringup_ros2.launch.py</div>
 </div>
 </section>
 
+<!-- ═══════════════ 7-5: 云-边-端 VLN 架构 ═══════════════ -->
+<section id="case7-5">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-cloud);"></span> 7-5 · 云-边-端 VLN 架构</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      7-1 到 7-4 的架构假设 VLN 模型<b>本地运行</b>。但当模型大到 80 亿参数（JanusVLN），
+      真机的 Jetson / 树莓派根本跑不动。7-5 介绍<b>云-边-端分离</b>方案：
+      真机负责感知+执行，云端 GPU 负责推理。
+    </p>
+  </div>
+
+  <!-- ② 架构图 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 系统架构</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># ═══════════ 真机 (Spark-I, Jetson Orin) ═══════════</span>
+<span class="cmt">#   算力有限，只做采集 + 执行</span>
+
+<span class="cmt"># ═══════════ 云端 (L40 GPU 服务器) ═══════════</span>
+<span class="cmt">#   JanusVLN 推理，~2 秒/步</span>
+
+<span class="cmt"># 数据流:</span>
+<span class="cmt">#</span>
+<span class="cmt">#  真机 📷 ──JPEG(50KB)──→ 云端</span>
+<span class="cmt">#  真机 🤖 ←──action──── 云端 (JanusVLN 推理)</span>
+<span class="cmt">#</span>
+<span class="cmt">#  循环: 拍照→上传→推理→回传→Nav2执行→拍照→...</span></div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>模块</th><th>部署位置</th><th>硬件</th><th>职责</th></tr></thead>
+    <tbody>
+      <tr><td>📷 图像采集</td><td>真机</td><td>RealSense D435i</td><td>RGB 拍照 → JPEG 压缩</td></tr>
+      <tr><td>📤 图像上传</td><td>真机</td><td>WiFi/5G</td><td>HTTP POST 到云端</td></tr>
+      <tr><td>🧠 VLN 推理</td><td><b>云端</b></td><td><b>L40 GPU</b></td><td>JanusVLN: 图像+指令→动作</td></tr>
+      <tr><td>📥 动作回传</td><td>云端→真机</td><td>WiFi/5G</td><td>JSON {"action": "MOVE_FORWARD"}</td></tr>
+      <tr><td>🗺️ 动作映射</td><td>真机</td><td>Jetson CPU</td><td>FORWARD → Nav2 目标位姿</td></tr>
+      <tr><td>🚗 路径规划+控制</td><td>真机</td><td>Jetson + 电机</td><td>ROS Nav2 规划+执行</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ③ 核心代码 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 核心代码</h3>
+
+  <p><b>真机侧：image_bridge_node.py</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">import</span> rclpy, cv2, requests, json
+<span class="kw">from</span> sensor_msgs.msg <span class="kw">import</span> Image
+<span class="kw">from</span> cv_bridge <span class="kw">import</span> CvBridge
+
+<span class="kw">class</span> VLNCloudBridge(rclpy.node.Node):
+    <span class="kw">def</span> __init__(self):
+        super().__init__(<span class="str">'vln_cloud_bridge'</span>)
+        self.bridge = CvBridge()
+        self.cloud_url = <span class="str">"http://L40_IP:8000/step"</span>
+        self.instruction = <span class="str">"Go to the kitchen"</span>  <span class="cmt"># 可动态更新</span>
+
+        <span class="cmt"># 订阅相机</span>
+        self.sub = self.create_subscription(
+            Image, <span class="str">'/camera/color/image_raw'</span>, self.on_image, 10)
+
+        <span class="cmt"># 发布子目标给 Nav2</span>
+        self.goal_pub = self.create_publisher(
+            PoseStamped, <span class="str">'/goal_pose'</span>, 10)
+
+    <span class="kw">def</span> on_image(self, msg):
+        <span class="cmt"># 1. ROS Image → JPEG bytes</span>
+        cv_img = self.bridge.imgmsg_to_cv2(msg, <span class="str">'bgr8'</span>)
+        _, jpg = cv2.imencode(<span class="str">'.jpg'</span>, cv_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
+
+        <span class="cmt"># 2. 上传到云端</span>
+        resp = requests.post(self.cloud_url,
+            files={<span class="str">'image'</span>: jpg.tobytes()},
+            data={<span class="str">'instruction'</span>: self.instruction},
+            timeout=5)
+
+        <span class="cmt"># 3. 解析动作</span>
+        action = resp.json()[<span class="str">'action'</span>]  <span class="cmt"># "MOVE_FORWARD"</span>
+        self.get_logger().info(<span class="str">f'Action: {action}'</span>)
+
+        <span class="cmt"># 4. 映射为 Nav2 目标并发布</span>
+        <span class="kw">if</span> action == <span class="str">'STOP'</span>:
+            self.cancel_nav()
+        <span class="kw">else</span>:
+            goal = self.action_to_goal(action)
+            self.goal_pub.publish(goal)</div>
+  </div>
+
+  <p style="margin-top:12px;"><b>云端：inference_server.py</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, File, Form
+<span class="kw">from</span> PIL <span class="kw">import</span> Image
+<span class="kw">import</span> io
+
+app = FastAPI()
+model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
+
+@app.post(<span class="str">"/step"</span>)
+<span class="kw">async</span> <span class="kw">def</span> step(image: bytes = File(...), instruction: str = Form(...)):
+    <span class="cmt"># 1. JPEG → PIL Image</span>
+    pil_img = Image.open(io.BytesIO(image)).convert(<span class="str">'RGB'</span>)
+
+    <span class="cmt"># 2. VLN 推理</span>
+    action = model.predict(pil_img, instruction)  <span class="cmt"># ~2 秒</span>
+
+    <span class="kw">return</span> {<span class="str">"action"</span>: action}  <span class="cmt"># "MOVE_FORWARD" | "TURN_LEFT" | "STOP"</span>
+
+<span class="cmt"># 启动: uvicorn inference_server:app --host 0.0.0.0 --port 8000</span></div>
+  </div>
+
+  <!-- ④ 延迟预算 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 每步延迟预算</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>阶段</th><th>耗时</th><th>占比</th><th>优化空间</th></tr></thead>
+    <tbody>
+      <tr><td>拍照 + 压缩</td><td>~0.05s</td><td>2%</td><td>已足够</td></tr>
+      <tr><td>网络上传 (50KB)</td><td>~0.02s</td><td>1%</td><td>WiFi 6 / 5G 无压力</td></tr>
+      <tr><td><b>JanusVLN 推理</b></td><td><b>~2.0s</b></td><td><b>80%</b></td><td>模型量化 / TensorRT</td></tr>
+      <tr><td>网络回传</td><td>~0.01s</td><td>0%</td><td>可忽略</td></tr>
+      <tr><td>Nav2 规划</td><td>~0.1s</td><td>4%</td><td>已足够</td></tr>
+      <tr><td>机器人移动 (0.25m)</td><td>~0.3s</td><td>13%</td><td>取决于速度</td></tr>
+      <tr style="font-weight:bold;background:rgba(244,114,182,0.08);"><td><b>合计</b></td><td><b>~2.5 秒/步</b></td><td></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 推理速度是瓶颈——但不是死结</div>
+    <p>
+      2 秒/步听起来慢，但 VLN 导航通常 10-30 步到达目标 → <b>总耗时 25-75 秒</b>，实际可用。
+      如果接受不了，可以：模型量化到 INT8（速度 2x）、换小模型（Qwen2.5-VL-3B）、
+      或等下一代 GPU（RTX 5090 推理 &lt;0.5s）。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 7-6: 仿真与真机测试计划 ═══════════════ -->
+<section id="case7-6">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-test);"></span> 7-6 · 仿真与真机测试计划</h2>
+
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      直接上真机风险大（撞墙、电机过载）。7-6 设计了两阶段测试计划：先在 <b>Gazebo 仿真</b> 中验证完整链路，
+      再上 <b>Spark-I 真机</b>。每阶段都有明确的 Pass/Fail 条件。
+    </p>
+  </div>
+
+  <!-- Phase 1: 仿真 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② Phase 1：Gazebo 仿真测试</h3>
+
+  <p><b>环境：</b>Spark-I Gazebo 仿真 + TurtleBot3 世界</p>
+
+  <table class="compare-table">
+    <thead><tr><th>#</th><th>测试项</th><th>操作</th><th>预期</th><th>Pass 条件</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>T1</b></td>
+        <td>通信链路</td>
+        <td>真机端启动 image_bridge → curl 云端 /health</td>
+        <td>200 OK</td>
+        <td>3/3 请求成功</td>
+      </tr>
+      <tr>
+        <td><b>T2</b></td>
+        <td>单步推理</td>
+        <td>发一张仿真 RGB + "Go to the door"</td>
+        <td>返回一个有效动作</td>
+        <td>动作在 {FORWARD,LEFT,RIGHT,STOP} 内</td>
+      </tr>
+      <tr>
+        <td><b>T3</b></td>
+        <td>动作映射</td>
+        <td>FORWARD → 计算目标位姿 → 检查合理性</td>
+        <td>位姿在机器人前方 0.25m</td>
+        <td>位置误差 &lt; 0.05m，角度误差 &lt; 5°</td>
+      </tr>
+      <tr>
+        <td><b>T4</b></td>
+        <td>Nav2 单步导航</td>
+        <td>发布一个 goal_pose → 观察机器人移动</td>
+        <td>机器人到达目标点</td>
+        <td>最终位置距目标 &lt; 0.1m</td>
+      </tr>
+      <tr>
+        <td><b>T5</b></td>
+        <td>多步导航</td>
+        <td>连续 10 步 VLN → Nav2 循环</td>
+        <td>每步正确执行</td>
+        <td>10/10 步无卡死、无超时</td>
+      </tr>
+      <tr>
+        <td><b>T6</b></td>
+        <td>完整 episode</td>
+        <td>发指令 → 自动运行直到 STOP</td>
+        <td>机器人停在目标附近</td>
+        <td>最终位置距 ground-truth goal &lt; 2m</td>
+      </tr>
+      <tr>
+        <td><b>T7</b></td>
+        <td>异常恢复</td>
+        <td>推理超时 / 网络断开 → 观察行为</td>
+        <td>安全停止，不发无效指令</td>
+        <td>机器人不失控移动</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="code-block-wrapper" style="margin-top:12px;">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 仿真启动顺序</span>
+<span class="cmt"># 终端 1: 启动 Gazebo 仿真世界</span>
+$ ros2 launch spark_bringup gazebo.launch.py world:=turtlebot3_world
+
+<span class="cmt"># 终端 2: 启动 Nav2</span>
+$ ros2 launch spark_navigation nav2_bringup.launch.py
+
+<span class="cmt"># 终端 3: 启动云桥接节点</span>
+$ ros2 run vln_ros image_bridge_node --ros-args -p cloud_url:=http://L40_IP:8000
+
+<span class="cmt"># 终端 4 (云端): 启动推理服务</span>
+$ uvicorn inference_server:app --host 0.0.0.0 --port 8000
+
+<span class="cmt"># 终端 5: 发送指令 → 开始导航</span>
+$ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
+    "{instruction: 'Go to the door and stop'}"</div>
+  </div>
+
+  <!-- Phase 2: 真机 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ Phase 2：Spark-I 真机测试</h3>
+
+  <p><b>前置：</b>Phase 1 全部 T1-T7 Pass + 机器人硬件检查</p>
+
+  <table class="compare-table">
+    <thead><tr><th>#</th><th>测试项</th><th>特殊注意事项</th><th>Pass 条件</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>T8</b></td>
+        <td>相机标定验证</td>
+        <td>真机 RGB 尺寸/视场角与仿真不同</td>
+        <td>图像 resize 后送入模型无报错</td>
+      </tr>
+      <tr>
+        <td><b>T9</b></td>
+        <td>坐标系对齐</td>
+        <td>VLN 输出是机器人坐标系，需转 map 系</td>
+        <td>rviz 中 goal_pose 出现在正确位置</td>
+      </tr>
+      <tr>
+        <td><b>T10</b></td>
+        <td>实景单步导航</td>
+        <td>真机有里程计漂移，Nav2 需实时修正</td>
+        <td>单步到达误差 &lt; 0.15m</td>
+      </tr>
+      <tr>
+        <td><b>T11</b></td>
+        <td>动态障碍物</td>
+        <td>人在机器人前方走过 → Nav2 应避障</td>
+        <td>机器人减速/绕行，不撞人</td>
+      </tr>
+      <tr>
+        <td><b>T12</b></td>
+        <td>10 条指令测试集</td>
+        <td>在办公室环境中预设 10 条导航指令</td>
+        <td>SR ≥ 40%（10 条中 4+ 成功）</td>
+      </tr>
+      <tr>
+        <td><b>T13</b></td>
+        <td>紧急停止</td>
+        <td>物理急停按钮或 /vln/stop service</td>
+        <td>电机立即断电，&lt; 0.5s 响应</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 真机测试安全守则</div>
+    <p>
+      1. 首次测试用<b>最低速度</b>（0.1 m/s），逐步提高<br>
+      2. 旁边始终有人手持<b>急停遥控器</b><br>
+      3. 测试区域<b>清空行人</b>，地面无杂物<br>
+      4. 先测试 STOP 指令（验证急停链路），再测移动<br>
+      5. 录 rosbag，失败后可回放分析
+    </p>
+  </div>
+
+  <!-- ④ 测试记录模板 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 测试记录模板</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>测试ID</th><th>日期</th><th>环境</th><th>指令</th><th>结果</th><th>耗时</th><th>失败原因</th></tr></thead>
+    <tbody>
+      <tr><td>T6-01</td><td>06-18</td><td>Gazebo</td><td>Go to the door</td><td>✅</td><td>32s</td><td>—</td></tr>
+      <tr><td>T6-02</td><td>06-18</td><td>Gazebo</td><td>Go to kitchen, turn left</td><td>❌</td><td>—</td><td>Nav2 规划失败（无地图）</td></tr>
+      <tr style="color:var(--text-dim);"><td>T12-01</td><td>—</td><td>真机</td><td>走到门口停下</td><td>—</td><td>—</td><td>待测试</td></tr>
+    </tbody>
+  </table>
+
+</div>
+</section>
+
+
 <!-- ═══════════════ 总结 ═══════════════ -->
 <section>
 <div class="container">
@@ -677,7 +1001,9 @@ $ ros2 launch vln_ros vln_nav_bringup_ros2.launch.py</div>
         • 创建 vln_ros package 并编译通过<br>
         • 理解 vln_inference_node 和 goal_publisher_node 的职责<br>
         • 根据 Spark-I 或 Leo 配置 topic 和 TF 参数<br>
-        • 按正确的启动顺序在真机上跑通 VLN 导航
+        • 按正确的启动顺序在真机上跑通 VLN 导航<br>
+        • 设计云-边-端分离架构并部署推理服务<br>
+        • 执行仿真→真机两阶段测试并记录结果
       </p>
     </div>
     <div class="panel">
@@ -709,6 +1035,6 @@ $ ros2 launch vln_ros vln_nav_bringup_ros2.launch.py</div>
 </footer>
 
 <script src="assets/js/site.js"></script>
-<script>window.totalStages = 4;</script>
+<script>window.totalStages = 6;</script>
 </body>
 </html>
