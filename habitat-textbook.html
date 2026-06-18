@@ -1486,15 +1486,17 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
     <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 第8章 · 动手路线图 — 从零到部署</h2>
     <p class="section-subtitle">
       前面的章节帮你建立了"这是什么"的心智模型。这一章把所有内容串成一条可执行的学习路径：
-      <b style="color:#60a5fa;">研究轨</b>（Steps 1–5，掌握 Habitat 平台）
+      <b style="color:#60a5fa;">认知轨</b>（Steps 1–5，认识 Habitat 平台）
       →
-      <b style="color:#2dd4bf;">部署轨</b>（Steps 6–8，将模型部署到真实机器人）
+      <b style="color:#60a5fa;">训练轨</b>（Step 6，学会 RL 训练）
+      →
+      <b style="color:#2dd4bf;">部署轨</b>（Steps 7–8，将模型部署到真实机器人）
       →
       <b style="color:#c4b5fd;">进阶轨</b>（Step 9，Habitat 2.0 交互式操作）。
     </p>
 
     <!-- 研究轨 5 步 -->
-    <div style="margin-bottom: 8px; font-size: 0.82rem; font-weight: 700; color: #60a5fa;">🔬 研究轨：掌握 Habitat 平台</div>
+    <div style="margin-bottom: 8px; font-size: 0.82rem; font-weight: 700; color: #60a5fa;">🔬 认知轨：认识 Habitat 平台</div>
     <div class="path-flow">
       <div class="path-step">
         <span class="step-icon">🏗️</span>
@@ -1521,36 +1523,36 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
       </div>
       <div class="path-arrow">→</div>
       <div class="path-step">
+        <span class="step-icon">🗺️</span>
+        <div class="step-label">导航任务全景</div>
+        <div class="step-desc">5种导航任务<br>PointNav→VLN</div>
+      </div>
+      <div class="path-arrow">→</div>
+      <div class="path-step">
         <span class="step-icon">🎓</span>
-        <div class="step-label">训练第一个模型</div>
+        <div class="step-label">RL 训练入门</div>
         <div class="step-desc">PointNav+PPO<br>理解训练循环</div>
       </div>
     </div>
 
     <!-- 分岔路标 -->
     <div style="text-align: center; margin: 20px 0;">
-      <span style="display: inline-block; background: linear-gradient(135deg, #14b8a620, #a78bfa20); border: 1px solid #14b8a640; border-radius: 16px; padding: 8px 24px; font-size: 0.85rem; font-weight: 700; color: #2dd4bf;">🔀 分岔口：进入部署轨</span>
+      <span style="display: inline-block; background: linear-gradient(135deg, #14b8a620, #a78bfa20); border: 1px solid #14b8a640; border-radius: 16px; padding: 8px 24px; font-size: 0.85rem; font-weight: 700; color: #2dd4bf;">🔀 分岔口：进入 VLN 专线 + 部署轨</span>
     </div>
 
     <!-- 部署轨 3 步 -->
-    <div style="margin-bottom: 8px; font-size: 0.82rem; font-weight: 700; color: #2dd4bf;">🤖 部署轨：从仿真到真机</div>
+    <div style="margin-bottom: 8px; font-size: 0.82rem; font-weight: 700; color: #2dd4bf;">🤖 部署轨：VLN + 真机</div>
     <div class="path-flow">
       <div class="path-step" style="border-top: 3px solid #14b8a6;">
         <span class="step-icon">🧭</span>
-        <div class="step-label">VLN 仿真训练</div>
-        <div class="step-desc">VLN-v0 + R2R<br>InstructionSensor</div>
+        <div class="step-label">VLN 视觉语言导航</div>
+        <div class="step-desc">IL→诊断→DAgger<br>→微调→部署</div>
       </div>
       <div class="path-arrow">→</div>
       <div class="path-step" style="border-top: 3px solid #a78bfa;">
         <span class="step-icon">🤖</span>
-        <div class="step-label">方法一 · VLN+ROS</div>
-        <div class="step-desc">VLN→子目标<br>ROS Nav2 导航</div>
-      </div>
-      <div class="path-arrow" style="color:#a78bfa;">⇢</div>
-      <div class="path-step" style="border-top: 3px solid #ec4899;">
-        <span class="step-icon">🧠</span>
-        <div class="step-label">方法二 · VLM 端到端</div>
-        <div class="step-desc">VLM 直接控制<br>无地图导航</div>
+        <div class="step-label">真机部署</div>
+        <div class="step-desc">VLN+ROS<br>+ VLM 端到端</div>
       </div>
     </div>
 
@@ -1604,8 +1606,17 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
           <li><b>目标：</b>不写核心代码就能改变实验行为</li>
         </ul>
       </div>
+      <div class="module" style="border-left-color: #a78bfa;">
+        <h3>第5步：导航任务全景 (半天) &nbsp;<a href="habitat-textbook-step5.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #a78bfa40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <ul>
+          <li><b>5种导航任务全景</b>：PointNav / ObjectNav / ImageNav / InstanceNav / VLN</li>
+          <li>对比表：目标表示、传感器、动作空间、数据集</li>
+          <li>术语速查：RL / IL / 观测 / 动作 / 奖励 等核心概念</li>
+          <li><b>目标：</b>在训练之前，先知道 Habitat 能解决什么问题</li>
+        </ul>
+      </div>
       <div class="module" style="border-left-color: var(--accent-rl);">
-        <h3>第5步：训练模型 (1-2周)</h3>
+        <h3>第6步：RL 训练入门 (1-2周) &nbsp;<a href="habitat-textbook-step6.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>Day 1-2：</b>PointNav + PPO 训练（抄官方配置）</li>
           <li><b>Day 3-4：</b>理解训练循环：Rollout → PPO更新 → 评估</li>
@@ -1614,7 +1625,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: #f59e0b;">
-        <h3>第5B步：DD-PPO 分布式训练 (半天) &nbsp;<a href="habitat-textbook-step5b.html" style="font-size:0.78rem; color:#fcd34d; text-decoration:none; border:1px solid #f59e0b40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>附录：DD-PPO 分布式训练 (半天) &nbsp;<a href="habitat-textbook-step5b.html" style="font-size:0.78rem; color:#fcd34d; text-decoration:none; border:1px solid #f59e0b40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>原理：</b>PPO vs DD-PPO 架构对比、分布式梯度同步</li>
           <li><b>配置：</b><code>trainer_name: ddppo</code> + 关键参数含义</li>
@@ -1623,42 +1634,25 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: var(--accent-tip);">
-        <h3>第6步：VLN 仿真训练 (1-2周) &nbsp;<a href="habitat-textbook-step6.html" style="font-size:0.78rem; color:#2dd4bf; text-decoration:none; border:1px solid #14b8a640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第7步：VLN 视觉语言导航 (2-3周) &nbsp;<a href="habitat-textbook-step7.html" style="font-size:0.78rem; color:#2dd4bf; text-decoration:none; border:1px solid #14b8a640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
-          <li><b>Day 1-2：</b>配置 VLN-v0 任务 + R2R 数据集</li>
-          <li><b>Day 3-4：</b>理解 InstructionSensor + 模仿学习训练</li>
-          <li><b>Day 5-7：</b>DDPPO 微调 + SR/SPL/nDTW 评估</li>
-          <li><b>输出：</b>导出可在真机上推理的 checkpoint</li>
+          <li><b>7-1~7-3：</b>VLN 理论 → 配置 → IL 训练 → SR≈32%</li>
+          <li><b>7-4：</b>避坑诊断 — CLIP实验、行为漂移分析</li>
+          <li><b>7-5：</b>DAgger 桥梁 — IL 32% → DAgger 50% → RL 55%+</li>
+          <li><b>7-6~7-7：</b>JanusVLN SOTA + LoRA 微调 + 数据采集</li>
         </ul>
       </div>
       <div class="module" style="border-left-color: #a78bfa;">
-        <h3>第7步：真机部署 · 方法一 (2-3周) &nbsp;<a href="habitat-textbook-step7.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #a78bfa40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第8步：真机部署 (2-3周) &nbsp;<a href="habitat-textbook-step8.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #a78bfa40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
-          <li><b>VLN 做高层决策</b> → 子目标位姿 → ROS Nav2 执行</li>
-          <li>ROS 节点：vln_inference + goal_publisher + Nav2</li>
+          <li><b>方案一（8-1~8-6）：</b>VLN → 子目标 → ROS Nav2 执行</li>
+          <li><b>方案二（8-7~8-10）：</b>VLM 端到端，无地图导航</li>
           <li>Spark-I (ROS Noetic) / Leo (ROS 2 Humble) 适配</li>
-          <li><b>目标：</b>机器人按指令导航到目标房间</li>
+          <li><b>目标：</b>两种方案对比，选最适合你的部署方式</li>
         </ul>
       </div>
       <div class="module" style="border-left-color: #ec4899;">
-        <h3>第8步：真机部署 · 方法二 (2-3周) &nbsp;<a href="habitat-textbook-step8.html" style="font-size:0.78rem; color:#f9a8d4; text-decoration:none; border:1px solid #ec489940; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
-        <ul>
-          <li><b>VLM 端到端</b>：视觉语言模型直接输出控制指令</li>
-          <li>NaVid-4D / NaVILA 核心思路拆解</li>
-          <li>模型选型对比（开源 vs 商业 API）</li>
-          <li><b>目标：</b>无地图、无导航栈，端到端 VLN</li>
-        </ul>
-      </div>
-      <div class="module" style="border-left-color: #8b5cf6;">
-        <h3>第9步：Rearrange 操作任务 (1周) &nbsp;<a href="habitat-textbook-step9.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #8b5cf640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
-        <ul>
-          <li><b>6 个案例：</b>Pick → Place → NavToObj → Open/Close → PDDL 复合任务</li>
-          <li><b>Fetch 机器人：</b>手臂控制 + 吸盘抓取 + 底盘移动</li>
-          <li><b>物理仿真：</b>Bullet 引擎 + 关节物体（抽屉/冰箱）</li>
-          <li><b>目标：</b>掌握 Habitat 2.0 交互式操作任务</li>
-        </ul>
-      </div>
-    </div>
+        <h3>
 
     <div class="tip-box" style="margin-top: 28px;">
       <div class="tip-title">最重要的学习原则</div>
@@ -1669,7 +1663,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         掌握一个再攻下一个，你会发现自己进步得比想象中快得多。
       </p>
       <p style="margin-top: 12px; color: #2dd4bf;">
-        <b>部署轨提示：</b>方法一和方法二是<b>并行可选</b>的两种方案。如果你熟悉 ROS 且有现成的导航栈，
+        <b>部署轨提示：</b>方案一（VLN+ROS）和方案二（VLM端到端）是<b>并行可选</b>的两种方案。如果你熟悉 ROS 且有现成的导航栈，
         从方法一开始更稳妥；如果你更偏 CV/ML 背景且想探索前沿，方法二可能更适合你。
         当然，两者都学是最好的选择。
       </p>
