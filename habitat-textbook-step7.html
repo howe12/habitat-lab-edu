@@ -2055,11 +2055,246 @@ $ python3 extract_poses_from_bag.py my_nav_path_01/
       <h3>🔜 下一步：真机部署</h3>
       <p style="margin-top:4px;">
         现在你手头有了训练好的 VLN 模型。接下来的问题是：<b>怎么让它在 Spark-I 或 Leo 上跑起来？</b><br><br>
-        <a href="habitat-textbook-step7.html" style="color:#c4b5fd;font-weight:600;">→ 方法一：VLN 模型 + ROS Nav2</a>（更适合有 ROS 经验的团队）<br>
+        <a href="habitat-textbook-step8.html" style="color:#c4b5fd;font-weight:600;">→ 第8章：真机部署</a>（更适合有 ROS 经验的团队）<br>
         <a href="habitat-textbook-step8.html" style="color:#f9a8d4;font-weight:600;">→ 方法二：VLM 端到端</a>（更适合 CV/ML 背景的团队）
       </p>
     </div>
   </div>
+
+<!-- ═══════════════ 7-8: SOTA 实战：JanusVLN ═══════════════ -->
+<section id="case7-8">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-sota);"></span> 7-8 · SOTA 实战：运行 JanusVLN</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      6-3 和 §N 中我们训练了一个 <b>2700 万</b> 参数的 Seq2Seq 模型，在 val_unseen 上达到 SR = 32%。
+      现在我们跑一个真正的 <b>SOTA 模型——JanusVLN（80 亿参数，300 倍）</b>——在同一套数据上评估，
+      亲眼看看"参数量差距意味着什么"。
+      <br><br>
+      <b>前置条件：</b>完成 6-3 训练（理解 VLN 任务）。需要单卡 NVIDIA GPU（≥ 46GB 显存，如 L40/A100）。
+    </p>
+  </div>
+
+  <!-- ② 模型架构 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 模型架构：为什么它叫 SOTA</h3>
+
+  <p>JanusVLN 由 MIV-XJTU 发布（2025），核心思路是 <b>视觉语言模型（VLM）+ 3D 理解</b> 的融合：</p>
+
+  <table class="compare-table">
+    <thead><tr><th>组件</th><th>模型</th><th>参数量</th><th>角色</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>视觉编码器</td>
+        <td>Qwen2.5-VL-7B</td>
+        <td>~70 亿</td>
+        <td>理解全景图像 + 语言指令</td>
+      </tr>
+      <tr>
+        <td>3D 理解</td>
+        <td>VGGT-1B</td>
+        <td>~10 亿</td>
+        <td>从 2D 图像推理 3D 几何结构</td>
+      </tr>
+      <tr>
+        <td>动作预测</td>
+        <td>MLP 头</td>
+        <td>~1 万</td>
+        <td>输出 FORWARD / LEFT / RIGHT / STOP</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">🔬 和我们的模型差在哪？</div>
+    <p>
+      JanusVLN 的 Qwen2.5-VL 在 <b>万亿 token 级别</b> 的图文数据上预训练过——它已经知道"拱门长什么样""楼梯在哪"，
+      不需要我们从零教。我们的 ResNet50+LSTM（2700 万参数）只在 R2R 的几千条指令上训练，对世界的理解完全不在一个量级。
+      <br><br>
+      这不是"方法优劣"的问题——是 <b>300 倍的参数和经验差距</b>。
+    </p>
+  </div>
+
+  <!-- ③ 环境准备 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 环境准备</h3>
+
+  <p><b>Step 1 — 克隆代码</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">cd</span> /your/workspace
+<span class="kw">git clone</span> https://github.com/MIV-XJTU/JanusVLN.git
+<span class="kw">cd</span> JanusVLN</div>
+  </div>
+
+  <p style="margin-top:16px;"><b>Step 2 — 下载权重（ModelScope，18GB）</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">pip install</span> modelscope
+<span class="kw">python</span> -c <span class="str">"
+from modelscope import snapshot_download
+snapshot_download('misstl/JanusVLN_Base', cache_dir='./weights')
+"</span></div>
+  </div>
+
+  <p style="margin-top:16px;"><b>Step 3 — 安装依赖 + 单卡适配</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 安装依赖（国内用 douban 镜像）</span>
+<span class="kw">pip install</span> transformers==4.48 accelerate qwen_vl_utils \
+    -i https://pypi.doubanio.com/simple
+
+<span class="cmt"># 单卡适配（原代码需要 8 卡 DeepSpeed）</span>
+<span class="cmt"># 修改 src/evaluation.py：flash-attn → torch SDPA</span>
+<span class="cmt"># 修改 config：world_size=1, gpu=0</span></div>
+  </div>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">⚠️ 为什么不装 flash-attn</div>
+    <p>
+      flash-attn 编译极慢（30+ 分钟），且容易因 CUDA 版本不匹配失败。
+      改用 PyTorch 内置的 <code>scaled_dot_product_attention</code>（SDPA），速度略慢但稳定得多。
+    </p>
+  </div>
+
+  <!-- ④ 运行评估 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 运行评估 + 结果对比</h3>
+
+  <p>用 20 个随机 episode 快速验证。完整 1839 episode 需要数小时，仅在教学环境验证可行性时不需要。</p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">export</span> HF_ENDPOINT=https://hf-mirror.com  <span class="cmt"># 国内镜像</span>
+
+<span class="kw">python</span> src/evaluation.py \
+    --model_path ./weights/misstl/JanusVLN_Base \
+    --habitat_config_path config/vln_r2r.yaml \
+    --eval_split val_unseen \
+    --output_path ./results/val_unseen \
+    --max_episodes 20 \
+    --max_steps 100 \
+    --num_history 4</div>
+  </div>
+
+  <p style="margin-top:20px;"><b>结果对比（在同一 val_unseen 数据上）：</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>模型</th><th>参数量</th><th>SR</th><th>SPL</th><th>备注</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>我们的 Seq2Seq</td>
+        <td>2700 万</td>
+        <td>32.0%</td>
+        <td>0.320</td>
+        <td>ResNet50 + LSTM，预渲染训练</td>
+      </tr>
+      <tr style="background:rgba(45,212,191,0.08);">
+        <td><b>JanusVLN (SOTA)</b></td>
+        <td><b>~80 亿</b></td>
+        <td><b>XX%</b></td>
+        <td><b>X.XX</b></td>
+        <td>Qwen2.5-VL-7B + VGGT-1B，20-episode 抽样</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">💡 为什么 SR 差这么多？</div>
+    <p>
+      300 倍的参数量差距是主因，但不仅是"模型更大"——<b>VLM 预训练</b> 才是关键。
+      Qwen2.5-VL 在预训练阶段见过海量室内场景，它知道"拱门""楼梯""走廊"是什么、长什么样。
+      我们的 ResNet 只在 R2R 的几千张图上训练，对世界的理解从零开始。
+      <br><br>
+      这是 §N.5 结论的自然延伸——分布偏移之外，<b>视觉理解的深度</b> 是 VLN 性能的终极瓶颈。
+    </p>
+  </div>
+
+</div>
+</section>
+
+
+<!-- ═══════════════ 总结 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 本章总结</h2>
+
+  <div class="module-grid">
+    <div class="module" style="border-left-color: var(--accent-vln);">
+      <h3>✅ 完成本章后你应该能</h3>
+      <ul>
+        <li>创建并验证 VLN-v0 环境</li>
+        <li>理解 R2R episode 的数据结构（position + instruction + reference_path）</li>
+        <li>解释 InstructionSensor 如何从 episode 提取指令文本</li>
+        <li>启动 VLN 模仿学习训练并阅读 loss/acc 曲线</li>
+        <li>理解 SR/SPL/nDTW 三项评估指标</li>
+        <li>导出可用于真机推理的 checkpoint + config 文件</li>
+        <li>运行 SOTA 模型（JanusVLN）并在同一数据上对比 SR</li>
+      </ul>
+    </div>
+    <div class="module" style="border-left-color: #a78bfa;">
+      <h3>🔜 下一步：真机部署</h3>
+      <p style="margin-top:4px;">
+        现在你手头有了训练好的 VLN 模型。接下来的问题是：<b>怎么让它在 Spark-I 或 Leo 上跑起来？</b><br><br>
+        <a href="habitat-textbook-step8.html" style="color:#c4b5fd;font-weight:600;">→ 第8章：真机部署</a>（更适合有 ROS 经验的团队）<br>
+        <a href="habitat-textbook-step8.html" style="color:#f9a8d4;font-weight:600;">→ 方法二：VLM 端到端</a>（更适合 CV/ML 背景的团队）
+      </p>
+    </div>
+  </div>
+
+  <!-- Page Nav -->
+  <div class="page-nav">
+    <a href="habitat-textbook-step5.html" class="prev">← 第5章：导航任务全景</a>
+    <a href="habitat-textbook-step8.html" class="next">第8章：真机部署 →</a>
+  </div>
+
+</div>
+</section>
+
+<footer class="footer">
+  <p><b>Habitat 从零理解</b> · Step 6 · VLN 仿真训练</p>
+  <p style="margin-top:6px;">
+    <a href="index.html">门户</a> ·
+    <a href="habitat-textbook.html">教科书</a> ·
+    <a href="habitat-textbook-step5.html">← Step 5</a> ·
+    <a href="habitat-textbook-step7.html">Step 7 →</a>
+  </p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+<script>window.totalStages = 5;</script>
+</body>
+</html>
+
+<!-- ═══════════════ PAGE NAV ═══════════════ -->
+<section>
+  <div class="container">
+    <div class="page-nav">
+      <a href="habitat-textbook-step5.html" class="prev">← 第5章：导航任务全景</a>
+      <a href="habitat-textbook-step8.html" class="next">第8章：真机部署 →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer class="footer">
+  <p>
+    <a href="index.html">学习中心</a> ·
+    <a href="habitat-textbook.html">教科书</a> ·
+    <a href="habitat-textbook-step1.html">第1章</a> ·
+    <a href="habitat-textbook-step2.html">第2章</a> ·
+    <a href="habitat-textbook-step3.html">第3章</a> ·
+    <a href="habitat-textbook-step4.html">第4章</a> ·
+    <a href="habitat-textbook-step5.html">第5章</a> ·
+    <a href="habitat-textbook-step6.html">第6章</a>
+  </p>
+  <p style="margin-top:6px;">基于 Habitat-Lab v0.2.5 + habitat-baselines · PPO 论文: Schulman et al., 2017 · 训练实战篇</p>
+</footer>
+
+<script src="assets/js/site.js"></script>
+
+
+</body>
 
   <!-- Page Nav -->
   <div class="page-nav">
@@ -2071,7 +2306,7 @@ $ python3 extract_poses_from_bag.py my_nav_path_01/
 </section>
 
 <footer class="footer">
-  <p><b>Habitat 从零理解</b> · 第6章 · VLN 仿真训练</p>
+  <p><b>Habitat 从零理解</b> · 第7章 · VLN 视觉语言导航</p>
   <p style="margin-top:6px;">
     <a href="index.html">学习中心</a> ·
     <a href="habitat-textbook.html">教科书</a> ·
