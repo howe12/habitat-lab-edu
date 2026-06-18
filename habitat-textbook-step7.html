@@ -3,1038 +3,2084 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>第7步：真机部署 · 方法一 — Habitat 从零理解</title>
+<title>第7步：VLN 视觉语言导航 — Habitat 从零理解</title>
 <link rel="stylesheet" href="assets/css/theme.css">
-<style>
-  /* ── Step 7 专属样式：ROS topic 标签 ─── */
-  .topic-tag {
-    display: inline-block; font-family: 'JetBrains Mono', monospace;
-    font-size: 0.76rem; font-weight: 600; padding: 2px 8px;
-    border-radius: 4px; margin: 2px 4px 2px 0;
-  }
-  .topic-sub {
-    background: #3b82f620; color: #93c5fd; border: 1px solid #3b82f640;
-  }
-  .topic-pub {
-    background: #10b98120; color: #6ee7b7; border: 1px solid #10b98140;
-  }
 
-  /* ── Step 7 补充变量 ─── */
+<style>
+  /* ── Step 6 补充变量 ─── */
   :root {
-    --accent-ros: #f59e0b;
-    --accent-spark: #ec4899;
-    --accent-nav2: #10b981;
+    --accent-vln: #2dd4bf;
+    --accent-sensor: #f59e0b;
+    --accent-train: #a78bfa;
+    --accent-sota: #f472b6;
+    --accent-finetune: #a78bfa;
   }
 </style>
 </head>
 <body>
 
-<nav class="topnav">
+<!-- ═══════════════ TOP NAV ═══════════════ -->
+<nav class="topnav" id="topnav">
   <a href="index.html">🏠 门户</a>
   <span class="sep">|</span>
   <a href="habitat-textbook.html">📗 教科书</a>
   <span class="sep">/</span>
-  <a href="habitat-textbook-step6.html">第6步：VLN 仿真训练</a>
+  <a href="habitat-textbook-step6.html">第6步：RL 训练入门</a>
   <span class="sep">/</span>
-  <span class="current">第7步：方法一 · VLN+ROS Nav2</span>
+  <span class="current">第7步：VLN 视觉语言导航</span>
   <span class="sep" style="margin-left:auto;"></span>
-  <a href="habitat-textbook-step8.html">🧠 方法二：VLM 端到端 →</a>
+  <a href="habitat-textbook-step7.html">🤖 方法一：VLN+ROS →</a>
 </nav>
 
+<!-- ═══════════════ HERO ═══════════════ -->
 <header class="hero">
-  <div class="step-badge">STEP 7 · 部署轨 · 方法一</div>
-  <h1>真机部署：VLN 模型 + ROS Nav2</h1>
+  <div class="step-badge">第 7 步 · VLN 专线 — 从入门到部署</div>
+  <h1>VLN 视觉语言导航</h1>
   <p class="subtitle">
-    VLN 模型做<b>高层决策</b>（看 RGB + 读指令 → 选子目标） →
-    ROS Nav2 做<b>底层导航</b>（规划路径 + 避障 → 到达子目标）。
-    适用于 Spark-I (ROS Noetic) 和 Leo (ROS 2 Humble)。
+    在 Habitat 中训练视觉语言导航（VLN）模型：配置 VLN-v0 任务、理解 R2R 数据集与 InstructionSensor、
+    跑通模仿学习 + DDPPO 微调、导出 <code>checkpoint</code> 为真机部署做准备。
   </p>
 </header>
 
-<!-- ═══════════════ 概览 ═══════════════ -->
+<!-- ═══════════════ 本章概览 ═══════════════ -->
 <section>
 <div class="container">
 
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-ros);"></span> 本章概览：6 个案例</h2>
-  <p class="section-subtitle">
-    从理解架构到在真实机器人上跑通 VLN。每个案例建立在前一个之上。
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 本章概览：8 个案例</h2>
+  <p class="section-subtitle">从 IL 训练到诊断修复，从 SOTA 参照到模型微调——VLN 一条线走到底。前置：<a href="habitat-textbook-step5.html" style="color:#a78bfa;">第5步「导航任务全景」§1.6</a> 已介绍 VLN 是什么。
+      </p>
+      <p class="section-subtitle" style="display:none;">
+    从配置到训练到导出，每一步都可独立运行和验证。建议按顺序完成。
   </p>
 
   <table class="compare-table">
-    <thead><tr><th style="width:50px;">#</th><th style="width:220px;">案例</th><th>你将学会</th><th style="width:60px;">难度</th></tr></thead>
+    <thead>
+      <tr><th style="width:50px;">#</th><th style="width:180px;">案例</th><th>你将学会</th><th style="width:60px;">难度</th><th style="width:90px;">前置条件</th></tr>
+    </thead>
     <tbody>
       <tr>
-        <td style="color:#c4b5fd;font-weight:700;">7-1</td>
-        <td><a href="#case7-1">理解部署架构</a></td>
-        <td>VLN → 子目标 → Nav2 的整体数据流，为什么这样拆分</td>
+        <td style="color:#2dd4bf;font-weight:700;">7-1</td>
+        <td><a href="#case7-1">配置 VLN 任务</a></td>
+        <td>VLN-v0 任务配置、R2R 数据集加载、验证环境可创建</td>
         <td>⭐⭐</td>
+        <td>Step 2</td>
       </tr>
       <tr>
-        <td style="color:#c4b5fd;font-weight:700;">7-2</td>
-        <td><a href="#case7-2">ROS 软件包骨架</a></td>
-        <td>完整的 ROS package：vln_inference + goal_publisher + launch 文件</td>
-        <td>⭐⭐⭐</td>
+        <td style="color:#2dd4bf;font-weight:700;">7-2</td>
+        <td><a href="#case7-2">理解数据与传感器</a></td>
+        <td>R2R episode 结构、InstructionSensor 原理、observation 空间</td>
+        <td>⭐⭐</td>
+        <td>7-1</td>
       </tr>
       <tr>
         <td style="color:#fbbf24;font-weight:700;">7-3</td>
-        <td><a href="#case7-3">适配 Spark-I / Leo</a></td>
-        <td>两种机器人的 topic 映射、TF 树配置、相机内参标定</td>
+        <td><a href="#case7-3">模仿学习训练</a></td>
+        <td>IL 训练流程、teacher-forcing、checkpoint 保存</td>
         <td>⭐⭐⭐</td>
+        <td>7-2, Step 5</td>
       </tr>
       <tr>
         <td style="color:#fbbf24;font-weight:700;">7-4</td>
-        <td><a href="#case7-4">联调与部署</a></td>
-        <td>启动全部节点、发送指令、观察导航全流程、调试技巧</td>
+        <td><a href="#case7-4">评估与导出模型</a></td>
+        <td>SR/SPL/nDTW 指标、模型推理模式、导出 checkpoint</td>
         <td>⭐⭐</td>
+        <td>7-3</td>
       </tr>
-
       <tr>
-        <td style="color:#38bdf8;font-weight:700;">7-5</td>
-        <td><a href="#case7-5">云-边-端 VLN 架构</a></td>
-        <td>真机采集+云端推理的分离架构、FastAPI 推理服务、延迟预算</td>
+        <td style="color:#ec4899;font-weight:700;">7-4</td>
+        <td><a href="#case7-4">避坑诊断</a></td>
+        <td>CLIP实验、行为漂移分析——学会诊断ML工程问题</td>
         <td>⭐⭐⭐</td>
+        <td>7-3</td>
       </tr>
       <tr>
-        <td style="color:#a3e635;font-weight:700;">7-6</td>
-        <td><a href="#case7-6">仿真与真机测试计划</a></td>
-        <td>Phase 1 Gazebo 7 项测试 + Phase 2 真机 6 项测试 + 安全守则</td>
-        <td>⭐⭐</td>
+        <td style="color:#8b5cf6;font-weight:700;">7-5</td>
+        <td><a href="#case7-5">DAgger 桥接</a></td>
+        <td>IL 32% → DAgger 50% → RL 55%+ 三阶梯对比</td>
+        <td>⭐⭐⭐⭐</td>
+        <td>7-4</td>
+      </tr>
+      <tr>
+        <td style="color:#f472b6;font-weight:700;">7-6</td>
+        <td><a href="#case7-6">SOTA 参照</a></td>
+        <td>运行 JanusVLN，对比小模型，理解参数量级差距</td>
+        <td>⭐⭐⭐</td>
+        <td>7-5</td>
+      </tr>
+      <tr>
+        <td style="color:#a78bfa;font-weight:700;">7-7</td>
+        <td><a href="#case7-7">模型微调</a></td>
+        <td>LoRA微调JanusVLN、数据采集方法论</td>
+        <td>⭐⭐⭐⭐</td>
+        <td>7-6</td>
       </tr>
     </tbody>
   </table>
 
+  <!-- Progress -->
   <div class="progress-section">
-      <div class="progress-label"><span>学习进度</span><span id="progress-text">0 / 4 阶段完成</span></div>
+      <div class="progress-label"><span>学习进度</span><span id="progress-text">0 / 8 阶段完成</span></div>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
     </div>
   <ul class="checklist" id="checklist">
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-1: 理解 VLN → ROS Nav2 架构</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-2: 创建并编译 ROS package</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-3: 适配机器人硬件配置</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-4: 真机联调成功</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-1: 配置并验证 VLN-v0 环境</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-2: 理解 R2R 数据和 InstructionSensor</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-3: 跑通 VLN 模仿学习训练</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">7-4: 诊断 SR=32% 的根因</div></li>
   </ul>
 
 </div>
 </section>
 
-<!-- ═══════════════ 7-1: 理解部署架构 ═══════════════ -->
-<section id="case7-1">
+<!-- ═══════════════ 前置：MP3D 与 VLN 的必要关系 ═══════════════ -->
+<section>
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-ros);"></span> 7-1 · 理解部署架构</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-warn);"></span> 为什么 VLN 必须依赖 Matterport3D？</h2>
+  <p class="section-subtitle">从 IL 训练到诊断修复，从 SOTA 参照到模型微调——VLN 一条线走到底。前置：<a href="habitat-textbook-step5.html" style="color:#a78bfa;">第5步「导航任务全景」§1.6</a> 已介绍 VLN 是什么。
+      </p>
+      <p class="section-subtitle" style="display:none;">
+    这不是 Habitat 的限制，而是 VLN 任务本身的定义方式决定的。
+  </p>
 
   <div class="info-box">
-    <div class="info-title">① 案例含义 — 为什么用 VLN + Nav2 而不是端到端？</div>
+    <div class="info-title">R2R —— VLN 领域的"ImageNet"</div>
     <p>
-      方法一的核心理念是<b>分而治之</b>：VLN 模型擅于<b>理解指令 + 识别视觉地标</b>（"走到厨房水池前"），
-      但不擅于<b>底层的避障和路径规划</b>。ROS Nav2 正好相反——它能在已知地图中高效规划路径、动态避障，
-      但它不理解自然语言指令。
+      R2R (Room-to-Room) 是 CVPR 2018 提出的视觉语言导航基准数据集，至今<b>每篇 VLN 论文都以它为评测标准</b>。
+      它的采集方式是：人类标注者在 <b>90 栋 Matterport3D 建筑</b>中行走，用自然语言写下导航指令，
+      例如 <em>"Walk down the hallway, turn left at the painting, and stop in front of the bed."</em>
       <br><br>
-      <b>两者分工：</b>VLN 负责"要去哪里"，Nav2 负责"怎么过去"。
+      <b>这决定了：语言指令和 MP3D 场景是绑定的。</b> 换一栋建筑，"绘画"和"走廊"都不同了，指令不再有意义。
+      正因为如此，VLN 任务无法像 PointNav 那样在不同场景数据集间切换。
     </p>
   </div>
 
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 系统架构图</h3>
+  <h3 style="margin-top:20px;color:var(--text-dim);">数据依赖链</h3>
 
   <div class="arch-diagram">
-    <div style="font-size:0.85rem;color:#c4b5fd;font-weight:700;margin-bottom:18px;">三层架构：感知 → 决策 → 执行</div>
-
     <div class="arch-row">
-      <div class="arch-layer" style="background:#3b82f620;border:2px solid #3b82f6;min-width:180px;">
-        📷 RGB 相机<br><small>/camera/rgb (sensor_msgs/Image)</small>
+      <div class="arch-layer" style="background:#ef444420;border:2px solid #ef4444;min-width:220px;">
+        R2R 数据集<br><small>10,819 条导航指令</small>
       </div>
-      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;min-width:180px;">
-        📍 Odometry<br><small>/odom (nav_msgs/Odometry)</small>
+      <div style="margin:0 12px;color:var(--text-dim);align-self:center;">引用</div>
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:220px;">
+        MP3D 场景 ID<br><small>90 栋建筑的 .glb 文件</small>
       </div>
-      <div class="arch-layer" style="background:#ec489920;border:2px solid #ec4899;min-width:180px;">
-        🗺️ 地图<br><small>/map (预建 2D 占据栅格)</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; 输入到 &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#8b5cf620;border:2px solid #8b5cf6;min-width:500px;">
-        <b>vln_inference_node</b> &nbsp; (Python)<br>
-        <small>加载 VLN checkpoint → 接收 RGB → 推理 → 输出子目标位姿 (x, y, θ)</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; <code>vln_ros/GoalPose</code> &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:320px;">
-        <b>goal_publisher_node</b> &nbsp; (Python)<br>
-        <small>子目标位姿 → action 格式<br>→ /navigate_to_pose</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; <code>/navigate_to_pose</code> (MoveToGoal Action) &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b80;min-width:500px;">
-        <b>ROS Nav2 Stack</b><br>
-        <small>Global Planner → Local Planner → Controller → /cmd_vel → 电机</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; 到达后 &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#14b8a620;border:2px solid #14b8a6;min-width:320px;">
-        <b>循环：拍新 RGB → VLN 预测下一子目标</b><br>
-        <small>直到 VLN 输出 STOP（到达最终目标）</small>
+      <div style="margin:0 12px;color:var(--text-dim);align-self:center;">运行时</div>
+      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;min-width:220px;">
+        VLN 仿真器<br><small>Instruction → Action → SR/SPL/nDTW</small>
       </div>
     </div>
   </div>
 
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">节点通信拓扑</h3>
+  <p style="margin-top:16px;">
+    Habitat 的 VLN 代码（<code>VLNDatasetV1</code> / <code>VLNTask</code>）本身是<b>场景无关的</b>。
+    但整个 Habitat-Lab 中只注册了 <code>R2RVLN-v1</code> 这一个 VLN 数据集，
+    它的配置硬编码指向 <code>data/datasets/vln/mp3d/r2r/</code>，而其中的 episodes 引用的都是 MP3D 场景。
+  </p>
 
-  <table class="compare-table">
-    <thead><tr><th>节点</th><th>订阅 (Subscribe)</th><th>发布 (Publish)</th></tr></thead>
+  <h3 style="margin-top:20px;color:var(--text-dim);">无需认证的获取方案</h3>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>文件</th><th>大小</th><th>来源</th><th>覆盖</th><th>需要认证？</th></tr></thead>
     <tbody>
       <tr>
-        <td><b>vln_inference_node</b></td>
-        <td><span class="topic-tag topic-sub">/camera/rgb</span> <span class="topic-tag topic-sub">/odom</span></td>
-        <td><span class="topic-tag topic-pub">/vln/subgoal_pose</span></td>
+        <td><code>vln_r2r_mp3d_v1.zip</code></td>
+        <td>2.7 MB</td>
+        <td>Facebook CDN（<code>dl.fbaipublicfiles.com</code>）</td>
+        <td>10,819 训练 + 1,020 验证 episodes</td>
+        <td style="color:#4ade80;">否</td>
       </tr>
       <tr>
-        <td><b>goal_publisher_node</b></td>
-        <td><span class="topic-tag topic-sub">/vln/subgoal_pose</span></td>
-        <td><span class="topic-tag topic-pub">/navigate_to_pose</span> (Action)</td>
+        <td><code>MatterPort3D.zip</code></td>
+        <td>665 MB</td>
+        <td>清华大学云盘</td>
+        <td>11 个场景（val_unseen 全集）</td>
+        <td style="color:#4ade80;">否</td>
       </tr>
       <tr>
-        <td><b>Nav2 (bt_navigator)</b></td>
-        <td><span class="topic-tag topic-sub">/navigate_to_pose</span></td>
-        <td><span class="topic-tag topic-pub">/cmd_vel</span> <span class="topic-tag topic-pub">/plan</span></td>
-      </tr>
-      <tr>
-        <td><b>vln_orchestrator</b></td>
-        <td><span class="topic-tag topic-sub">/navigate_to_pose/result</span></td>
-        <td><span class="topic-tag topic-pub">/vln/trigger_next</span></td>
+        <td><code>mp3d_example</code></td>
+        <td>93 MB</td>
+        <td>Habitat 内置（<code>datasets_download</code>）</td>
+        <td>1 个场景（17DRP5sb8fy）</td>
+        <td style="color:#4ade80;">否</td>
       </tr>
     </tbody>
   </table>
 
-  <div class="tip-box">
-    <div class="tip-title">💡 为什么中间加一个 goal_publisher_node？</div>
+  <div class="tip-box" style="margin-top:16px;">
+    <div class="tip-title">当前状态：12 个场景，可完整走通 VLN 流程</div>
     <p>
-      VLN 模型输出的子目标可能只是 <code>(x, y, θ)</code> 三个数，但 Nav2 的
-      <code>NavigateToPose</code> action 需要完整的 <code>geometry_msgs/PoseStamped</code>。
-      goal_publisher_node 专门负责<b>格式转换 + 坐标系变换</b>（从 VLN 的局部坐标系到 map 坐标系），
-      保持 vln_inference_node 干净——它只做一件事：模型推理。
+      以上三样合计 <b>&lt; 800 MB</b>，全部免除认证。覆盖：
+      <br>• <b>训练</b>：17DRP5sb8fy 在 R2R train 中有 75 条指令，足够演示训练流程
+      <br>• <b>评估</b>：11 个 val_unseen 场景覆盖 1,839 条指令，可直接跑标准 val_unseen 评估
+      <br>• 如需完整 90 场景（训练出可发表级 VLN 模型），才需要官方申请 Matterport3D
     </p>
   </div>
 
-  <div class="dual-panel">
-    <div class="panel">
-      <h4 style="color:#2dd4bf;">✅ 这个架构的优点</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        • VLN 模型和 Nav2 独立运行，一方崩溃不影响另一方<br>
-        • Nav2 已有成熟的定位/规划/避障能力，不需要从头实现<br>
-        • 更换 VLN 模型（如换更大的 backbone）不影响导航层<br>
-        • 调试时可以单独测试每个节点的输入输出
-      </p>
-    </div>
-    <div class="panel">
-      <h4 style="color:#fbbf24;">⚠️ 这个架构的局限</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        • 需要预建地图（Nav2 的依赖）——不能在新环境中即开即用<br>
-        • VLN 和 Nav2 的目标粒度需要调校（子目标设太远则 VLN 失去控制<br>
-        &nbsp;&nbsp;子目标设太近则效率低）<br>
-        • 多了一个通信环节，增加了延迟
-      </p>
-    </div>
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">有其他数据集可以替代吗？</div>
+    <p>
+      <b>严格来说，没有。</b> 虽然存在 RxR（多语言 R2R）、REVERIE、SOON 等扩展 VLN 数据集，
+      但它们全部基于 MP3D 场景采集。HM3D 和 Gibson 都<b>没有</b>对应的 VLN 指令数据集。
+      如果你将来想对比发表的 VLN 模型或参加 Habitat Challenge，MP3D 是必经之路。
+    </p>
   </div>
+
 </div>
 </section>
 
-<!-- ═══════════════ 7-2: ROS 软件包骨架 ═══════════════ -->
-<section id="case7-2">
+<!-- ═══════════════ 7-1: 配置 VLN 任务 ═══════════════ -->
+
+<!-- ═══════════════ 前置：VLN 理论基础 ═══════════════ -->
+<section>
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-ros);"></span> 7-2 · ROS 软件包骨架</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 前置 · VLN 理论基础</h2>
+
+  <p>在动手写代码之前，先建立 VLN 的心智模型。</p>
 
   <div class="info-box">
-    <div class="info-title">① 案例含义</div>
+    <div class="info-title">VLN 一句话定义</div>
     <p>
-      创建一个完整的 ROS package <code>vln_ros</code>，包含 VLN 推理节点和目标发布节点。
-      即使在<b>没有 VLN 模型 checkpoint</b> 的情况下也能编译并验证通信链路——我们可以先用一个
-      mock 节点输出固定坐标来测试整个 pipeline。
+      <b>Visual Language Navigation（视觉语言导航）</b>：
+      给定一段自然语言指令（如"走过厨房，在卧室门口停下"），Agent 仅凭 RGB 视觉观测，
+      在 3D 环境中逐步移动，最终停在指令描述的目标位置。
     </p>
   </div>
 
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 核心代码：文件结构</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">vln_ros/                          # ROS package 根目录</span>
-├── CMakeLists.txt                <span class="cmt"># 编译配置</span>
-├── package.xml                   <span class="cmt"># 包元数据</span>
-├── launch/
-│   ├── vln_nav_bringup.launch    <span class="cmt"># ROS 1 (Spark-I) 启动文件</span>
-│   └── vln_nav_bringup_ros2.launch.py  <span class="cmt"># ROS 2 (Leo) 启动文件</span>
-├── config/
-│   └── vln_params.yaml           <span class="cmt"># 模型路径、相机话题、坐标参数</span>
-├── scripts/
-│   ├── vln_inference_node.py     <span class="cmt"># VLN 模型推理节点</span>
-│   ├── goal_publisher_node.py    <span class="cmt"># 子目标发布节点</span>
-│   └── vln_orchestrator.py       <span class="cmt"># 主循环编排器</span>
-└── models/
-    └── (vln_inference.pth)       <span class="cmt"># Step 6 导出的模型权重</span></div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">vln_inference_node.py — 核心推理节点</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">#!/usr/bin/env python3</span>
-<span class="cmt"># vln_inference_node.py — VLN 模型推理节点</span>
-<span class="cmt"># 从 /camera/rgb 读图像 + 从参数服务器读指令 → 输出子目标位姿</span>
-<span class="kw">import</span> rospy
-<span class="kw">import</span> numpy <span class="kw">as</span> np
-<span class="kw">import</span> torch
-<span class="kw">from</span> sensor_msgs.msg <span class="kw">import</span> Image
-<span class="kw">from</span> geometry_msgs.msg <span class="kw">import</span> Pose2D
-<span class="kw">from</span> cv_bridge <span class="kw">import</span> CvBridge
-
-<span class="kw">class</span> <span class="fn">VLNInferenceNode</span>:
-    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>):
-        rospy.init_node(<span class="str">"vln_inference_node"</span>)
-
-        <span class="cmt"># 加载模型</span>
-        model_path = rospy.get_param(<span class="str">"~model_path"</span>, <span class="str">"models/vln_inference.pth"</span>)
-        <span class="kw">self</span>.model = <span class="kw">self</span>._load_model(model_path)
-        <span class="kw">self</span>.bridge = CvBridge()
-        <span class="kw">self</span>.instruction = rospy.get_param(<span class="str">"~instruction"</span>, <span class="str">""</span>)
-
-        <span class="cmt"># Publisher: 输出子目标位姿 (相对坐标)</span>
-        <span class="kw">self</span>.goal_pub = rospy.Publisher(<span class="str">"/vln/subgoal_pose"</span>, Pose2D, queue_size=<span class="num">1</span>)
-
-        <span class="cmt"># Subscriber: 相机图像</span>
-        camera_topic = rospy.get_param(<span class="str">"~camera_topic"</span>, <span class="str">"/camera/rgb/image_raw"</span>)
-        <span class="kw">self</span>.img_sub = rospy.Subscriber(camera_topic, Image, <span class="kw">self</span>._image_cb)
-
-        rospy.loginfo(<span class="str">"VLN 推理节点已启动，等待图像..."</span>)
-
-    <span class="kw">def</span> <span class="fn">_load_model</span>(<span class="kw">self</span>, path):
-        <span class="cmt"># 从 Step 6 导出的 checkpoint 加载模型</span>
-        <span class="cmt"># 实际使用时替换为你的 VLN Policy 类</span>
-        model = torch.load(path, map_location=<span class="str">"cpu"</span>)
-        model.eval()
-        <span class="kw">return</span> model
-
-    <span class="kw">def</span> <span class="fn">_image_cb</span>(<span class="kw">self</span>, msg):
-        <span class="cmt"># 收到图像 → 推理 → 发布子目标</span>
-        cv_img = <span class="kw">self</span>.bridge.imgmsg_to_cv2(msg, <span class="str">"rgb8"</span>)
-        <span class="cmt"># 预处理: resize → normalize → tensor</span>
-        img_tensor = torch.from_numpy(cv_img).permute(<span class="num">2</span>, <span class="num">0</span>, <span class="num">1</span>).float() / <span class="num">255.0</span>
-        img_tensor = img_tensor.unsqueeze(<span class="num">0</span>)  <span class="cmt"># (1, 3, H, W)</span>
-
-        <span class="kw">with</span> torch.no_grad():
-            <span class="cmt"># 模型输出: 动作类别 (0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT)</span>
-            action_logits = <span class="kw">self</span>.model(img_tensor, <span class="kw">self</span>.instruction)
-            action = torch.argmax(action_logits, dim=<span class="num">-1</span>).item()
-
-        <span class="cmt"># 将动作转换为子目标位姿</span>
-        pose = <span class="kw">self</span>._action_to_pose(action)
-        <span class="kw">self</span>.goal_pub.publish(pose)
-
-    <span class="kw">def</span> <span class="fn">_action_to_pose</span>(<span class="kw">self</span>, action):
-        <span class="cmt"># 简化版：将离散动作映射为相对位姿</span>
-        <span class="cmt"># 0=STOP → 原地，1=FORWARD → 前方 1m，2=LEFT → 原地左转90°</span>
-        <span class="cmt"># 3=RIGHT → 原地右转90°</span>
-        pose = Pose2D()
-        <span class="kw">if</span> action == <span class="num">0</span>:    <span class="cmt"># STOP — 已到达最终目标</span>
-            pose.x, pose.y, pose.theta = <span class="num">0.0</span>, <span class="num">0.0</span>, <span class="num">0.0</span>
-        <span class="kw">elif</span> action == <span class="num">1</span>:  <span class="cmt"># MOVE_FORWARD</span>
-            pose.x, pose.y, pose.theta = <span class="num">1.0</span>, <span class="num">0.0</span>, <span class="num">0.0</span>
-        <span class="kw">elif</span> action == <span class="num">2</span>:  <span class="cmt"># TURN_LEFT</span>
-            pose.x, pose.y, pose.theta = <span class="num">0.0</span>, <span class="num">0.0</span>, <span class="num">1.5708</span>  <span class="cmt"># 90° in rad</span>
-        <span class="kw">elif</span> action == <span class="num">3</span>:  <span class="cmt"># TURN_RIGHT</span>
-            pose.x, pose.y, pose.theta = <span class="num">0.0</span>, <span class="num">0.0</span>, -<span class="num">1.5708</span>
-        <span class="kw">return</span> pose
-
-<span class="kw">if</span> __name__ == <span class="str">"__main__"</span>:
-    VLNInferenceNode()
-    rospy.spin()</div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">goal_publisher_node.py — 子目标→Nav2</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">#!/usr/bin/env python3</span>
-<span class="cmt"># goal_publisher_node.py — 将 VLN 输出的相对位姿转为 Nav2 Action Goal</span>
-<span class="kw">import</span> rospy
-<span class="kw">import</span> tf2_ros
-<span class="kw">import</span> actionlib
-<span class="kw">from</span> geometry_msgs.msg <span class="kw">import</span> Pose2D, PoseStamped
-<span class="kw">from</span> move_base_msgs.msg <span class="kw">import</span> MoveBaseAction, MoveBaseGoal
-
-<span class="kw">class</span> <span class="fn">GoalPublisherNode</span>:
-    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>):
-        rospy.init_node(<span class="str">"goal_publisher_node"</span>)
-
-        <span class="cmt"># TF 缓存 — 用于把 VLN 输出的相对坐标转换到 map 坐标系</span>
-        <span class="kw">self</span>.tf_buffer = tf2_ros.Buffer()
-        <span class="kw">self</span>.tf_listener = tf2_ros.TransformListener(<span class="kw">self</span>.tf_buffer)
-
-        <span class="cmt"># Nav2 / move_base Action 客户端</span>
-        <span class="kw">self</span>.ac = actionlib.SimpleActionClient(<span class="str">"move_base"</span>, MoveBaseAction)
-        rospy.loginfo(<span class="str">"等待 move_base action server..."</span>)
-        <span class="kw">self</span>.ac.wait_for_server()
-        rospy.loginfo(<span class="str">"已连接到 move_base!"</span>)
-
-        <span class="cmt"># 订阅 VLN 子目标</span>
-        rospy.Subscriber(<span class="str">"/vln/subgoal_pose"</span>, Pose2D, <span class="kw">self</span>._goal_cb)
-
-    <span class="kw">def</span> <span class="fn">_goal_cb</span>(<span class="kw">self</span>, pose2d):
-        <span class="kw">if</span> pose2d.x == <span class="num">0</span> <span class="kw">and</span> pose2d.y == <span class="num">0</span> <span class="kw">and</span> pose2d.theta == <span class="num">0</span>:
-            rospy.loginfo(<span class="str">"收到 STOP 信号，取消导航"</span>)
-            <span class="kw">self</span>.ac.cancel_all_goals()
-            <span class="kw">return</span>
-
-        <span class="cmt"># 根据当前 odom 变换，将相对坐标转为绝对 map 坐标</span>
-        <span class="kw">try</span>:
-            trans = <span class="kw">self</span>.tf_buffer.lookup_transform(
-                <span class="str">"map"</span>, <span class="str">"base_link"</span>, rospy.Time(<span class="num">0</span>), rospy.Duration(<span class="num">1.0</span>)
-            )
-        <span class="kw">except</span> <span class="kw">Exception</span> <span class="kw">as</span> e:
-            rospy.logwarn(<span class="str">f"TF lookup 失败: {e}"</span>)
-            <span class="kw">return</span>
-
-        goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = <span class="str">"map"</span>
-        goal.target_pose.header.stamp = rospy.Time.now()
-        <span class="cmt"># 在当前位置基础上叠加 VLN 输出的相对位移</span>
-        goal.target_pose.pose.position.x = trans.transform.translation.x + pose2d.x
-        goal.target_pose.pose.position.y = trans.transform.translation.y + pose2d.y
-        goal.target_pose.pose.orientation.w = <span class="num">1.0</span>  <span class="cmt"># 保持当前朝向</span>
-
-        rospy.loginfo(<span class="str">f"发送导航目标: ({goal.target_pose.pose.position.x:.2f}, "</span>
-                      <span class="str">f"{goal.target_pose.pose.position.y:.2f})"</span>)
-        <span class="kw">self</span>.ac.send_goal(goal)
-
-<span class="kw">if</span> __name__ == <span class="str">"__main__"</span>:
-    GoalPublisherNode()
-    rospy.spin()</div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">ROS 1 Launch 文件 (Spark-I)</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">&lt;!-- launch/vln_nav_bringup.launch — Spark-I (ROS Noetic) --&gt;</span>
-<span class="kw">&lt;launch&gt;</span>
-  <span class="cmt">&lt;!-- 1. Nav2 / move_base --&gt;</span>
-  <span class="kw">&lt;include</span> <span class="key">file</span>=<span class="str">"$(find spark_navigation)/launch/move_base.launch"</span><span class="kw">/&gt;</span>
-
-  <span class="cmt">&lt;!-- 2. VLN 推理节点 --&gt;</span>
-  <span class="kw">&lt;node</span> <span class="key">name</span>=<span class="str">"vln_inference"</span> <span class="key">pkg</span>=<span class="str">"vln_ros"</span> <span class="key">type</span>=<span class="str">"vln_inference_node.py"</span> <span class="key">output</span>=<span class="str">"screen"</span><span class="kw">&gt;</span>
-    <span class="kw">&lt;param</span> <span class="key">name</span>=<span class="str">"model_path"</span> <span class="key">value</span>=<span class="str">"$(find vln_ros)/models/vln_inference.pth"</span><span class="kw">/&gt;</span>
-    <span class="kw">&lt;param</span> <span class="key">name</span>=<span class="str">"instruction"</span> <span class="key">value</span>=<span class="str">"Walk down the hallway and stop at the kitchen entrance."</span><span class="kw">/&gt;</span>
-    <span class="kw">&lt;param</span> <span class="key">name</span>=<span class="str">"camera_topic"</span> <span class="key">value</span>=<span class="str">"/camera/color/image_raw"</span><span class="kw">/&gt;</span>
-  <span class="kw">&lt;/node&gt;</span>
-
-  <span class="cmt">&lt;!-- 3. 子目标→Nav2 桥接节点 --&gt;</span>
-  <span class="kw">&lt;node</span> <span class="key">name</span>=<span class="str">"goal_publisher"</span> <span class="key">pkg</span>=<span class="str">"vln_ros"</span> <span class="key">type</span>=<span class="str">"goal_publisher_node.py"</span> <span class="key">output</span>=<span class="str">"screen"</span><span class="kw">/&gt;</span>
-<span class="kw">&lt;/launch&gt;</span></div>
-  </div>
-
-  <div class="tip-box">
-    <div class="tip-title">💡 先 Mock 测试，再接入真实 VLN 模型</div>
-    <p>
-      建议先用一个 <b>mock 节点</b>替代 vln_inference_node（例如：每 3 秒发布一个固定的子目标坐标），
-      先验证整个 pipeline 的通信链路（RGB → ??? → subgoal → Nav2 → /cmd_vel → 机器人移动）可以跑通。
-      <br><br>
-      通信链路验证通过后，再替换为真实的 VLN 推理节点。这样可以<b>分隔问题域</b>——如果导航失败，
-      你知道是 VLN 输出的问题还是 Nav2 配置的问题。
-    </p>
-  </div>
-</div>
-</section>
-
-<!-- ═══════════════ 7-3: 适配 Spark-I / Leo ═══════════════ -->
-<section id="case7-3">
-<div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-spark);"></span> 7-3 · 适配 Spark-I / Leo</h2>
-
-  <div class="info-box">
-    <div class="info-title">① 案例含义</div>
-    <p>
-      两种机器人使用不同版本的 ROS 和不同的传感器配置。本案例提供两台机器人的<b>差异化配置表</b>
-      和<b>ROS 2 版本的 launch 文件</b>（Leo 使用 ROS 2 Humble）。
-    </p>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 配置差异对比</h3>
+  <p style="margin-top:12px;"><b>为什么它比 PointNav 难？</b></p>
 
   <table class="compare-table">
-    <thead><tr><th>配置项</th><th>Spark-I</th><th>Leo</th></tr></thead>
+    <thead><tr><th>维度</th><th>PointNav</th><th>VLN</th></tr></thead>
     <tbody>
-      <tr>
-        <td><b>ROS 版本</b></td>
-        <td>ROS Noetic (Ubuntu 20.04)</td>
-        <td>ROS 2 Humble (Ubuntu 22.04)</td>
-      </tr>
-      <tr>
-        <td><b>RGB 相机 Topic</b></td>
-        <td><code>/camera/color/image_raw</code></td>
-        <td><code>/camera/image_raw</code></td>
-      </tr>
-      <tr>
-        <td><b>Odometry Topic</b></td>
-        <td><code>/odom</code></td>
-        <td><code>/odometry/filtered</code></td>
-      </tr>
-      <tr>
-        <td><b>导航框架</b></td>
-        <td>move_base (ROS 1)</td>
-        <td>Nav2 (ROS 2)</td>
-      </tr>
-      <tr>
-        <td><b>底盘运动 Topic</b></td>
-        <td><code>/cmd_vel</code></td>
-        <td><code>/cmd_vel</code></td>
-      </tr>
-      <tr>
-        <td><b>激光雷达 Topic</b></td>
-        <td><code>/scan</code> (360° LiDAR)</td>
-        <td><code>/scan</code></td>
-      </tr>
-      <tr>
-        <td><b>TF 基座 Frame</b></td>
-        <td><code>base_link</code></td>
-        <td><code>base_footprint</code></td>
-      </tr>
-      <tr>
-        <td><b>相机分辨率</b></td>
-        <td>640×480 (RealSense D435)</td>
-        <td>640×480</td>
-      </tr>
-      <tr>
-        <td><b>Python 版本</b></td>
-        <td>Python 3.8</td>
-        <td>Python 3.10</td>
-      </tr>
+      <tr><td>目标表示</td><td>GPS 坐标 (x,y) — 精确</td><td>自然语言 — 模糊、多义</td></tr>
+      <tr><td>推理需求</td><td>纯空间推理</td><td>视觉理解 + 语言理解 + 跨模态对齐</td></tr>
+      <tr><td>错误容忍</td><td>偏离 1m → 可能找不到</td><td>理解语义 → 能自我纠正</td></tr>
+      <tr><td>数据依赖</td><td>任何 3D 场景</td><td>需要人工标注指令（昂贵）</td></tr>
     </tbody>
   </table>
 
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">ROS 2 Launch 文件 (Leo)</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt"># launch/vln_nav_bringup_ros2.launch.py — Leo (ROS 2 Humble)</span>
-<span class="kw">from</span> launch <span class="kw">import</span> LaunchDescription
-<span class="kw">from</span> launch_ros.actions <span class="kw">import</span> Node
-<span class="kw">from</span> launch.actions <span class="kw">import</span> IncludeLaunchDescription
-<span class="kw">from</span> launch.launch_description_sources <span class="kw">import</span> PythonLaunchDescriptionSource
-
-<span class="kw">def</span> <span class="fn">generate_launch_description</span>():
-    <span class="kw">return</span> LaunchDescription([
-        <span class="cmt"># 1. Nav2 (Leo 自带)</span>
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(<span class="str">"$(find leo_navigation)/launch/nav2_bringup.launch.py"</span>)
-        ),
-
-        <span class="cmt"># 2. VLN 推理节点</span>
-        Node(
-            package=<span class="str">"vln_ros"</span>,
-            executable=<span class="str">"vln_inference_node.py"</span>,
-            name=<span class="str">"vln_inference"</span>,
-            parameters=[{
-                <span class="str">"model_path"</span>: <span class="str">"models/vln_inference.pth"</span>,
-                <span class="str">"instruction"</span>: <span class="str">"Navigate to the kitchen."</span>,
-                <span class="str">"camera_topic"</span>: <span class="str">"/camera/image_raw"</span>,
-            }],
-            output=<span class="str">"screen"</span>,
-        ),
-
-        <span class="cmt"># 3. 目标发布节点 (ROS 2 版本)</span>
-        Node(
-            package=<span class="str">"vln_ros"</span>,
-            executable=<span class="str">"goal_publisher_ros2.py"</span>,
-            name=<span class="str">"goal_publisher"</span>,
-            output=<span class="str">"screen"</span>,
-        ),
-    ])</div>
-  </div>
-
-  <div class="warn-box">
-    <div class="warn-title">⚠️ 适配时的关键检查项</div>
+  <div class="tip-box" style="margin-top:16px;">
+    <div class="tip-title">📖 详细理论参考</div>
     <p>
-      <b>1. 相机内参：</b>RealSense D435 的内参与 Habitat 仿真中的针孔相机参数不同。
-      如果 VLN 模型在仿真中训练时使用了特定的 FOV/分辨率，真机采集的图像需要<b>做预处理匹配</b>（crop/resize/FOV 矫正）。<br>
-      <b>2. TF 树完整性：</b>确保 <code>map → odom → base_link → camera_link</code> 链完整，
-      否则 goal_publisher_node 的 TF lookup 会失败。<br>
-      <b>3. Nav2 地图格式：</b>预建地图需要与当前环境一致。如果环境布局变了，需要重新建图。<br>
-      <b>4. Python 版本兼容：</b>ROS 1 (Python 3.8) 和 ROS 2 (Python 3.10) 的 pickle 格式兼容——确保
-      Step 6 导出的 checkpoint 能在两边加载。
-    </p>
-  </div>
-
-</div>
-</section>
-
-<!-- ═══════════════ 7-4: 联调与部署 ═══════════════ -->
-<section id="case7-4">
-<div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-nav2);"></span> 7-4 · 联调与部署</h2>
-
-  <div class="info-box">
-    <div class="info-title">① 案例含义</div>
-    <p>
-      将全部节点串联起来，在真机上跑通完整的 VLN 导航流程。包含启动顺序、验证方法和常见调试技巧。
-    </p>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 启动顺序与命令</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt"># ===== Spark-I (ROS Noetic) 启动流程 =====</span>
-
-<span class="cmt"># 终端 1: 启动机器人底层驱动</span>
-$ roslaunch spark_bringup base.launch
-
-<span class="cmt"># 终端 2: 启动激光雷达 + 相机</span>
-$ roslaunch spark_bringup sensors.launch
-
-<span class="cmt"># 终端 3: 启动 Nav2 / move_base（需要先建好地图）</span>
-$ roslaunch spark_navigation move_base.launch map_file:=/home/spark/maps/office.yaml
-
-<span class="cmt"># 终端 4: 启动 VLN 部署全栈</span>
-$ roslaunch vln_ros vln_nav_bringup.launch
-
-<span class="cmt"># 终端 5: 发送 VLN 指令（测试用）</span>
-$ rosservice call /vln/set_instruction <span class="str">"Go to the kitchen, then turn left and stop at the sink."</span>
-
-<span class="cmt"># ===== Leo (ROS 2 Humble) 启动流程 =====</span>
-
-<span class="cmt"># 终端 1: 机器人驱动</span>
-$ ros2 launch leo_bringup base.launch.py
-
-<span class="cmt"># 终端 2: Nav2</span>
-$ ros2 launch leo_navigation nav2_bringup.launch.py map:=/home/leo/maps/office.yaml
-
-<span class="cmt"># 终端 3: VLN 部署</span>
-$ ros2 launch vln_ros vln_nav_bringup_ros2.launch.py</div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 运行效果验证方法</h3>
-
-  <table class="compare-table">
-    <thead><tr><th>验证步骤</th><th>命令/方法</th><th>预期结果</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>1. 节点都在</td>
-        <td><code>rosnode list</code> 或 <code>ros2 node list</code></td>
-        <td>看到 vln_inference, goal_publisher, move_base/bt_navigator</td>
-      </tr>
-      <tr>
-        <td>2. Topic 有数据</td>
-        <td><code>rostopic echo /vln/subgoal_pose</code></td>
-        <td>每收到一帧图像后，输出一个子目标位姿</td>
-      </tr>
-      <tr>
-        <td>3. Nav2 收到 goal</td>
-        <td>观察 rviz 中的 /plan 和 /global_plan</td>
-        <td>每次 VLN 输出新子目标时，Nav2 重新规划路径</td>
-      </tr>
-      <tr>
-        <td>4. 机器人移动</td>
-        <td>直接观察机器人</td>
-        <td>机器人按规划路径移动，到达子目标后停止等待下一个</td>
-      </tr>
-      <tr>
-        <td>5. STOP 判定</td>
-        <td>VLN 输出 STOP 后 <code>rostopic echo /move_base/status</code></td>
-        <td>goal 被取消，机器人停止</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="warn-box">
-    <div class="warn-title">⚠️ 常见调试场景</div>
-    <p>
-      <b>场景 1："机器人不动"</b> → 检查 <code>rostopic echo /cmd_vel</code> 是否有输出。
-      如果 /cmd_vel 为空 → Nav2 没收到 goal → 检查 goal_publisher_node 的 TF lookup 是否成功。<br>
-      <b>场景 2："机器人走错方向"</b> → 90% 是坐标系问题。VLN 输出的坐标是相对 base_link 还是 map？
-      在 rviz 中添加 Pose 显示，可视化每个子目标的位置。<br>
-      <b>场景 3："VLN 推理太慢"</b> → 模型在 CPU 上推理可能 &gt;500ms。考虑使用 ONNX Runtime 或 TensorRT
-      加速，或将模型量化到 FP16/INT8。
-    </p>
-  </div>
-
-  <div class="tip-box">
-    <div class="tip-title">💡 调试建议：分阶段验证</div>
-    <p>
-      <b>Phase 1：</b>不用 VLN 模型，用手动 rviz "2D Nav Goal" 验证 Nav2 基本导航正常<br>
-      <b>Phase 2：</b>用 mock_vln_node（固定坐标输出）验证 vln → goal_publisher → Nav2 链路<br>
-      <b>Phase 3：</b>接入真实 VLN 模型，先用 rosbag 录好的图像数据做离线推理测试<br>
-      <b>Phase 4：</b>真机实时推理 + 导航
+      本章聚焦「动手实操」。如果你想深入了解 VLN 的技术流派（Seq2Seq / BERT-CLIP / LLM-VLM / 拓扑图 / 神经辐射场 / 世界模型）、
+      发展历程（R2R 2018 → RxR 2020 → REVERIE 2020 → VLN-CE 2022 → NaVid 2024）、
+      以及核心挑战（Sim2Real、长程记忆、多语言），请阅读
+      <a href="vln.html" style="color:#2dd4bf;">VLN 理论专题 →</a>。
     </p>
   </div>
 </div>
 </section>
 
-<!-- ═══════════════ 7-5: 云-边-端 VLN 架构 ═══════════════ -->
-<section id="case7-5">
+<section id="case7-1">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-cloud);"></span> 7-5 · 云-边-端 VLN 架构</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 7-1 · 配置 VLN 任务</h2>
 
   <!-- ① -->
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
     <p>
-      7-1 到 7-4 的架构假设 VLN 模型<b>本地运行</b>。但当模型大到 80 亿参数（JanusVLN），
-      真机的 Jetson / 树莓派根本跑不动。7-5 介绍<b>云-边-端分离</b>方案：
-      真机负责感知+执行，云端 GPU 负责推理。
+      使用 <code>habitat.get_config()</code> 加载 VLN 基准配置，创建一个 VLN 环境并验证它能正常
+      <code>reset()</code>。这是 VLN 训练的<b>最小验证单元</b>——如果这步不通过，后面的训练无从谈起。
+      <br><br>
+      <b>前置条件：</b>已安装 habitat-lab + habitat-sim。R2R 数据集和 MP3D 场景的获取方式见上方"为什么 VLN 必须依赖 Matterport3D"（无需认证，合计 &lt; 800MB）。
     </p>
   </div>
 
-  <!-- ② 架构图 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 系统架构</h3>
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 核心代码 & 关键函数</h3>
 
   <div class="code-block-wrapper">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="cmt"># ═══════════ 真机 (Spark-I, Jetson Orin) ═══════════</span>
-<span class="cmt">#   算力有限，只做采集 + 执行</span>
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># case_6_1_vln_env.py — 验证 VLN 环境可创建并 reset</span>
+<span class="kw">import</span> habitat
 
-<span class="cmt"># ═══════════ 云端 (L40 GPU 服务器) ═══════════</span>
-<span class="cmt">#   JanusVLN 推理，~2 秒/步</span>
+<span class="cmt"># VLN 使用专门的 benchmark 配置文件</span>
+config = habitat.get_config(
+    config_path=<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>
+)
 
-<span class="cmt"># 数据流:</span>
-<span class="cmt">#</span>
-<span class="cmt">#  真机 📷 ──JPEG(50KB)──→ 云端</span>
-<span class="cmt">#  真机 🤖 ←──action──── 云端 (JanusVLN 推理)</span>
-<span class="cmt">#</span>
-<span class="cmt">#  循环: 拍照→上传→推理→回传→Nav2执行→拍照→...</span></div>
+<span class="cmt"># 可选：覆盖数据集路径</span>
+<span class="kw">with</span> habitat.config.read_write(config):
+    config.habitat.dataset.data_path = <span class="str">"data/datasets/vln/r2r/v1/{split}/{split}.json.gz"</span>
+
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="cmt"># VLN 的 observation 包含语言指令</span>
+<span class="kw">print</span>(<span class="str">"观测键:"</span>, <span class="kw">list</span>(obs.keys()))
+<span class="kw">print</span>(<span class="str">"指令:"</span>, obs[<span class="str">"instruction"</span>][<span class="str">"text"</span>][:80], <span class="str">"..."</span>)
+<span class="kw">print</span>(<span class="str">"RGB shape:"</span>, obs[<span class="str">"rgb"</span>].shape)
+env.close()</div>
   </div>
-
-  <table class="compare-table" style="margin-top:12px;">
-    <thead><tr><th>模块</th><th>部署位置</th><th>硬件</th><th>职责</th></tr></thead>
-    <tbody>
-      <tr><td>📷 图像采集</td><td>真机</td><td>RealSense D435i</td><td>RGB 拍照 → JPEG 压缩</td></tr>
-      <tr><td>📤 图像上传</td><td>真机</td><td>WiFi/5G</td><td>HTTP POST 到云端</td></tr>
-      <tr><td>🧠 VLN 推理</td><td><b>云端</b></td><td><b>L40 GPU</b></td><td>JanusVLN: 图像+指令→动作</td></tr>
-      <tr><td>📥 动作回传</td><td>云端→真机</td><td>WiFi/5G</td><td>JSON {"action": "MOVE_FORWARD"}</td></tr>
-      <tr><td>🗺️ 动作映射</td><td>真机</td><td>Jetson CPU</td><td>FORWARD → Nav2 目标位姿</td></tr>
-      <tr><td>🚗 路径规划+控制</td><td>真机</td><td>Jetson + 电机</td><td>ROS Nav2 规划+执行</td></tr>
-    </tbody>
-  </table>
-
-  <!-- ③ 核心代码 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 核心代码</h3>
-
-  <p><b>真机侧：image_bridge_node.py</b></p>
-  <div class="code-block-wrapper">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="kw">import</span> rclpy, cv2, requests, json
-<span class="kw">from</span> sensor_msgs.msg <span class="kw">import</span> Image
-<span class="kw">from</span> cv_bridge <span class="kw">import</span> CvBridge
-
-<span class="kw">class</span> VLNCloudBridge(rclpy.node.Node):
-    <span class="kw">def</span> __init__(self):
-        super().__init__(<span class="str">'vln_cloud_bridge'</span>)
-        self.bridge = CvBridge()
-        self.cloud_url = <span class="str">"http://L40_IP:8000/step"</span>
-        self.instruction = <span class="str">"Go to the kitchen"</span>  <span class="cmt"># 可动态更新</span>
-
-        <span class="cmt"># 订阅相机</span>
-        self.sub = self.create_subscription(
-            Image, <span class="str">'/camera/color/image_raw'</span>, self.on_image, 10)
-
-        <span class="cmt"># 发布子目标给 Nav2</span>
-        self.goal_pub = self.create_publisher(
-            PoseStamped, <span class="str">'/goal_pose'</span>, 10)
-
-    <span class="kw">def</span> on_image(self, msg):
-        <span class="cmt"># 1. ROS Image → JPEG bytes</span>
-        cv_img = self.bridge.imgmsg_to_cv2(msg, <span class="str">'bgr8'</span>)
-        _, jpg = cv2.imencode(<span class="str">'.jpg'</span>, cv_img, [cv2.IMWRITE_JPEG_QUALITY, 80])
-
-        <span class="cmt"># 2. 上传到云端</span>
-        resp = requests.post(self.cloud_url,
-            files={<span class="str">'image'</span>: jpg.tobytes()},
-            data={<span class="str">'instruction'</span>: self.instruction},
-            timeout=5)
-
-        <span class="cmt"># 3. 解析动作</span>
-        action = resp.json()[<span class="str">'action'</span>]  <span class="cmt"># "MOVE_FORWARD"</span>
-        self.get_logger().info(<span class="str">f'Action: {action}'</span>)
-
-        <span class="cmt"># 4. 映射为 Nav2 目标并发布</span>
-        <span class="kw">if</span> action == <span class="str">'STOP'</span>:
-            self.cancel_nav()
-        <span class="kw">else</span>:
-            goal = self.action_to_goal(action)
-            self.goal_pub.publish(goal)</div>
-  </div>
-
-  <p style="margin-top:12px;"><b>云端：inference_server.py</b></p>
-  <div class="code-block-wrapper">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="kw">from</span> fastapi <span class="kw">import</span> FastAPI, File, Form
-<span class="kw">from</span> PIL <span class="kw">import</span> Image
-<span class="kw">import</span> io
-
-app = FastAPI()
-model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
-
-@app.post(<span class="str">"/step"</span>)
-<span class="kw">async</span> <span class="kw">def</span> step(image: bytes = File(...), instruction: str = Form(...)):
-    <span class="cmt"># 1. JPEG → PIL Image</span>
-    pil_img = Image.open(io.BytesIO(image)).convert(<span class="str">'RGB'</span>)
-
-    <span class="cmt"># 2. VLN 推理</span>
-    action = model.predict(pil_img, instruction)  <span class="cmt"># ~2 秒</span>
-
-    <span class="kw">return</span> {<span class="str">"action"</span>: action}  <span class="cmt"># "MOVE_FORWARD" | "TURN_LEFT" | "STOP"</span>
-
-<span class="cmt"># 启动: uvicorn inference_server:app --host 0.0.0.0 --port 8000</span></div>
-  </div>
-
-  <!-- ④ 延迟预算 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 每步延迟预算</h3>
 
   <table class="compare-table">
-    <thead><tr><th>阶段</th><th>耗时</th><th>占比</th><th>优化空间</th></tr></thead>
+    <thead><tr><th>函数</th><th>角色</th><th>说明</th></tr></thead>
     <tbody>
-      <tr><td>拍照 + 压缩</td><td>~0.05s</td><td>2%</td><td>已足够</td></tr>
-      <tr><td>网络上传 (50KB)</td><td>~0.02s</td><td>1%</td><td>WiFi 6 / 5G 无压力</td></tr>
-      <tr><td><b>JanusVLN 推理</b></td><td><b>~2.0s</b></td><td><b>80%</b></td><td>模型量化 / TensorRT</td></tr>
-      <tr><td>网络回传</td><td>~0.01s</td><td>0%</td><td>可忽略</td></tr>
-      <tr><td>Nav2 规划</td><td>~0.1s</td><td>4%</td><td>已足够</td></tr>
-      <tr><td>机器人移动 (0.25m)</td><td>~0.3s</td><td>13%</td><td>取决于速度</td></tr>
-      <tr style="font-weight:bold;background:rgba(244,114,182,0.08);"><td><b>合计</b></td><td><b>~2.5 秒/步</b></td><td></td><td></td></tr>
+      <tr>
+        <td><code>habitat.get_config()</code></td>
+        <td>加载基准配置</td>
+        <td>读取 YAML → 解析 Hydra → 返回冻结的 OmegaConf 配置对象</td>
+      </tr>
+      <tr>
+        <td><code>habitat.config.read_write()</code></td>
+        <td>临时解冻配置</td>
+        <td>上下文管理器，在 <code>with</code> 块内可修改配置值</td>
+      </tr>
+      <tr>
+        <td><code>habitat.Env(config)</code></td>
+        <td>创建环境</td>
+        <td>根据配置组装 Simulator + Dataset + Task</td>
+      </tr>
+      <tr>
+        <td><code>env.reset()</code></td>
+        <td>初始化 episode</td>
+        <td>随机选一个 episode，返回 observation dict (含 instruction)</td>
+      </tr>
+      <tr>
+        <td><code>obs["instruction"]</code></td>
+        <td>语言指令文本</td>
+        <td>VLN 特有的 observation 键，由 InstructionSensor 生成</td>
+      </tr>
     </tbody>
   </table>
 
-  <div class="warn-box" style="margin-top:12px;">
-    <div class="warn-title">⚠️ 推理速度是瓶颈——但不是死结</div>
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何创建和运行</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 终端中运行</span>
+$ <span class="kw">python</span> case_6_1_vln_env.py
+
+<span class="cmt"># 预期输出（示例）</span>
+观测键: [<span class="str">'rgb'</span>, <span class="str">'depth'</span>, <span class="str">'instruction'</span>, <span class="str">'pointgoal_with_gps_compass'</span>]
+指令: Walk down the hallway, turn left at the first door, and stop in front of the bed. ...
+RGB shape: (3, 480, 640)</div>
+  </div>
+
+  <div class="warn-box">
+    <div class="warn-title">⚠️ 常见错误</div>
     <p>
-      2 秒/步听起来慢，但 VLN 导航通常 10-30 步到达目标 → <b>总耗时 25-75 秒</b>，实际可用。
-      如果接受不了，可以：模型量化到 INT8（速度 2x）、换小模型（Qwen2.5-VL-3B）、
-      或等下一代 GPU（RTX 5090 推理 &lt;0.5s）。
+      <b>1.</b> <code>Dataset not found</code> → 检查 R2R 数据集是否下载到了 <code>data/datasets/vln/r2r/</code><br>
+      <b>2.</b> <code>Scene not found</code> → 检查 Matterport3D 场景是否在 <code>data/scene_datasets/mp3d/</code><br>
+      <b>3.</b> <code>KeyError: 'instruction'</code> → 确认配置中 task 类型为 <code>VLN-v0</code> 而非 <code>Nav-v0</code>
+    </p>
+  </div>
+
+  <!-- ④ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 运行效果</h3>
+  <div class="info-box">
+    <p>
+      <code>env.reset()</code> 成功后，你会看到：<br>
+      <b>1.</b> 终端打印出观测键列表 — 确认 <code>instruction</code> 键存在<br>
+      <b>2.</b> 一段英文指令文本 — 这就是 VLN 模型需要理解并执行的导航命令<br>
+      <b>3.</b> RGB 图像的 shape 是 (3, H, W) — 证明视觉传感器工作正常<br>
+      <br>
+      与 PointNav 最大的区别：<b>observation 中多了 <code>instruction</code> 字段</b>，这是让 VLN 不同于纯视觉导航的关键。
     </p>
   </div>
 </div>
 </section>
 
-<!-- ═══════════════ 7-6: 仿真与真机测试计划 ═══════════════ -->
+<!-- ═══════════════ 7-2: 理解数据与传感器 ═══════════════ -->
+<section id="case7-2">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-sensor);"></span> 7-2 · 理解 R2R 数据与 InstructionSensor</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      深入 R2R (Room-to-Room) 数据集的一个 episode，理解 VLN 任务的<b>完整数据结构</b>：
+      episode 包含什么字段、指令如何编码、InstructionSensor 如何把文本喂给模型。
+      这步至关重要——不理解数据，就无法设计模型输入。
+    </p>
+  </div>
+
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② R2R Episode 结构</h3>
+
+  <div class="arch-diagram">
+    <div style="font-size:0.9rem;color:#2dd4bf;font-weight:700;margin-bottom:16px;">一个 R2R Episode 的内部结构</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#3b82f620;border:2px solid #3b82f6;">
+        episode_id<br><small>"13361"</small>
+      </div>
+      <div class="arch-layer" style="background:#8b5cf620;border:2px solid #8b5cf6;">
+        scene_id<br><small>"2t7WUuJeko7"</small>
+      </div>
+      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;">
+        start_position + rotation<br><small>(x,y,z) + quat</small>
+      </div>
+    </div>
+    <div class="arch-arrow-center">↓</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:280px;">
+        goals[0]<br><small>position: (x,y,z) + radius</small>
+      </div>
+      <div class="arch-layer" style="background:#ec489920;border:2px solid #ec4899;min-width:400px;">
+        reference_path<br><small>[{position, rotation}×N] — 最短路径轨迹点</small>
+      </div>
+    </div>
+    <div class="arch-arrow-center">↓</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#14b8a620;border:2px solid #14b8a6;min-width:500px;">
+        instructions<br><small>{instruction_id, instruction_text}×3 — 同一条路径的三段英文描述</small>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">InstructionSensor 工作原理</h3>
+
+  <div class="flow-box">
+    <div class="flow-step" style="border-top:3px solid #3b82f6;">
+      <div style="font-weight:600;font-size:0.9rem;">R2R JSON</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">episode.instructions[0].instruction_text</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+      <div style="font-weight:600;font-size:0.9rem;">InstructionSensor</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">读取 episode.instruction<br>→ tokenize → tensor</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #14b8a6;">
+      <div style="font-weight:600;font-size:0.9rem;">obs["instruction"]</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">token IDs (seq_len,)<br>或原始文本</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #f59e0b;">
+      <div style="font-weight:600;font-size:0.9rem;">VLN Policy</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">LSTM/Transformer<br>编码指令 → 输出动作</div>
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何验证数据</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># case_6_2_inspect_data.py — 检查一个 episode 的完整数据</span>
+<span class="kw">import</span> habitat
+
+config = habitat.get_config(<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>)
+env = habitat.Env(config=config)
+obs = env.reset()
+
+<span class="cmt"># 从 Episode 对象获取完整数据</span>
+ep = env.current_episode
+<span class="kw">print</span>(<span class="str">"=== Episode 基本信息 ==="</span>)
+<span class="kw">print</span>(<span class="str">f"episode_id:    </span><span class="str">{ep.episode_id}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"scene_id:      </span><span class="str">{ep.scene_id}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"start_position:</span><span class="str"> {ep.start_position}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"goals[0].pos:  </span><span class="str">{ep.goals[0].position}</span><span class="str">"</span>)
+<span class="kw">print</span>(<span class="str">f"reference_path 长度: </span><span class="str">{len(ep.reference_path)} 个路径点</span><span class="str">"</span>)
+
+<span class="cmt"># 指令 — VLN 最核心的数据字段</span>
+<span class="kw">print</span>(<span class="str">f"\n=== 指令 ({len(ep.instructions)} 条) ==="</span>)
+<span class="kw">for</span> i, instr <span class="kw">in</span> <span class="kw">enumerate</span>(ep.instructions):
+    <span class="kw">print</span>(<span class="str">f"[{i}] </span><span class="str">{instr.instruction_text[:100]}...</span><span class="str">"</span>)
+
+env.close()</div>
+  </div>
+
+  <div class="dual-panel">
+    <div class="panel">
+      <h4 style="color:#2dd4bf;">📐 NavigationGoal (VLN版)</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        VLN 的 goal 与 PointNav 完全一样——<code>position (x,y,z) + radius</code>。
+        区别在于<b>agent 不知道 goal 的坐标</b>，它只看到指令文本。
+        目标是靠理解语言来推断的，而非靠 GPS 传感器指向。
+      </p>
+    </div>
+    <div class="panel">
+      <h4 style="color:#a78bfa;">📝 为什么有 3 条指令</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        同一个 episode 由 3 个不同的标注员撰写指令。训练时随机选一条，
+        评估时用固定的一条。这迫使模型学习<b>语言多样性</b>——"turn left at
+        the sofa" 和 "go left after passing the couch" 对应相同的路径。
+      </p>
+    </div>
+  </div>
+
+  <div class="tip-box">
+    <div class="tip-title">💡 关键理解：VLN 属于 "稀疏监督" 任务</div>
+    <p>
+      与 PointNav（每步都有 GPS+Compass 指向目标）不同，VLN 的 agent <b>只在 reset 时看到指令文本</b>。
+      后续每一步，模型必须记住指令内容并结合当前视觉观测做决策。这使得 VLN 天然需要
+      <b>记忆机制</b>（LSTM/Transformer/LLM）。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 7-3: 模仿学习训练 ═══════════════ -->
+<section id="case7-3">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-train);"></span> 7-3 · 模仿学习训练</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      使用 <b>Behavioral Cloning（行为克隆）</b>在 R2R 数据集上训练一个 VLN agent。
+      Agent 的监督信号来自 <code>reference_path</code>（最短路径轨迹），模型学习：
+      给定当前 RGB + 指令 → 预测下一步动作（前进/左转/右转/停止）。
+      <br><br>
+      <b>前置：</b>需要 GPU。如仅有 CPU，可将 batch_size 调至 1 且 epochs 设为 1 做语法验证。
+    </p>
+  </div>
+
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 训练流程 & 关键函数</h3>
+
+  <div class="flow-box">
+    <div class="flow-step" style="border-top:3px solid #3b82f6;">
+      <div style="font-weight:600;font-size:0.9rem;">① 数据准备</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">R2R episodes<br>→ rollout 生成轨迹</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+      <div style="font-weight:600;font-size:0.9rem;">② Teacher-Forcing</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">reference_path 动作<br>作为 ground truth</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #f59e0b;">
+      <div style="font-weight:600;font-size:0.9rem;">③ IL Loss</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">Cross Entropy<br>动作分类</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #14b8a6;">
+      <div style="font-weight:600;font-size:0.9rem;">④ Checkpoint</div>
+      <div style="font-size:0.78rem;color:var(--text-dim);margin-top:4px;">保存 .pth<br>用于评估/导出</div>
+    </div>
+  </div>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 终端命令 — VLN 模仿学习训练</span>
+$ <span class="kw">python</span> -u -m habitat_baselines.run \
+    --config-name=<span class="str">vln/il_vln_r2r.yaml</span> \
+    habitat_baselines.num_updates=<span class="num">10000</span> \
+    habitat_baselines.batch_size=<span class="num">8</span> \
+    habitat_baselines.checkpoint_folder=<span class="str">"data/checkpoints/vln_il"</span>
+
+<span class="cmt"># 关键 config 路径说明：</span>
+<span class="cmt"># config-name=vln/il_vln_r2r.yaml</span>
+<span class="cmt">#   → habitat-baselines/habitat_baselines/config/vln/il_vln_r2r.yaml</span>
+<span class="cmt"># 该 YAML 会自动引用：</span>
+<span class="cmt">#   - benchmark/nav/vln/vln_r2r.yaml（任务 & 数据集）</span>
+<span class="cmt">#   - habitat_baselines/rl/policy/vln_policy.yaml（策略网络）</span></div>
+  </div>
+
+  <table class="compare-table">
+    <thead><tr><th>模块</th><th>文件</th><th>作用</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>VLN Task</td>
+        <td><code>habitat/tasks/nav/vln.py</code></td>
+        <td>定义 VLNTask、VLNEpisode、动作空间 (FORWARD/LEFT/RIGHT/STOP)</td>
+      </tr>
+      <tr>
+        <td>InstructionSensor</td>
+        <td><code>habitat/tasks/nav/vln_sensor.py</code></td>
+        <td>从 episode 读取指令，tokenize 后注入 observation</td>
+      </tr>
+      <tr>
+        <td>VLN Policy</td>
+        <td><code>habitat_baselines/rl/policy/vln_policy.py</code></td>
+        <td>CNN 编码 RGB + RNN 编码指令 + 动作输出头</td>
+      </tr>
+      <tr>
+        <td>IL Trainer</td>
+        <td><code>habitat_baselines/il/trainer.py</code></td>
+        <td>管理 teacher-forcing 训练循环、数据集迭代</td>
+      </tr>
+      <tr>
+        <td>R2R Dataset</td>
+        <td><code>habitat/datasets/vln/r2r_dataset.py</code></td>
+        <td>加载 R2R JSON，提供 Episode 迭代器</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何创建和运行</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 1. 确保 R2R 数据集和 MP3D 场景已下载</span>
+$ ls data/datasets/vln/r2r/v1/train/
+  train.json.gz  val_seen.json.gz  val_unseen.json.gz
+
+<span class="cmt"># 2. 确保 habitat-baselines 已安装</span>
+$ pip install -e habitat-baselines
+
+<span class="cmt"># 3. 启动训练（GPU 推荐）</span>
+$ <span class="kw">python</span> -u -m habitat_baselines.run \
+    --config-name=<span class="str">vln/il_vln_r2r.yaml</span>
+
+<span class="cmt"># 预期输出：</span>
+<span class="cmt"># [2024-01-15 10:30:00] Epoch 0/100, Loss: 1.386, Acc: 0.312</span>
+<span class="cmt"># [2024-01-15 10:35:00] Epoch 10/100, Loss: 0.947, Acc: 0.521</span>
+<span class="cmt"># ...</span>
+<span class="cmt"># Checkpoint saved to data/checkpoints/vln_il/ckpt.100.pth</span></div>
+  </div>
+
+  <div class="warn-box">
+    <div class="warn-title">⚠️ 训练注意事项</div>
+    <p>
+      <b>1. GPU 内存：</b>Matterport3D 场景较大，建议至少 8GB VRAM。OOM 时减小 <code>batch_size</code><br>
+      <b>2. 数据预处理：</b>首次运行时会预处理 R2R 数据（生成 tokenizer 词表），需等待几分钟<br>
+      <b>3. Teacher-Forcing vs 在线采样：</b>IL 训练用的是 reference_path 上的 ground truth 动作，不会让 agent 自由探索
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 7-4: 评估与导出模型 ═══════════════ -->
+<section id="case7-4">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-data);"></span> 7-4 · 评估与导出模型 · <span style="color:#f472b6;">7-6 · JanusVLN</span> · <span style="color:#a78bfa;">7-7 · 微调</span></h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      训练完成后，在验证集上评估模型的导航能力（SR/SPL/nDTW），然后导出 checkpoint
+      为<b>纯推理权重文件</b>。这个文件就是 Step 7 部署到真机时需要加载的模型。
+    </p>
+  </div>
+
+  <!-- ② -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 评估代码 & 指标说明</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># 评估训练好的 VLN 模型</span>
+$ <span class="kw">python</span> -u -m habitat_baselines.run \
+    --config-name=<span class="str">vln/il_vln_r2r.yaml</span> \
+    habitat_baselines.evaluate=<span class="kw">True</span> \
+    habitat_baselines.eval_ckpt_path_dir=<span class="str">"data/checkpoints/vln_il/ckpt.100.pth"</span> \
+    habitat_baselines.eval_split=<span class="str">"val_seen"</span>
+
+<span class="cmt"># 预期输出：</span>
+<span class="cmt"># SR: 0.452  SPL: 0.398  nDTW: 0.561</span>
+<span class="cmt"># Success weighted by Path Length: 评估导航路径质量</span></div>
+  </div>
+
+  <table class="compare-table">
+    <thead><tr><th>指标</th><th>全称</th><th>含义</th><th>范围</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>SR</b></td>
+        <td>Success Rate</td>
+        <td>在目标 radius 内执行 STOP 的比例</td>
+        <td>0–1, 越高越好</td>
+      </tr>
+      <tr>
+        <td><b>SPL</b></td>
+        <td>Success weighted by Path Length</td>
+        <td>成功且路径尽量短（惩罚绕路）</td>
+        <td>0–1, 越高越好</td>
+      </tr>
+      <tr>
+        <td><b>nDTW</b></td>
+        <td>Normalized Dynamic Time Warping</td>
+        <td>实际路径与 reference_path 的相似度</td>
+        <td>0–1, 越高越好</td>
+      </tr>
+      <tr>
+        <td><b>OSR</b></td>
+        <td>Oracle Success Rate</td>
+        <td>如果 agent 在最近点 STOP 的成功率（上界）</td>
+        <td>≥ SR</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="dual-panel">
+    <div class="panel">
+      <h4 style="color:#2dd4bf;">📊 val_seen vs val_unseen</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        R2R 的验证集分两种：<br>
+        <b>val_seen：</b>场景在训练中见过（但 episode 不同），测<b>指令泛化</b><br>
+        <b>val_unseen：</b>场景从未见过，测<b>场景泛化</b><br>
+        val_unseen 的 SR 通常比 val_seen 低 10–20 个百分点。
+      </p>
+    </div>
+    <div class="panel">
+      <h4 style="color:#a78bfa;">📦 模型导出</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        checkpoint 包含 optimizer state + scheduler state + model weights。
+        为了在真机上做<b>纯推理</b>，需要提取出 model weights 部分：<br>
+        <code>ckpt = torch.load("ckpt.100.pth")</code><br>
+        <code>model_weights = ckpt["state_dict"]</code><br>
+        <code>torch.save(model_weights, "vln_inference.pth")</code>
+      </p>
+    </div>
+  </div>
+
+  <!-- ③ -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 如何导出可用于真机推理的模型</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn" >复制</button>
+    <div class="code-block"><span class="cmt"># export_vln_model.py — 导出纯推理权重 + 配置</span>
+<span class="kw">import</span> torch
+<span class="kw">import</span> yaml
+
+<span class="cmt"># 1. 加载训练好的 checkpoint</span>
+ckpt = torch.load(<span class="str">"data/checkpoints/vln_il/ckpt.100.pth"</span>, map_location=<span class="str">"cpu"</span>)
+
+<span class="cmt"># 2. 提取 model state_dict（去掉 optimizer/scheduler）</span>
+model_state = ckpt[<span class="str">"state_dict"</span>]
+torch.save(model_state, <span class="str">"vln_inference.pth"</span>)
+<span class="kw">print</span>(<span class="str">"模型权重已导出到 vln_inference.pth"</span>)
+
+<span class="cmt"># 3. 保存模型配置（推理时需要重新构建网络结构）</span>
+config = {
+    <span class="str">"policy"</span>: <span class="str">"VLNPolicy"</span>,
+    <span class="str">"rgb_shape"</span>: [<span class="num">3</span>, <span class="num">480</span>, <span class="num">640</span>],
+    <span class="str">"action_space"</span>: [<span class="str">"STOP"</span>, <span class="str">"MOVE_FORWARD"</span>, <span class="str">"TURN_LEFT"</span>, <span class="str">"TURN_RIGHT"</span>],
+    <span class="str">"instruction_vocab_size"</span>: <span class="num">2500</span>,
+    <span class="str">"hidden_size"</span>: <span class="num">512</span>,
+}
+<span class="kw">with</span> <span class="kw">open</span>(<span class="str">"vln_config.yaml"</span>, <span class="str">"w"</span>) <span class="kw">as</span> f:
+    yaml.dump(config, f)
+<span class="kw">print</span>(<span class="str">"模型配置已导出到 vln_config.yaml"</span>)</div>
+  </div>
+
+  <div class="tip-box">
+    <div class="tip-title">💡 这两个文件就是部署的输入</div>
+    <p>
+      <code>vln_inference.pth</code> + <code>vln_config.yaml</code> 是 Step 7（方法一：VLN+ROS Nav2）
+      部署时需要的两个文件。它们包含了<b>在真机上重建 VLN 模型并运行推理所需的一切</b>。
+      你在 Step 7 中会看到如何在 ROS 节点中加载它们。
+    </p>
+  </div>
+
+  <!-- ④ 试试调整 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 试试调整这些</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>调整项</th><th>怎么改</th><th>预期看到什么</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>训练步数</td>
+        <td>改 <code>habitat_baselines.num_updates</code> 从 10000 → 5000</td>
+        <td>SR 下降 ~5-10%，但训练时间减半</td>
+      </tr>
+      <tr>
+        <td>Batch Size</td>
+        <td>改 <code>habitat_baselines.batch_size</code> 从 8 → 16</td>
+        <td>收敛更快但 GPU 内存翻倍，可能 OOM</td>
+      </tr>
+      <tr>
+        <td>评估 split</td>
+        <td>改 <code>eval_split</code> 从 val_seen → val_unseen</td>
+        <td>SR 降低，反映场景泛化能力</td>
+      </tr>
+      <tr>
+        <td>动作空间</td>
+        <td>在配置中添加/移除 TURN 角度参数</td>
+        <td>动作粒度影响导航效率和平滑度</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box">
+    <div class="warn-title">⚠️ 部署前检查清单</div>
+    <p>
+      ✅ SR > 0.3（低于此值，真机上的表现会是灾难性的）<br>
+      ✅ 模型在 CPU 上推理时间 &lt; 100ms（真机一般无 GPU）<br>
+      ✅ checkpoint 文件可脱离 habitat-baselines 加载（验证导出脚本）<br>
+      ✅ 已在 val_unseen 上评估过，了解模型在新场景中的表现上限
+    </p>
+  </div>
+
+</div>
+
+<!-- ═══════════════ 7-4: 避坑诊断 ═══════════════ -->
+<section id="case7-4">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-bug);"></span> 7-4 · 避坑诊断 — ML 工程诊断方法</h2>
+  
+  <div class="info-box">
+    <div class="info-title">📍 为什么需要这一节？</div>
+    <p>
+      7-3 的 IL 训练拿到 SR≈32%。这个数字诚实但不理想。
+      在尝试 DAgger / RL 之前，先要诊断「到底是什么导致了 32%」——
+      这是 ML 工程师的核心能力，比调参更重要。
+    </p>
+  </div>
+
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-bug);"></span> §N.1 初见：好得可疑的 94.9%</h2>
+  <p class="section-subtitle">
+    用项目原始代码训练 10 个 epoch，观察训练曲线。
+  </p>
+
+  <div class="info-box" style="border-color:#f8717140; background:#f8717108;">
+    <div class="info-title">① 先跑一遍看看</div>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      在你开始修改任何代码之前，先用原始版本完整训练一次，并保存日志。<br>
+      这个日志是你后续诊断的<b>唯一参照物</b>——没有它，你就不知道"修对了没有"。
+    </p>
+  </div>
+
+  <h3 style="font-size:1rem; margin:24px 0 8px; color:#cbd5e1;">② 训练命令</h3>
+  <div class="code-block"><span class="kw">cd</span> habitat-lab-edu
+<span class="fn">python</span> training/train.py --split val_unseen --num_episodes 500 --epochs 10 \
+    <span class="num">2</span>&gt;<span class="num">&amp;1</span> | <span class="kw">tee</span> logs/run1_before_fix.log</div>
+
+  <h3 style="font-size:1rem; margin:24px 0 8px; color:#cbd5e1;">③ 训练曲线（真实日志）</h3>
+
+  <div style="margin:16px 0;">
+    <img src="images/before_fix_curves.png" alt="Before Fix Training Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid #1e293b;">
+  </div>
+  <p style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">▲ 从左图可见：train_loss 和 val_loss 快速下降且始终接近——典型的过拟合信号（train/val 数据泄漏）。val_acc 从 79.7% 飙升至 94.1%。</p>
+
+  <div class="tip-box">
+    <div class="tip-title">停下想一想</div>
+    <p>
+      val_acc = 94.1%，而且 10 个 epoch 就到了。你见过几个 ML 项目有这么快的收敛速度和这么高的准确率？<br>
+      <b>在继续之前，问自己：这个数字有可能是真的吗？</b>
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.2 五重暗坑 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-bug);"></span> §N.2 五重暗坑：逐一揭示</h2>
+  <p class="section-subtitle">
+    高 val_acc 并不等于好模型。以下是藏在训练管线中的 5 个问题。
+  </p>
+
+  <!-- ── 坑 1 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🔴 坑 1：文本输入是随机噪声</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">def</span> <span class="fn">fake_text_input</span>(instrs, B, T, ...):
+    <span class="kw">return</span> torch.randn(B, <span class="num">10</span>, <span class="num">300</span>)  <span class="cmt"># 每轮都不同！</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="cmt"># 从 R2R 指令构建词表 1369 词</span>
+<span class="fn">batch_encode</span>(instructions) → Embedding → LSTM
+<span class="cmt"># 同一条指令永远得到相同向量</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      指令文本从未被使用。模型实际学的是<b>"看 RGB 序列推测方向"</b>——这不是 VLN。
+    </p>
+  </div>
+
+  <!-- ── 坑 2 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🔴 坑 2：Train / Val 数据泄漏</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;">train_ds = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
+val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
+<span class="cmt"># ↑ 同一个 split！</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;">train_ds = VLNDataset(split=<span class="str">"train"</span>, ...)
+val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
+<span class="cmt"># ↑ 完全隔离</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      验证集的前 50 个 episode 也在训练集中。模型见过验证数据——94.1% 是<b>过拟合</b>，不是泛化。
+    </p>
+  </div>
+
+  <!-- ── 坑 3 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🟡 坑 3：Action 标签缺失 RIGHT</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">if</span> abs(dx) &gt; abs(dy):
+    actions.append(<span class="num">1</span>)  <span class="cmt"># FWD</span>
+<span class="kw">else</span>:
+    actions.append(<span class="num">2</span>)  <span class="cmt"># LEFT——RIGHT 从未出现</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">if</span> dx &gt; <span class="num">0.05</span>:
+    actions.append(<span class="num">3</span>)  <span class="cmt"># RIGHT</span>
+<span class="kw">elif</span> dx &lt; <span class="num">-0.05</span>:
+    actions.append(<span class="num">2</span>)  <span class="cmt"># LEFT</span>
+<span class="kw">else</span>: actions.append(<span class="num">1</span>)  <span class="cmt"># FWD</span></div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      模型训练时从未见过正确的右转标签。一个不会右转的导航模型。
+    </p>
+  </div>
+
+  <!-- ── 坑 4 ── -->
+  <div class="bug-card" style="margin-bottom: 20px;">
+    <h4>🟡 坑 4：SPL 指标公式错误</h4>
+    <div class="compare-grid">
+      <div>
+        <p style="font-size:0.82rem; color:#94a3b8; margin:0 0 6px;">修复前</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">def</span> <span class="fn">spl</span>(success, agent_len, gt_len):
+    <span class="kw">return</span> gt_len / max(agent_len, gt_len)
+    <span class="cmt"># ↑ 缺了 success 因子！失败时 SPL≠0</span></div>
+      </div>
+      <div>
+        <p style="font-size:0.82rem; color:#4ade80; margin:0 0 6px;">修复后</p>
+        <div class="code-block" style="font-size:0.78rem;"><span class="kw">def</span> <span class="fn">spl</span>(success, agent_len, gt_len):
+    <span class="kw">if not</span> success: <span class="kw">return</span> <span class="num">0.0</span>
+    <span class="kw">return</span> success * gt_len / max(agent_len, gt_len)</div>
+      </div>
+    </div>
+    <p style="font-size:0.85rem; color:#cbd5e1; margin-top:10px;">
+      标准 SPL 公式是 <code>success × (gt_len / max(agent_len, gt_len))</code>。缺少 success 因子导致失败 episode 也有正的 SPL。
+    </p>
+  </div>
+
+  <!-- ── 坑 5 ── -->
+  <div class="bug-card">
+    <h4>🟡 坑 5：训练日志丢失</h4>
+    <p style="font-size:0.85rem; color:#cbd5e1;">
+      原始 train.py 只打印到终端，训练结束后<b>没有任何记录</b>。当你想对比修复前后的效果时，没有对照数据。<br>
+      修复：加入 <code>Tee</code> 类，同时输出到 stdout 和 <code>logs/</code> 目录。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.3 修复后重新训练 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-fix);"></span> §N.3 修复后重新训练</h2>
+  <p class="section-subtitle">
+    修复全部 5 个问题后，用分离的 split 重新训练 10 epoch。
+  </p>
+
+  <div style="margin:16px 0;">
+    <img src="images/after_fix_curves.png" alt="After Fix Training Curves" style="width:100%;max-width:800px;border-radius:8px;border:1px solid #1e293b;">
+  </div>
+  <p style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">▲ 修复后 train/val 曲线明显分离（无数据泄漏）。val_acc 从 49.9% 起步，最终达到 94.7%——几乎和修复前一样。</p>
+
+  <div style="margin:24px 0 16px;">
+    <img src="images/val_acc_comparison.png" alt="Val ACC Before vs After Fix" style="width:100%;max-width:800px;border-radius:8px;border:1px solid #1e293b;">
+  </div>
+  <p style="font-size:0.85rem;color:#94a3b8;margin-top:4px;">▲ 修复前（红线）：起点高（79.7%），快速收敛。修复后（绿线）：起点低（49.9%），逐步追赶——最终持平。两者终点几乎重叠，说明这些表面问题不是瓶颈。</p>
+
+  <div class="insight-box">
+    <h4>💡 意料之外：val_acc 几乎没变</h4>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      修复了文本噪声、数据泄漏、标签缺失、指标公式之后，val_acc 从 <b>94.1% → 94.7%</b>。<br><br>
+      我们原本预期 val_acc 会<b>大幅下降</b>（因为消除了数据泄漏和随机文本作弊），但它纹丝不动。<br><br>
+      <b>这意味着：这 5 个问题从来不是 val_acc 的瓶颈。</b>
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.4 真正的考验：评估 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-insight);"></span> §N.4 真正的考验：环境评估</h2>
+  <p class="section-subtitle">
+    val_acc 测量的是"给定预渲染帧，预测 action 标签"，不是"在 3D 场景中导航"。
+  </p>
+
+  <table class="compare-table">
+    <thead><tr><th>指标</th><th>修复前 (作弊版)</th><th>修复后 (诚实版)</th><th>变化</th></tr></thead>
+    <tbody>
+      <tr><td><b>val_acc</b></td><td>94.1%</td><td>94.7%</td><td style="color:#4ade80;">+0.6%</td></tr>
+      <tr><td><b>Eval SR</b> (50 eps)</td><td>~30% *</td><td>32.0%</td><td style="color:#fbbf24;">+2%</td></tr>
+      <tr><td><b>Eval SPL</b></td><td>— (公式错误)</td><td>0.320</td><td>—</td></tr>
+      <tr><td><b>Eval nDTW</b></td><td>—</td><td>0.107</td><td>—</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:0.78rem; color:#64748b; margin-top:4px;">* 修复前的简化版 eval 把 action 硬编码为 MOVE_FORWARD，所以 SR 约 30% 只是"一直向前走"的 baseline。</p>
+
+  <div class="insight-box">
+    <h4>💡 val_acc 94.7% vs SR 32.0%：3:1 的鸿沟</h4>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      同一个模型，在预渲染帧上预测 action 标签有 94.7% 准确率，但在 3D 场景中实际导航只有 32% 成功率。<br><br>
+      这个 3:1 的差距揭示了比文本噪声、数据泄漏、标签错误<b>更深层的问题</b>。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.5 深层结论 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-insight);"></span> §N.5 深层结论：图像分布偏移</h2>
+  <p class="section-subtitle">
+    当你排除了所有表面问题，剩下的那个——无论多么隐蔽——就是根因。
+  </p>
+
+  <div class="info-box" style="border-color:#facc1540; background:#facc1508;">
+    <div class="info-title">根因：训练和评估的图像来自不同分布</div>
+    <div class="compare-grid" style="margin-top:12px;">
+      <div class="fix-card" style="margin:0;">
+        <h4>训练时的图像</h4>
+        <p style="font-size:0.85rem; line-height:1.7;">
+          来自 <b>预渲染</b>（env.reset → 5×MOVE_FORWARD → 保存 .npz）<br><br>
+          每帧都是 <b>最短路径上的画面</b>——干净、正确、标准化。
+        </p>
+      </div>
+      <div class="bug-card" style="margin:0;">
+        <h4>评估时的图像</h4>
+        <p style="font-size:0.85rem; line-height:1.7;">
+          来自 <b>实时渲染</b>（每步根据模型预测的 action 获取下一帧）<br><br>
+          每帧都是 <b>模型自己走出来的画面</b>——可能偏离、撞墙、迷路。
+        </p>
+      </div>
+    </div>
+
+    <p style="font-size:0.88rem; line-height:1.7; margin-top:16px;">
+      两个分布下的 RGB 完全不同——同一场景、不同视角、不同光照条件。<br>
+      ResNet 提取的特征在两个分布之间<b>无法泛化</b>。<br><br>
+      这解释了为什么修复了 5 个表面问题后 SR 仍然只有 32%：<br>
+      <b>模型从未见过"自己走错时看到的画面"。</b>
+    </p>
+  </div>
+
+  <div class="warn-box" style="margin-top:18px;">
+    <div class="warn-title">⚡ 这为什么比文本问题更难修</div>
+    <p style="font-size:0.88rem; line-height:1.7;">
+      要消除分布偏移，训练必须也走<b>在线 rollout</b>：每步用模型预测的 action 获取下一帧。<br>
+      但这会让训练慢 10 倍（无法并行预取 DataLoader），且需要动态 env 管理。<br><br>
+      混合训练方案（先在预渲染上启蒙，再逐步加在线 rollout）是可行的折中。<br><br>
+      ——这不是 §N 要解决的问题，它是阶段 3（真正的 VLN 训练）的核心挑战。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ §N.6 学到的教训 ═══════════════ -->
+<section>
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:#64748b;"></span> §N.6 你从这一章学到的</h2>
+
+  <table class="compare-table">
+    <thead><tr><th>#</th><th>教训</th><th>适用范围</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>val_acc 高 ≠ 模型好</b>。先检查数据有没有泄漏。</td><td>所有 ML 项目</td></tr>
+      <tr><td>2</td><td><b>保存训练日志</b>。没有 before 对照，after 没有意义。</td><td>所有 ML 项目</td></tr>
+      <tr><td>3</td><td><b>查指标公式</b>。你自己写的 SPL 可能和论文定义不同。</td><td>复现论文时</td></tr>
+      <tr><td>4</td><td><b>查标签分布</b>。如果某个类别从未出现，模型不会学到它。</td><td>分类任务</td></tr>
+      <tr><td>5</td><td><b>训练和推理的输入必须同分布</b>。预渲染帧≠实时渲染帧。</td><td>所有 ML 项目</td></tr>
+      <tr><td>6</td><td><b>修复表面问题后效果没变 → 根因在更深层</b>。别停。</td><td>调试方法论</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:18px;">
+    <div class="tip-title">继续学习</div>
+    <p>
+      这一章教的是"如何诊断"。下一阶段（阶段 3：真正的 VLN 训练）教的是"如何做对"——<br>
+      teacher-forcing、cross-modal attention、在线训练、数据增强。<br>
+      <a href="habitat-textbook-step6.html">→ 回到第7步：VLN 视觉语言导航</a>
+    </p>
+  </div>
+</div>
+</section>
+
+<section class="content-section">
+  <h2>§N.7 量化证据：图像分布偏移到底多大？</h2>
+  <p class="section-desc">
+    §N.5 提出"图像分布偏移是根因"——但这是定性的推断。我们需要用实验把它量化。<br>
+    设计一个对照实验：用 ResNet（模型的眼睛）和 CLIP（通用的眼睛）分别编码两组图像，计算分布距离。
+  </p>
+
+  <h3>实验设计</h3>
+
+  <div class="info-box">
+    <div class="info-title">两组图像</div>
+    <ul>
+      <li><b>A 组 · 预渲染帧：</b>9,195 帧，来自 1,839 个 episode 的最短路径，每帧都是"正确答案"。</li>
+      <li><b>B 组 · 在线 rollout 帧：</b>2,790 帧，来自 93 个 episode，强制模型走 30 步（禁用 stop），收集模型自己走出来的画面——包括走偏、撞墙、绕路。</li>
+    </ul>
+  </div>
+
+  <div class="info-box">
+    <div class="info-title">两个编码器</div>
+    <ul>
+      <li><b>ResNet18：</b>模型实际使用的视觉编码器。如果 A 和 B 对它来说是不同分布，那就是模型的"主观"分布偏移。</li>
+      <li><b>CLIP ViT-B/32：</b>通用视觉模型，作为"客观"参照。如果 CLIP 也认为两组不同，那偏移就是客观的。</li>
+    </ul>
+  </div>
+
+  <h3>结果：MMD 分布距离</h3>
+
+  <div class="compare-table">
+  <table>
+    <thead><tr><th>编码器</th><th>MMD（越低越相似）</th><th>解读</th></tr></thead>
+    <tbody>
+      <tr><td>ResNet18</td><td><b>0.0058</b></td><td>模型的眼睛认为两组帧几乎一样</td></tr>
+      <tr><td>CLIP ViT-B/32</td><td><b>0.0053</b></td><td>通用的眼睛也认为两组帧几乎一样</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="warn-box">
+    <div class="warn-title">⚡ 意料之外：两个 MMD 都极低</div>
+    <p>
+      我们预期在线帧（走偏、撞墙）和预渲染帧（最短路径）会有显著分布差异。<br>
+      但 ResNet 和 CLIP 都给出了 &lt; 0.006 的 MMD——<b>两组帧在特征空间中几乎完全重叠</b>。
+    </p>
+  </div>
+
+  <h3>可视化：t-SNE 降维</h3>
+
+  <p>把 512 维特征降到 2 维，蓝色 = 预渲染帧，红色 = 在线帧：</p>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin:16px 0;">
+    <div style="flex:1;min-width:300px;">
+      <img src="images/tsne_resnet.png" alt="t-SNE ResNet" style="width:100%;border-radius:8px;">
+      <p style="text-align:center;font-size:0.9em;color:#888;">ResNet18 t-SNE (MMD=0.0058)</p>
+    </div>
+    <div style="flex:1;min-width:300px;">
+      <img src="images/tsne_clip.png" alt="t-SNE CLIP" style="width:100%;border-radius:8px;">
+      <p style="text-align:center;font-size:0.9em;color:#888;">CLIP t-SNE (MMD=0.0053)</p>
+    </div>
+  </div>
+
+  <p>在 ResNet 的 t-SNE 图中，红色和蓝色完全混在一起——预渲染帧和在线帧在特征空间中无法区分。</p>
+
+  <h3>余弦相似度分布</h3>
+
+  <div style="margin:16px 0;">
+    <img src="images/cosine_similarity.png" alt="Cosine Similarity" style="width:100%;max-width:700px;border-radius:8px;">
+  </div>
+
+  <p>两组直方图几乎完全重叠：预渲染帧之间的相似度，和预渲染 vs 在线帧之间的相似度，分布一致。</p>
+
+  <h3>§N.5 的结论需要修正</h3>
+
+  <div class="tip-box">
+    <div class="tip-title">从"图像分布偏移"到"行为偏差累积"</div>
+    <p>
+      数据推翻了 §N.5 的假设。不是图像分布不同导致 SR 只有 32%——<br>
+      而是模型在几乎相同的画面上，做出了<b>不同的 action 决策</b>。
+    </p>
+    <p>
+      预渲染帧是 teacher-forcing 下的画面（最短路径，每步都是"对"的下一步），<br>
+      在线帧是模型自由行动的画面（可能走偏，但场景纹理、墙壁、地板和预渲染帧几乎一样）。
+    </p>
+    <p>
+      <b>32% 的 SR 不是因为模型"看到了没见过的画面"，而是模型在熟悉的画面中做出了错误的 action。</b><br>
+      每步差一点，30 步后离目标越来越远——这就是<b>行为偏差累积</b>。
+    </p>
+  </div>
+
+  <h3>实验教会我们的</h3>
+
+  <div class="compare-table">
+  <table>
+    <thead><tr><th>#</th><th>教训</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td><b>假设需要实验验证。</b>我们确信"图像分布偏移是根因"，但数据说不。</td></tr>
+      <tr><td>2</td><td><b>模型的眼睛（ResNet）和通用的眼睛（CLIP）意见一致。</b>这不是编码器选择的问题。</td></tr>
+      <tr><td>3</td><td><b>低 MMD 不代表问题不存在。</b>它只是说明问题不在帧层面，而在决策层面。</td></tr>
+      <tr><td>4</td><td><b>证伪假设比证实假设更有价值。</b>它迫使你寻找更深层的根因。</td></tr>
+      <tr><td>5</td><td><b>下一步不是修图像，是修决策。</b>Teacher-forcing → Student-forcing，强化学习，cross-modal attention。</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="info-box" style="margin-top:18px;">
+    <div class="info-title">实验复现</div>
+    <p>
+      所有代码和特征数据在 L40 云端：<br>
+      <code>training/collect_online_frames.py</code> — 强制 30 步 rollout 采集<br>
+      <code>training/extract_features.py</code> — ResNet + CLIP 特征提取<br>
+      <code>training/analyze_distribution.py</code> — MMD + t-SNE + 余弦相似度分析<br>
+      <code>screenshots/clip_comparison/</code> — 完整图表输出
+    </p>
+  </div>
+</section></div>
+</section>
+<!-- ═══════════════ 7-5: DAgger 桥接 ═══════════════ -->
+<section id="case7-5">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-da);"></span> 7-5 · DAgger — 从模仿到强化</h2>
+
+  <div class="info-box">
+    <div class="info-title">📍 诊断后的修复方案</div>
+    <p>
+      7-4 定位了根因：<b>行为漂移累积</b>（Agent 走偏后，后续观测都是训练时没见过的）。
+      DAgger 正是解决这个问题的标准方法——让 Agent 在「自己犯错的地方」学习专家纠正。
+    </p>
+  </div>
+
+  <h3>IL → DAgger → RL 三阶梯</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>方法</th><th>训练数据</th><th>核心思想</th><th>预期 SR</th><th>复杂度</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>IL（模仿学习）</b></td>
+        <td>专家最短路径轨迹</td>
+        <td>"照着专家走" — Teacher-Forcing</td>
+        <td>~32%</td>
+        <td>⭐</td>
+      </tr>
+      <tr>
+        <td><b>DAgger</b></td>
+        <td>Agent自己轨迹 + 专家纠正</td>
+        <td>"在犯错的地方学习" — 迭代聚合</td>
+        <td>~50-60%</td>
+        <td>⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td><b>RL（强化学习）</b></td>
+        <td>Agent自主探索 + 奖励信号</td>
+        <td>"自己试错，奖励引导" — PPO/REINFORCE</td>
+        <td>~55-65%</td>
+        <td>⭐⭐⭐⭐</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">⚠️ 本节内容待补充</div>
+    <p>
+      DAgger 训练需要 L40 GPU 运行实验并产出对比数据（IL 32% vs DAgger 50% vs RL 55%+ 的实际训练结果）。
+      这部分将在实验完成后写入。目前已确认：
+      <br>• <b>Seq2Seq DAgger</b>：L40 单卡可行（27M 参数，需自写 ~300 行训练循环）
+      <br>• <b>JanusVLN DAgger</b>：不可行（需 8 卡）
+    </p>
+  </div>
+
+  <h3 style="margin-top:20px;">DAgger 算法伪代码</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># DAgger (Dataset Aggregation) — Ross et al., 2011</span>
+<span class="kw">for</span> iteration <span class="kw">in</span> range(K):
+    <span class="cmt"># 1. 用当前策略 pi_i 在环境中执行（采集自己的轨迹）</span>
+    trajectories = run_policy(env, policy=pi_i, episodes=N)
+
+    <span class="cmt"># 2. 对每一帧，向专家查询「正确动作是什么」</span>
+    <span class="kw">for</span> (obs, action_agent) <span class="kw">in</span> trajectories:
+        action_expert = expert.query(obs)      <span class="cmt"># 专家怎么说？</span>
+        dataset.append((obs, action_expert))   <span class="cmt"># 存专家的答案</span>
+
+    <span class="cmt"># 3. 在聚合后的数据集上重新训练</span>
+    pi_next = train(dataset)                   <span class="cmt"># 模型学会了「在自己犯错时该怎么做」</span></div>
+  </div>
+
+  <p style="margin-top:12px;">
+    <b>为什么 DAgger 能解决行为漂移？</b>
+    IL 只见过专家轨迹上的观测 → Agent 一走偏就进入未知区域 → 雪崩。
+    DAgger 把 Agent 走偏后的观测也加入训练集（附上专家纠正），
+    让模型学会「走偏了怎么回来」——这正是 VLN 最需要的鲁棒性。
+  </p>
+</div>
+</section>
+
+</section>
+
+<!-- ═══════════════ 7-6: SOTA 实战：JanusVLN ═══════════════ -->
 <section id="case7-6">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-test);"></span> 7-6 · 仿真与真机测试计划</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-sota);"></span> 7-6 · SOTA 实战：运行 JanusVLN</h2>
+
+  <!-- ① -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      7-3 和 §N 中我们训练了一个 <b>2700 万</b> 参数的 Seq2Seq 模型，在 val_unseen 上达到 SR = 32%。
+      现在我们跑一个真正的 <b>SOTA 模型——JanusVLN</b>——在同一套数据上评估，亲眼看看"参数量差距意味着什么"。
+      <br><br>
+      <b>前置条件：</b>完成 7-3 训练（理解 VLN 任务）。需要单卡 NVIDIA GPU（≥ 46GB 显存，如 L40/A100）。
+    </p>
+  </div>
+
+  <!-- 论文与项目背景 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">论文与开源项目</h3>
+
+  <div class="info-box">
+    <div class="info-title">JanusVLN: Decoupling Semantics and Spatiality with Dual Implicit Memory for VLN</div>
+    <p>
+      <b>发表：</b>ICLR 2026<br>
+      <b>机构：</b>Amap（高德地图，阿里巴巴集团）+ 西安交通大学（MIV-XJTU）<br>
+      <b>论文：</b><a href="https://arxiv.org/abs/2509.22548" target="_blank">arXiv:2509.22548</a><br>
+      <b>代码：</b><a href="https://github.com/MIV-XJTU/JanusVLN" target="_blank">github.com/MIV-XJTU/JanusVLN</a><br>
+      <b>权重：</b><a href="https://www.modelscope.cn/models/misstl/JanusVLN_Base" target="_blank">ModelScope: JanusVLN_Base</a>（18GB）<br>
+      <b>数据：</b><a href="https://www.modelscope.cn/datasets/misstl/JanusVLN_Trajectory_Data" target="_blank">ModelScope: DAgger 轨迹数据</a>
+    </p>
+  </div>
+
+  <p style="margin-top:12px;">
+    核心创新：<b>双隐式记忆（Dual Implicit Memory）</b>。名字来源于罗马神话两面神 Janus，
+    寓意同时拥有"语义理解"（左脑）和"空间感知"（右脑）两种能力。
+    论文报告 val_unseen SR 约 <b>50-55%</b>（全景输入，1839 episode）。
+  </p>
+
+  <!-- ② 模型架构 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 模型架构：双隐式记忆</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>记忆类型</th><th>负责模型</th><th>参数量</th><th>类比</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>语义记忆</b> (Semantic)</td>
+        <td>Qwen2.5-VL-7B</td>
+        <td>~70 亿</td>
+        <td>"左脑"：理解"拱门""楼梯"的含义和视觉外观</td>
+      </tr>
+      <tr>
+        <td><b>空间记忆</b> (Spatial)</td>
+        <td>VGGT-1B</td>
+        <td>~10 亿</td>
+        <td>"右脑"：推理深度、几何、3D 空间结构</td>
+      </tr>
+      <tr>
+        <td><b>融合层</b></td>
+        <td>VGGTMerger</td>
+        <td>~200 万</td>
+        <td>将 3D 特征注入 VLM 的每层隐藏状态</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box" style="margin-top:12px;">
+    <div class="info-title">关键设计：跨步空间记忆</div>
+    <p>
+      模型维护一个 <code>past_key_values_vggt</code> 缓存，每次导航开始时清空，
+      每步推理后更新。这让模型在移动过程中"记住"之前看到的 3D 结构——
+      就像一个边走边构建的<b>隐式 3D 地图</b>。
+    </p>
+  </div>
+
+  <!-- ③ 数据流 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 数据流：每步从观测到动作</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 1. Habitat 渲染当前前向 RGB（224×224）</span>
+rgb = env.step(action)["rgb"]
+
+<span class="cmt"># 2. 收集历史帧（num_history=4：最近 4 帧 + 当前）</span>
+history = rgb_list[-5:]
+
+<span class="cmt"># 3. VGGT：每张图提取 3D 特征（深度、几何）——并行</span>
+vggt_feats = [VGGT(img) for img in history]
+
+<span class="cmt"># 4. Qwen2.5-VL：图像 → patch tokens + 指令文本 → token IDs</span>
+inputs = processor(text=instruction, images=history)
+
+<span class="cmt"># 5. 融合：VGGT 特征通过 VGGTMerger 注入 Qwen hidden states</span>
+<span class="cmt"># 6. 生成：Qwen2.5-VL 自回归解码（max 24 tokens, temperature=0）</span>
+output = model.generate(**inputs, images_vggt=vggt_feats, max_new_tokens=24)
+
+<span class="cmt"># 7. 解析：token → 动作字符串 → Habitat action index</span>
+action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWARD, 2=LEFT, 3=RIGHT, 0=STOP</span></div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>阶段</th><th>耗时</th><th>占比</th></tr></thead>
+    <tbody>
+      <tr><td>Habitat 渲染 + VGGT</td><td>~0.3s</td><td>15%</td></tr>
+      <tr><td>Processor 编码</td><td>~0.2s</td><td>10%</td></tr>
+      <tr><td><b>Qwen2.5-VL 生成（7B 参数）</b></td><td><b>~1.5s</b></td><td><b>75%</b></td></tr>
+      <tr style="background:rgba(244,114,182,0.08);"><td><b>合计</b></td><td><b>~2 秒/步</b></td><td></td></tr>
+    </tbody>
+  </table>
+
+  <!-- ④ 环境准备 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 环境准备</h3>
+
+  <p><b>Step 1 — 克隆 + 权重</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">git clone</span> https://github.com/MIV-XJTU/JanusVLN.git && <span class="kw">cd</span> JanusVLN
+<span class="kw">pip install</span> modelscope
+<span class="kw">python</span> -c <span class="str">"from modelscope import snapshot_download; snapshot_download('misstl/JanusVLN_Base', cache_dir='./weights')"</span></div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 2 — 单卡适配</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 依赖（国内用 douban 镜像）</span>
+<span class="kw">pip install</span> transformers==4.48 accelerate qwen_vl_utils -i https://pypi.doubanio.com/simple
+
+<span class="cmt"># 修改 src/evaluation.py：</span>
+<span class="cmt">#   flash-attn → torch.nn.functional.scaled_dot_product_attention</span>
+<span class="cmt">#   world_size=1, gpu=0（原代码需要 8 卡 DeepSpeed）</span></div>
+  </div>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 单卡适配要点</div>
+    <p>
+      原代码需要 8 卡 DeepSpeed 分布式训练。单卡跑只需改两处：
+      flash-attn → PyTorch SDPA（避免 30 分钟编译）、world_size=1。
+      推理精度不受影响，速度略慢（SDPA vs flash-attn 差距约 10%）。
+    </p>
+  </div>
+
+  <!-- ⑤ 实验结果 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑤ 15-episode 抽样实验结果</h3>
+
+  <p>
+    在 L40 单卡上，用 <code>max_steps=100, num_history=4</code> 跑 15 个随机 episode，
+    耗时约 <b>48 分钟</b>。
+  </p>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>场景</th><th>✅/总数</th><th>场景 SR</th></tr></thead>
+    <tbody>
+      <tr><td>2azQ1b91cZZ</td><td>1/1</td><td>100%</td></tr>
+      <tr style="background:rgba(244,114,182,0.05);"><td>EU6Fwq7SyZv</td><td>0/3</td><td>0% ⚠️</td></tr>
+      <tr><td>QUCTc6BB5sX</td><td>1/1</td><td>100%</td></tr>
+      <tr><td>TbHJrupSAjP</td><td>1/3</td><td>33%</td></tr>
+      <tr style="background:rgba(244,114,182,0.05);"><td>X7HyMhZNoso</td><td>0/1</td><td>0%</td></tr>
+      <tr><td>oLBMNvg9in8</td><td>2/2</td><td>100%</td></tr>
+      <tr style="background:rgba(244,114,182,0.05);"><td>pLe4wQe7qrG</td><td>0/1</td><td>0%</td></tr>
+      <tr><td>zsNo4HB9uLZ</td><td>2/3</td><td>67%</td></tr>
+      <tr style="font-weight:bold;background:rgba(244,114,182,0.12);"><td>总计</td><td>7/15</td><td>46.7%</td></tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;"><b>与我们的模型对比：</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>模型</th><th>参数量</th><th>SR (抽样)</th><th>输入</th><th>训练数据</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>我们的 Seq2Seq</td>
+        <td>2700 万</td>
+        <td>32.0%</td>
+        <td>预渲染离散帧</td>
+        <td>R2R 几千条指令</td>
+      </tr>
+      <tr style="background:rgba(244,114,182,0.08);">
+        <td><b>JanusVLN</b></td>
+        <td><b>~80 亿（300×）</b></td>
+        <td><b>46.7%</b></td>
+        <td>实时 RGB</td>
+        <td>万亿 token VLM 预训练 + DAgger</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 可视化结果 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">可视化：成功 vs 失败</h3>
+
+  <p>在场景 <b>2azQ1b91cZZ</b> 上跑的两个 episode（6 FPS）：</p>
+
+  <div style="display:flex;gap:20px;flex-wrap:wrap;margin-top:12px;">
+    <div style="flex:1;min-width:300px;">
+      <p style="text-align:center;color:#f87171;font-weight:600;">❌ Episode 10 — SR=0</p>
+      <video controls width="100%" style="border-radius:8px;border:2px solid #f87171;">
+        <source src="images/janusvln/fail_ep10.mp4" type="video/mp4">
+      </video>
+      <p style="font-size:0.85em;color:var(--text-dim);margin-top:4px;">
+        指令："走过客厅，到阳台下的入口"<br>
+        NE=8.27m，101步走到上限
+      </p>
+    </div>
+    <div style="flex:1;min-width:300px;">
+      <p style="text-align:center;color:#4ade80;font-weight:600;">✅ Episode 11 — SR=1.0</p>
+      <video controls width="100%" style="border-radius:8px;border:2px solid #4ade80;">
+        <source src="images/janusvln/success_ep11.mp4" type="video/mp4">
+      </video>
+      <p style="font-size:0.85em;color:var(--text-dim);margin-top:4px;">
+        指令："穿过地板，在拱门等"<br>
+        SPL=1.0，34步精确到达
+      </p>
+    </div>
+  </div>
+
+  <p style="margin-top:12px;font-size:0.9em;color:var(--text-dim);">
+    视频展示的是模型的第一人称视角（RGB + Top-down 地图）。注意失败案例中模型一直在客厅转圈，
+    而成功案例中模型直接走向拱门并精确停止。
+  </p>
+
+  <!-- ⑥ SR 分析 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ SR 46.7% 深度分析</h3>
+
+  <div class="info-box">
+    <div class="info-title">为什么没到论文报告的 50-55%？</div>
+    <p>
+      <b>最可能原因：单视角 vs 全景输入。</b>原论文使用 360° 全景（12 个方向的 RGB），
+      而我们的 eval 只传了单张前向 RGB。模型无法看到左右和后方的场景，
+      每次转向都是一次"盲猜"，尤其影响需要精细空间判断的指令。
+      <br><br>
+      <b>其他因素：</b>15-episode 抽样方差大、max_steps=100 偏紧（有 episode 只差 0.12m 就成功）。
+    </p>
+  </div>
+
+  <div class="info-box" style="margin-top:12px;">
+    <div class="info-title">场景差异：EU6Fwq7SyZv 全败之谜</div>
+    <p>
+      EU6Fwq7SyZv 3 个 episode 全部走到 100 步上限（NE 4.6-7.0m）。
+      三条指令都涉及复杂的空间关系："绕过椅子""穿过柱子""停在楼梯和栏杆之间"。
+      在只有前向视角的情况下，模型无法验证"是否已经绕过"——它看不到侧面。
+    </p>
+  </div>
+
+  <div class="info-box" style="margin-top:12px;">
+    <div class="info-title">为什么比我们的 32% 好？</div>
+    <p>
+      不是"方法更好"，而是 <b>VLM 预训练带来的世界知识</b>：
+      Qwen2.5-VL 在预训练阶段见过海量室内场景——它已经知道"拱门""楼梯""沙发"长什么样。
+      我们的 ResNet50 只在 R2R 几千张图上从头学，对室内场景的理解完全从零开始。
+      <br><br>
+      这 14.7% 的差距 = <b>万亿 token 图文预训练 vs 几千条 R2R 数据</b> 的差距。
+    </p>
+  </div>
+
+  <!-- ⑦ 训练方式 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑦ 如何训练：DAgger 算法</h3>
+
+  <p>
+    JanusVLN 使用 <b>DAgger（Dataset Aggregation）</b>，
+    "模型在实践中学习，专家在旁兜底"：
+  </p>
+
+  <div class="code-block-wrapper" style="margin-top:8px;">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">for</span> iteration <span class="kw">in</span> range(num_iterations):
+    beta = p ** iteration  <span class="cmt"># 专家干预概率指数衰减</span>
+
+    <span class="cmt"># 采集阶段：在 Habitat 中 rollout</span>
+    <span class="kw">for</span> episode <span class="kw">in</span> dataset:
+        <span class="kw">while not</span> episode_over:
+            <span class="kw">if</span> random() < beta:
+                action = expert.next_action()  <span class="cmt"># ShortestPathFollower</span>
+            <span class="kw">else</span>:
+                action = model.predict(obs)     <span class="cmt"># 模型自己走</span>
+            obs = env.step(action)
+
+    <span class="cmt"># 训练阶段：交叉熵 loss(action_pred, action_gt)</span>
+    <span class="kw">for</span> epoch <span class="kw">in</span> range(train_epochs):
+        loss = CrossEntropy(model(obs), action_gt)
+        loss.backward(); optimizer.step()</div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>迭代</th><th>β (p=0.95)</th><th>专家占比</th><th>含义</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>0.95</td><td>95%</td><td>几乎全专家带</td></tr>
+      <tr><td>5</td><td>0.77</td><td>77%</td><td>模型开始承担</td></tr>
+      <tr><td>10</td><td>0.60</td><td>60%</td><td>逐步放手</td></tr>
+      <tr><td>20</td><td>0.36</td><td>36%</td><td>模型主导，专家偶尔纠正</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:16px;">
+    <div class="warn-title">💡 这和我们的训练有什么不同？</div>
+    <p>
+      <b>我们的 Seq2Seq：</b>仅在预渲染的最短路径帧上做分类训练。模型从未在 3D 环境中"自己走"过。
+      <br><br>
+      <b>JanusVLN 的 DAgger：</b>模型在真实 3D 环境中交互并收集自己走出来的轨迹。
+      这些轨迹包含偏离、徘徊、撞墙——正是 §N.5 讨论的"在线 rollout 数据"。
+      DAgger 的核心价值就是让模型<b>见到并学会修正自己的错误</b>。
+    </p>
+  </div>
+
+  <!-- ⑧ 运行命令 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑧ 完整运行命令</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">export</span> HF_ENDPOINT=https://hf-mirror.com
+
+<span class="kw">python</span> src/evaluation.py \
+    --model_path ./weights/misstl/JanusVLN_Base \
+    --habitat_config_path config/vln_r2r.yaml \
+    --eval_split val_unseen \
+    --output_path ./results/val_unseen \
+    --max_episodes 20 \
+    --max_steps 100 \
+    --num_history 4
+
+<span class="cmt"># 保存可视化图片</span>
+<span class="kw">python</span> src/evaluation.py ... --save_video --save_video_ratio 1.0
+<span class="cmt"># 图片保存到 results/val_unseen/vis_0/*.jpg</span></div>
+  </div>
+
+</div>
+</section>
+
+
+
+
+
+
+
+
+<!-- ═══════════════ 7-7: VLN 模型微调 ═══════════════ -->
+<section id="case7-7">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-finetune);"></span> 7-7 · VLN 模型微调</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
     <p>
-      直接上真机风险大（撞墙、电机过载）。7-6 设计了两阶段测试计划：先在 <b>Gazebo 仿真</b> 中验证完整链路，
-      再上 <b>Spark-I 真机</b>。每阶段都有明确的 Pass/Fail 条件。
+      7-6 展示了 JanusVLN 在 R2R 上的零样本推理（SR=46.7%）。如果想在<b>自己的场景</b>上提升性能——
+      比如办公室、工厂、家庭——就需要微调。7-7 介绍三种微调方案及其硬件需求。
     </p>
   </div>
 
-  <!-- Phase 1: 仿真 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② Phase 1：Gazebo 仿真测试</h3>
-
-  <p><b>环境：</b>Spark-I Gazebo 仿真 + TurtleBot3 世界</p>
+  <!-- ② 三种方案对比 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 三种微调方案</h3>
 
   <table class="compare-table">
-    <thead><tr><th>#</th><th>测试项</th><th>操作</th><th>预期</th><th>Pass 条件</th></tr></thead>
+    <thead><tr><th>方案</th><th>原理</th><th>显存需求</th><th>L40 可行？</th><th>适用场景</th></tr></thead>
     <tbody>
-      <tr>
-        <td><b>T1</b></td>
-        <td>通信链路</td>
-        <td>真机端启动 image_bridge → curl 云端 /health</td>
-        <td>200 OK</td>
-        <td>3/3 请求成功</td>
+      <tr style="background:rgba(74,222,128,0.06);">
+        <td><b>A. 分组件微调</b></td>
+        <td>冻结视觉编码器，只训练 LLM + 投影层</td>
+        <td>~60 GB（8 卡）</td>
+        <td>❌</td>
+        <td>JanusVLN 原版训练方式</td>
+      </tr>
+      <tr style="background:rgba(74,222,128,0.06);">
+        <td><b>B. LoRA 微调</b></td>
+        <td>冻结全部权重，插入少量可训练的秩分解矩阵</td>
+        <td>~30 GB（单卡）</td>
+        <td><b>✅ 可行</b></td>
+        <td>JanusVLN 适配新场景，最低成本</td>
       </tr>
       <tr>
-        <td><b>T2</b></td>
-        <td>单步推理</td>
-        <td>发一张仿真 RGB + "Go to the door"</td>
-        <td>返回一个有效动作</td>
-        <td>动作在 {FORWARD,LEFT,RIGHT,STOP} 内</td>
-      </tr>
-      <tr>
-        <td><b>T3</b></td>
-        <td>动作映射</td>
-        <td>FORWARD → 计算目标位姿 → 检查合理性</td>
-        <td>位姿在机器人前方 0.25m</td>
-        <td>位置误差 &lt; 0.05m，角度误差 &lt; 5°</td>
-      </tr>
-      <tr>
-        <td><b>T4</b></td>
-        <td>Nav2 单步导航</td>
-        <td>发布一个 goal_pose → 观察机器人移动</td>
-        <td>机器人到达目标点</td>
-        <td>最终位置距目标 &lt; 0.1m</td>
-      </tr>
-      <tr>
-        <td><b>T5</b></td>
-        <td>多步导航</td>
-        <td>连续 10 步 VLN → Nav2 循环</td>
-        <td>每步正确执行</td>
-        <td>10/10 步无卡死、无超时</td>
-      </tr>
-      <tr>
-        <td><b>T6</b></td>
-        <td>完整 episode</td>
-        <td>发指令 → 自动运行直到 STOP</td>
-        <td>机器人停在目标附近</td>
-        <td>最终位置距 ground-truth goal &lt; 2m</td>
-      </tr>
-      <tr>
-        <td><b>T7</b></td>
-        <td>异常恢复</td>
-        <td>推理超时 / 网络断开 → 观察行为</td>
-        <td>安全停止，不发无效指令</td>
-        <td>机器人不失控移动</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="code-block-wrapper" style="margin-top:12px;">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="cmt"># 仿真启动顺序</span>
-<span class="cmt"># 终端 1: 启动 Gazebo 仿真世界</span>
-$ ros2 launch spark_bringup gazebo.launch.py world:=turtlebot3_world
-
-<span class="cmt"># 终端 2: 启动 Nav2</span>
-$ ros2 launch spark_navigation nav2_bringup.launch.py
-
-<span class="cmt"># 终端 3: 启动云桥接节点</span>
-$ ros2 run vln_ros image_bridge_node --ros-args -p cloud_url:=http://L40_IP:8000
-
-<span class="cmt"># 终端 4 (云端): 启动推理服务</span>
-$ uvicorn inference_server:app --host 0.0.0.0 --port 8000
-
-<span class="cmt"># 终端 5: 发送指令 → 开始导航</span>
-$ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
-    "{instruction: 'Go to the door and stop'}"</div>
-  </div>
-
-  <!-- Phase 2: 真机 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ Phase 2：Spark-I 真机测试</h3>
-
-  <p><b>前置：</b>Phase 1 全部 T1-T7 Pass + 机器人硬件检查</p>
-
-  <table class="compare-table">
-    <thead><tr><th>#</th><th>测试项</th><th>特殊注意事项</th><th>Pass 条件</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>T8</b></td>
-        <td>相机标定验证</td>
-        <td>真机 RGB 尺寸/视场角与仿真不同</td>
-        <td>图像 resize 后送入模型无报错</td>
-      </tr>
-      <tr>
-        <td><b>T9</b></td>
-        <td>坐标系对齐</td>
-        <td>VLN 输出是机器人坐标系，需转 map 系</td>
-        <td>rviz 中 goal_pose 出现在正确位置</td>
-      </tr>
-      <tr>
-        <td><b>T10</b></td>
-        <td>实景单步导航</td>
-        <td>真机有里程计漂移，Nav2 需实时修正</td>
-        <td>单步到达误差 &lt; 0.15m</td>
-      </tr>
-      <tr>
-        <td><b>T11</b></td>
-        <td>动态障碍物</td>
-        <td>人在机器人前方走过 → Nav2 应避障</td>
-        <td>机器人减速/绕行，不撞人</td>
-      </tr>
-      <tr>
-        <td><b>T12</b></td>
-        <td>10 条指令测试集</td>
-        <td>在办公室环境中预设 10 条导航指令</td>
-        <td>SR ≥ 40%（10 条中 4+ 成功）</td>
-      </tr>
-      <tr>
-        <td><b>T13</b></td>
-        <td>紧急停止</td>
-        <td>物理急停按钮或 /vln/stop service</td>
-        <td>电机立即断电，&lt; 0.5s 响应</td>
+        <td><b>C. Seq2Seq 全量微调</b></td>
+        <td>2700 万参数全部训练</td>
+        <td>~8 GB（单卡）</td>
+        <td>✅</td>
+        <td>我们的小模型在新数据上微调</td>
       </tr>
     </tbody>
   </table>
 
   <div class="warn-box" style="margin-top:12px;">
-    <div class="warn-title">⚠️ 真机测试安全守则</div>
+    <div class="warn-title">⚠️ 为什么方案 A 需要 8 卡</div>
     <p>
-      1. 首次测试用<b>最低速度</b>（0.1 m/s），逐步提高<br>
-      2. 旁边始终有人手持<b>急停遥控器</b><br>
-      3. 测试区域<b>清空行人</b>，地面无杂物<br>
-      4. 先测试 STOP 指令（验证急停链路），再测移动<br>
-      5. 录 rosbag，失败后可回放分析
+      方案 A 训练 LLM 全部 70 亿参数 + 投影层，即使用 DeepSpeed ZeRO-3 分片也需要 8 卡。
+      L40 单卡 46GB 只够推理，不够训练。但 <b>方案 B（LoRA）在原代码基础上只需加 ~30 行</b>，
+      就能在单卡上微调 JanusVLN。
     </p>
   </div>
 
-  <!-- ④ 测试记录模板 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 测试记录模板</h3>
+  <!-- ③ LoRA 原理 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ LoRA 原理解析</h3>
 
-  <table class="compare-table">
-    <thead><tr><th>测试ID</th><th>日期</th><th>环境</th><th>指令</th><th>结果</th><th>耗时</th><th>失败原因</th></tr></thead>
+  <p>
+    LoRA（Low-Rank Adaptation）不修改原始权重 <b>W</b>，而是在旁边插入两个小矩阵 <b>A 和 B</b>：
+  </p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 标准全量微调：修改 W 的全部 4096×4096 = 16M 参数</span>
+h = W @ x + b          <span class="cmt"># W 可训练，16M 参数</span>
+
+<span class="cmt"># LoRA 微调：W 冻结，只训练 A 和 B</span>
+h = W @ x + b + (B @ A) @ x   <span class="cmt"># W 冻结，A+B 共 4096×16×2 = 131K 参数</span>
+<span class="cmt">#                  ↑ 秩 r=16，可训练参数减少 120 倍</span></div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>对比</th><th>全量微调</th><th>LoRA (r=16)</th></tr></thead>
     <tbody>
-      <tr><td>T6-01</td><td>06-18</td><td>Gazebo</td><td>Go to the door</td><td>✅</td><td>32s</td><td>—</td></tr>
-      <tr><td>T6-02</td><td>06-18</td><td>Gazebo</td><td>Go to kitchen, turn left</td><td>❌</td><td>—</td><td>Nav2 规划失败（无地图）</td></tr>
-      <tr style="color:var(--text-dim);"><td>T12-01</td><td>—</td><td>真机</td><td>走到门口停下</td><td>—</td><td>—</td><td>待测试</td></tr>
+      <tr><td>可训练参数</td><td>~80 亿</td><td>~4000 万（0.5%）</td></tr>
+      <tr><td>显存（训练）</td><td>~120 GB</td><td>~30 GB</td></tr>
+      <tr><td>训练速度</td><td>基准</td><td>快 1.5-2×</td></tr>
+      <tr><td>推理开销</td><td>无</td><td>可合并回 W（无额外开销）</td></tr>
+      <tr><td>性能</td><td>最佳</td><td>通常持平，差距 &lt;2%</td></tr>
     </tbody>
   </table>
+
+  <!-- ④ LoRA 代码实现 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ LoRA 微调 JanusVLN（L40 单卡）</h3>
+
+  <p><b>Step 1 — 安装 peft</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">pip install</span> peft -i https://pypi.doubanio.com/simple</div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 2 — 修改 train_qwen.py，在模型加载后插入 LoRA</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">from</span> peft <span class="kw">import</span> LoraConfig, get_peft_model, TaskType
+
+<span class="cmt"># 在模型加载完成后，添加：</span>
+lora_config = LoraConfig(
+    r=16,                          <span class="cmt"># LoRA 秩（越大效果越好，显存越多）</span>
+    lora_alpha=32,                 <span class="cmt"># 缩放因子</span>
+    target_modules=[<span class="str">"q_proj"</span>, <span class="str">"k_proj"</span>, <span class="str">"v_proj"</span>, <span class="str">"o_proj"</span>],
+    lora_dropout=0.05,
+    bias=<span class="str">"none"</span>,
+    task_type=TaskType.CAUSAL_LM,
+)
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+<span class="cmt"># 输出: trainable params: 41,943,040 || all params: 8,294,967,296 || trainable%: 0.506%</span></div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 3 — 冻结 VGGT + 视觉编码器（节省更多显存）</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 冻结 VGGT（3D 特征提取器——通用能力，不需要微调）</span>
+<span class="kw">for</span> param <span class="kw">in</span> model.vggt.parameters():
+    param.requires_grad = <span class="kw">False</span>
+
+<span class="cmt"># 冻结视觉编码器（Qwen2.5-VL 的视觉 tower）</span>
+<span class="kw">for</span> param <span class="kw">in</span> model.visual.parameters():
+    param.requires_grad = <span class="kw">False</span>
+
+<span class="cmt"># 只训练：LoRA adapter + 投影层 (merger) + token embedding</span></div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 4 — 单卡训练命令（移除 DeepSpeed）</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 原版需要 8 卡 + DeepSpeed，LoRA 版本单卡即可</span>
+<span class="kw">python</span> src/qwen_vl/train/train_qwen.py \
+    --model_name_or_path ./weights/misstl/JanusVLN_Base \
+    --vggt_model_path facebook/VGGT-1B \
+    --tune_mm_llm True \
+    --tune_mm_vision False \
+    --tune_mm_mlp True \
+    --use_lora True \
+    --lora_r 16 \
+    --dataset_use train_r2r \
+    --output_dir ./JanusVLN_LoRA_Office \
+    --bf16 \
+    --per_device_train_batch_size 1 \
+    --gradient_accumulation_steps 16 \
+    --learning_rate 1e-4 \
+    --num_train_epochs 3 \
+    --save_steps 500 \
+    --max_pixels $((576*28*28)) \               <span class="cmt"># 降低分辨率省显存</span>
+    --gradient_checkpointing                     <span class="cmt"># 用时间换显存</span></div>
+  </div>
+
+  <!-- ⑤ 数据准备 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑤ 微调数据准备</h3>
+
+  <p>需要把自己的场景做成 R2R 格式的 JSON：</p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 每条训练数据 = 一个 navigation episode</span>
+{
+  <span class="str">"episodes"</span>: [
+    {
+      <span class="str">"episode_id"</span>: 1,
+      <span class="str">"scene_id"</span>: <span class="str">"mp3d/my_office/my_office.glb"</span>,
+      <span class="str">"start_position"</span>: [0, 0, 0],
+      <span class="str">"start_rotation"</span>: [0, 0.923, 0, 0.382],
+      <span class="str">"goals"</span>: [{<span class="str">"position"</span>: [5.2, 0, -3.1]}],
+      <span class="str">"reference_path"</span>: [[0,0,0], [0.5,0,0], ..., [5.2,0,-3.1]],
+      <span class="str">"instruction"</span>: {
+        <span class="str">"instruction_text"</span>: <span class="str">"Walk to the whiteboard and stop"</span>
+      }
+    }
+  ],
+  <span class="str">"instruction_vocab"</span>: {...}  <span class="cmt"># 复用 R2R 原始词表</span>
+}</div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>场景来源</th><th>数据制作方式</th><th>最少条数</th></tr></thead>
+    <tbody>
+      <tr><td>Habitat 仿真新场景</td><td>用 ShortestPathFollower 自动生成 reference_path，人工标注指令</td><td>50-100 条</td></tr>
+      <tr><td>真机录制的轨迹</td><td>SLAM 记录位姿序列 → 转成 reference_path，人工标注指令</td><td>30-50 条</td></tr>
+      <tr><td>现有 R2R 子集</td><td>从 R2R 训练集中筛选与目标场景相似的 episode</td><td>200+ 条</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ⑥ 训练流程总结 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ 微调完整流程</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>步骤</th><th>操作</th><th>预计时间</th></tr></thead>
+    <tbody>
+      <tr><td><b>1. 数据采集</b></td><td>在新场景中收集 50-200 条导航指令+轨迹</td><td>2-4 小时</td></tr>
+      <tr><td><b>2. 格式转换</b></td><td>转为 R2R JSON + gzip 压缩</td><td>30 分钟</td></tr>
+      <tr><td><b>3. LoRA 训练</b></td><td>L40 单卡，3 epoch，batch_size=1，grad_accum=16</td><td>4-8 小时</td></tr>
+      <tr><td><b>4. 合并权重</b></td><td><code>model.merge_and_unload()</code> → LoRA 合并回原始权重</td><td>1 分钟</td></tr>
+      <tr><td><b>5. 评估</b></td><td>在新场景的 val split 上跑 eval，对比微调前后</td><td>30 分钟</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">💡 微调预期效果</div>
+    <p>
+      在 R2R 上零样本 SR=46.7%。如果用自己的 50-100 条数据进行 LoRA 微调：
+      <br>• <b>同场景 SR：</b>预期提升到 60-75%（模型"记住"了你的环境）
+      <br>• <b>跨场景泛化：</b>可能轻微下降（LoRA 的灾难性遗忘），需要混合原始 R2R 数据
+      <br>• <b>训练技巧：</b>前 1 epoch 混合 70% R2R + 30% 新数据，后 2 epoch 只用新数据
+    </p>
+  </div>
+
+  <!-- ⑦ Seq2Seq 微调 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑦ 方案 C：微调我们自己的 Seq2Seq</h3>
+
+  <p>如果我们不想用 JanusVLN（硬件要求高），也可以微调自己在 §N 训练的 2700 万参数模型：</p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 加载 §N 训练的 checkpoint</span>
+model = Seq2SeqAgent(embed_dim=300, hidden_dim=512)
+model.load_state_dict(torch.load(<span class="str">'ckpt/seq2seq_best.pth'</span>))
+
+<span class="cmt"># 在新数据上全量微调（27M 参数全部可训练）</span>
+optimizer = AdamW(model.parameters(), lr=1e-4)
+<span class="kw">for</span> epoch <span class="kw">in</span> range(5):
+    <span class="kw">for</span> rgb, instruction, action_gt <span class="kw">in</span> new_dataloader:
+        pred = model(rgb, instruction)
+        loss = CrossEntropyLoss(pred, action_gt)
+        loss.backward()
+        optimizer.step()
+
+<span class="cmt"># 优点：快（10 分钟训完）、省显存（8GB）、可跑 DAgger</span>
+<span class="cmt"># 缺点：模型上限低（没有 VLM 的世界知识）</span></div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>对比</th><th>Seq2Seq 微调</th><th>JanusVLN LoRA</th></tr></thead>
+    <tbody>
+      <tr><td>显存</td><td>~8 GB</td><td>~30 GB</td></tr>
+      <tr><td>训练时间（100 条数据）</td><td>~10 分钟</td><td>~4 小时</td></tr>
+      <tr><td>SR 上限</td><td>~40-50%</td><td>~60-75%</td></tr>
+      <tr><td>适合场景</td><td>快速原型，验证数据质量</td><td>最终部署，追求性能</td></tr>
+      <tr><td>可做 DAgger</td><td>✅ 轻量，训练快</td><td>⚠️ 每轮 4 小时，迭代慢</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:12px;">
+    <div class="tip-title">💡 推荐策略：两级微调</div>
+    <p>
+      <b>第一级：</b>用 Seq2Seq 在新数据上快速微调（10 分钟），验证数据质量和任务可行性<br>
+      <b>第二级：</b>确认数据没问题后，用 JanusVLN LoRA 做正式微调（4-8 小时），拿到最优 SR<br>
+      这样避免了"花 4 小时训练发现数据有 bug"的情况。
+    </p>
+  </div>
+
+
+<!-- ⑧ 数据采集方法论 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑧ 数据采集：如何制作微调数据集</h3>
+
+  <p style="margin-bottom:12px;">
+    微调效果的上限由数据决定。这一节介绍三种采集方式、数据格式规范、以及常见陷阱。
+  </p>
+
+  <p><b>三种采集方式对比</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>方式</th><th>工具</th><th>单条耗时</th><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>A. 仿真自动采集</b></td>
+        <td>Habitat + ShortestPathFollower</td>
+        <td>~10 秒</td>
+        <td>快速、安全、可批量</td>
+        <td>图像与真机有分布差</td>
+      </tr>
+      <tr>
+        <td><b>B. 真机手动录制</b></td>
+        <td>Spark-I + rosbag</td>
+        <td>~5 分钟</td>
+        <td>真实相机/光照/动态</td>
+        <td>慢、需人工操作</td>
+      </tr>
+      <tr>
+        <td><b>C. 混合策略</b></td>
+        <td>仿真 80% + 真机 20%</td>
+        <td>—</td>
+        <td>兼得速度与真实感</td>
+        <td>需对齐两种数据格式</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;"><b>方式 A：仿真自动采集脚本</b></p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># collect_training_data.py — 在 Habitat 中自动采集导航轨迹</span>
+<span class="kw">import</span> habitat, json, gzip, numpy <span class="kw">as</span> np
+<span class="kw">from</span> habitat.tasks.nav.shortest_path_follower <span class="kw">import</span> ShortestPathFollower
+
+env = habitat.Env(config=habitat.get_config(<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>))
+follower = ShortestPathFollower(env.sim, goal_radius=1.8, return_one_hot=<span class="kw">False</span>)
+
+dataset = []
+<span class="kw">for</span> ep_id, episode <span class="kw">in</span> enumerate(env.episodes):
+    obs = env.reset()
+    episode_data = {
+        <span class="str">"episode_id"</span>: ep_id,
+        <span class="str">"scene_id"</span>: episode.scene_id,
+        <span class="str">"start_position"</span>: episode.start_position.tolist(),
+        <span class="str">"start_rotation"</span>: episode.start_rotation.tolist(),
+        <span class="str">"goals"</span>: [{<span class="str">"position"</span>: g.position.tolist()} <span class="kw">for</span> g <span class="kw">in</span> episode.goals],
+        <span class="str">"reference_path"</span>: [p.tolist() <span class="kw">for</span> p <span class="kw">in</span> episode.reference_path],
+        <span class="str">"rgb_frames"</span>: [],        <span class="cmt"># 每步的 RGB 图像</span>
+        <span class="str">"actions"</span>: [],            <span class="cmt"># 每步的专家动作</span>
+        <span class="str">"instruction"</span>: <span class="str">""</span>        <span class="cmt"># 人工标注（采集后填）</span>
+    }
+
+    <span class="kw">while not</span> env.episode_over:
+        episode_data[<span class="str">"rgb_frames"</span>].append(obs[<span class="str">"rgb"</span>].copy())
+        action = follower.get_next_action(episode.reference_path)
+        episode_data[<span class="str">"actions"</span>].append(action)
+        obs = env.step(action)
+
+    dataset.append(episode_data)
+
+<span class="cmt"># 保存（不含 RGB 图片——图片单独存为 PNG 以节省 JSON 体积）</span>
+<span class="kw">with</span> gzip.open(<span class="str">"my_scene_train.json.gz"</span>, <span class="str">"wt"</span>) <span class="kw">as</span> f:
+    json.dump({<span class="str">"episodes"</span>: dataset}, f, default=<span class="kw">str</span>)</div>
+  </div>
+
+  <p style="margin-top:16px;"><b>方式 B：真机手动录制</b></p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 真机采集流程（Spark-I + ROS 2）</span>
+
+<span class="cmt"># Step 1: 录 rosbag（遥控机器人走一遍路径）</span>
+$ ros2 bag record /camera/color/image_raw /odom /tf /tf_static \
+    -o my_nav_path_01
+
+<span class="cmt"># Step 2: 从 rosbag 提取位姿序列 → reference_path</span>
+$ python3 extract_poses_from_bag.py my_nav_path_01/
+
+<span class="cmt"># Step 3: 人工标注指令（对着视频写）</span>
+<span class="cmt">#   示例："从实验室门口出发，经过机械臂工位，走到3D打印区停下"</span>
+
+<span class="cmt"># Step 4: 重复 30-50 条 → 开始微调</span></div>
+  </div>
+
+  <p style="margin-top:16px;"><b>数据采集检查清单</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>维度</th><th>✅ 正确做法</th><th>❌ 常见错误</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>路径多样性</b></td>
+        <td>包含最短路径 + 偏离路径（70:30）</td>
+        <td>只有最短路径 → 模型没见过走错的样子</td>
+      </tr>
+      <tr>
+        <td><b>指令语言</b></td>
+        <td>日常口语："走到白板前"<br>同路径 2-3 种说法</td>
+        <td>"前进 5 米，左转 30 度"→ 不是 VLN</td>
+      </tr>
+      <tr>
+        <td><b>光照覆盖</b></td>
+        <td>早/中/晚各采一批</td>
+        <td>只在下午 3 点采 → 早上模型就瞎了</td>
+      </tr>
+      <tr>
+        <td><b>视角覆盖</b></td>
+        <td>路径偏左/偏右/正中各一些</td>
+        <td>全都走正中间</td>
+      </tr>
+      <tr>
+        <td><b>动态物体</b></td>
+        <td>有行人 / 无行人各一半</td>
+        <td>全是空房间 → 真机一有人就乱</td>
+      </tr>
+      <tr>
+        <td><b>距离梯度</b></td>
+        <td>3m / 5m / 10m / 20m 均匀分布</td>
+        <td>全是 5m 以内的短距离</td>
+      </tr>
+      <tr>
+        <td><b>中英对应</b></td>
+        <td>JanusVLN 用英文：中文翻译为英文<br>或用英文直接标注</td>
+        <td>中文直接喂给英文训练的模型</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;"><b>最小可行数据集</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>场景规模</th><th>最少条数</th><th>采集时间</th><th>预期 SR（微调后）</th></tr></thead>
+    <tbody>
+      <tr><td>单个房间</td><td>30 条</td><td>1 小时（仿真）</td><td>~55%</td></tr>
+      <tr><td>一层办公楼</td><td>100 条</td><td>3 小时（仿真）</td><td>~65%</td></tr>
+      <tr><td>整栋建筑</td><td>300+ 条</td><td>1 天（仿真）</td><td>~70%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 第一优先级：数据质量 > 数据数量</div>
+    <p>
+      30 条高质量数据（路径多样 + 指令自然 + 光照覆盖）比 200 条劣质数据有效得多。
+      劣质数据的典型信号：微调后 SR 反而下降 → 说明数据引入了噪声而非信号。
+      如果时间有限，宁可花 80% 时间打磨 30 条数据，不要赶工产 100 条。
+    </p>
+  </div>
+
+
 
 </div>
 </section>
 
-
-<!-- ═══════════════ 总结 ═══════════════ -->
+  <!-- ═══════════════ 总结 ═══════════════ -->
 <section>
 <div class="container">
   <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 本章总结</h2>
 
-  <div class="dual-panel">
-    <div class="panel">
-      <h4 style="color:#c4b5fd;">✅ 完成本章后你应该能</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        • 解释 VLN+Nav2 三层架构的数据流<br>
-        • 创建 vln_ros package 并编译通过<br>
-        • 理解 vln_inference_node 和 goal_publisher_node 的职责<br>
-        • 根据 Spark-I 或 Leo 配置 topic 和 TF 参数<br>
-        • 按正确的启动顺序在真机上跑通 VLN 导航<br>
-        • 设计云-边-端分离架构并部署推理服务<br>
-        • 执行仿真→真机两阶段测试并记录结果
-      </p>
+  <div class="module-grid">
+    <div class="module" style="border-left-color: var(--accent-vln);">
+      <h3>✅ 完成本章后你应该能</h3>
+      <ul>
+        <li>创建并验证 VLN-v0 环境</li>
+        <li>理解 R2R episode 的数据结构（position + instruction + reference_path）</li>
+        <li>解释 InstructionSensor 如何从 episode 提取指令文本</li>
+        <li>启动 VLN 模仿学习训练并阅读 loss/acc 曲线</li>
+        <li>理解 SR/SPL/nDTW 三项评估指标</li>
+        <li>导出可用于真机推理的 checkpoint + config 文件</li>
+        <li>运行 SOTA 模型（JanusVLN）并在同一数据上对比 SR</li>
+        <li>使用 LoRA 在单卡上微调 JanusVLN，或用 Seq2Seq 快速微调验证数据</li>
+      </ul>
     </div>
-    <div class="panel">
-      <h4 style="color:#f9a8d4;">🔜 也看看方法二</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        方法一需要预建地图和 Nav2 配置。如果你想要一个<b>完全不依赖地图的方案</b>，
-        或者你对 VLM（视觉语言模型）更感兴趣，请看：
-        <a href="habitat-textbook-step8.html" style="color:#f9a8d4;font-weight:600;">→ 方法二：VLM 端到端</a>
+    <div class="module" style="border-left-color: #a78bfa;">
+      <h3>🔜 下一步：真机部署</h3>
+      <p style="margin-top:4px;">
+        现在你手头有了训练好的 VLN 模型。接下来的问题是：<b>怎么让它在 Spark-I 或 Leo 上跑起来？</b><br><br>
+        <a href="habitat-textbook-step7.html" style="color:#c4b5fd;font-weight:600;">→ 方法一：VLN 模型 + ROS Nav2</a>（更适合有 ROS 经验的团队）<br>
+        <a href="habitat-textbook-step8.html" style="color:#f9a8d4;font-weight:600;">→ 方法二：VLM 端到端</a>（更适合 CV/ML 背景的团队）
       </p>
     </div>
   </div>
 
+  <!-- Page Nav -->
   <div class="page-nav">
-    <a href="habitat-textbook-step6.html" class="prev">← 第6步：VLN 仿真训练</a>
-    <a href="habitat-textbook-step8.html" class="next">第8步：方法二 · VLM 端到端 →</a>
+    <a href="habitat-textbook-step6.html" class="prev">← 第6步：RL 训练入门</a>
+    <a href="habitat-textbook-step8.html" class="next">第8步：真机部署 →</a>
   </div>
 
 </div>
 </section>
 
 <footer class="footer">
-  <p><b>Habitat 从零理解</b> · Step 7 · 真机部署：方法一 · VLN + ROS Nav2</p>
+  <p><b>Habitat 从零理解</b> · Step 6 · VLN 仿真训练</p>
   <p style="margin-top:6px;">
     <a href="index.html">门户</a> ·
     <a href="habitat-textbook.html">教科书</a> ·
-    <a href="habitat-textbook-step6.html">← Step 6</a> ·
-    <a href="habitat-textbook-step8.html">Step 8 →</a>
+    <a href="habitat-textbook-step5.html">← Step 5</a> ·
+    <a href="habitat-textbook-step7.html">Step 7 →</a>
   </p>
 </footer>
 
 <script src="assets/js/site.js"></script>
-<script>window.totalStages = 6;</script>
+<script>window.totalStages = 8;</script>
 </body>
 </html>
