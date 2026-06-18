@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>第7步：VLN 视觉语言导航 — Habitat 从零理解</title>
+<title>第7章：VLN 视觉语言导航 — Habitat 从零理解</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 
 <style>
-  /* ── Step 6 补充变量 ─── */
+  /* ── 第6章 补充变量 ─── */
   :root {
     --accent-vln: #2dd4bf;
     --accent-sensor: #f59e0b;
@@ -21,20 +21,20 @@
 
 <!-- ═══════════════ TOP NAV ═══════════════ -->
 <nav class="topnav" id="topnav">
-  <a href="index.html">🏠 门户</a>
+  <a href="index.html">🏠 学习中心</a>
   <span class="sep">|</span>
   <a href="habitat-textbook.html">📗 教科书</a>
   <span class="sep">/</span>
-  <a href="habitat-textbook-step6.html">第6步：RL 训练入门</a>
+  <a href="habitat-textbook-step6.html">第6章：RL 训练入门</a>
   <span class="sep">/</span>
-  <span class="current">第7步：VLN 视觉语言导航</span>
+  <span class="current">第7章：VLN 视觉语言导航</span>
   <span class="sep" style="margin-left:auto;"></span>
-  <a href="habitat-textbook-step7.html">🤖 方法一：VLN+ROS →</a>
+  <a href="habitat-textbook-step8.html">🤖 第8章：真机部署 →</a>
 </nav>
 
 <!-- ═══════════════ HERO ═══════════════ -->
 <header class="hero">
-  <div class="step-badge">第 7 步 · VLN 专线 — 从入门到部署</div>
+  <div class="step-badge">第7章 · VLN 专线 — 从入门到部署</div>
   <h1>VLN 视觉语言导航</h1>
   <p class="subtitle">
     在 Habitat 中训练视觉语言导航（VLN）模型：配置 VLN-v0 任务、理解 R2R 数据集与 InstructionSensor、
@@ -47,7 +47,7 @@
 <div class="container">
 
   <h2 class="section-title"><span class="dot" style="background:var(--accent-vln);"></span> 本章概览：8 个案例</h2>
-  <p class="section-subtitle">从 IL 训练到诊断修复，从 SOTA 参照到模型微调——VLN 一条线走到底。前置：<a href="habitat-textbook-step5.html" style="color:#a78bfa;">第5步「导航任务全景」§1.6</a> 已介绍 VLN 是什么。
+  <p class="section-subtitle">从 IL 训练到诊断修复，从 SOTA 参照到模型微调——VLN 一条线走到底。前置：<a href="habitat-textbook-step5.html" style="color:#a78bfa;">第5章「导航任务全景」§1.6</a> 已介绍 VLN 是什么。
       </p>
       <p class="section-subtitle" style="display:none;">
     从配置到训练到导出，每一步都可独立运行和验证。建议按顺序完成。
@@ -63,7 +63,7 @@
         <td><a href="#case7-1">配置 VLN 任务</a></td>
         <td>VLN-v0 任务配置、R2R 数据集加载、验证环境可创建</td>
         <td>⭐⭐</td>
-        <td>Step 2</td>
+        <td>第2章</td>
       </tr>
       <tr>
         <td style="color:#2dd4bf;font-weight:700;">7-2</td>
@@ -77,7 +77,7 @@
         <td><a href="#case7-3">模仿学习训练</a></td>
         <td>IL 训练流程、teacher-forcing、checkpoint 保存</td>
         <td>⭐⭐⭐</td>
-        <td>7-2, Step 5</td>
+        <td>7-2, 第5章</td>
       </tr>
       <tr>
         <td style="color:#fbbf24;font-weight:700;">7-4</td>
@@ -136,7 +136,7 @@
 <section>
 <div class="container">
   <h2 class="section-title"><span class="dot" style="background:var(--accent-warn);"></span> 为什么 VLN 必须依赖 Matterport3D？</h2>
-  <p class="section-subtitle">从 IL 训练到诊断修复，从 SOTA 参照到模型微调——VLN 一条线走到底。前置：<a href="habitat-textbook-step5.html" style="color:#a78bfa;">第5步「导航任务全景」§1.6</a> 已介绍 VLN 是什么。
+  <p class="section-subtitle">从 IL 训练到诊断修复，从 SOTA 参照到模型微调——VLN 一条线走到底。前置：<a href="habitat-textbook-step5.html" style="color:#a78bfa;">第5章「导航任务全景」§1.6</a> 已介绍 VLN 是什么。
       </p>
       <p class="section-subtitle" style="display:none;">
     这不是 Habitat 的限制，而是 VLN 任务本身的定义方式决定的。
@@ -647,7 +647,7 @@ $ <span class="kw">python</span> -u -m habitat_baselines.run \
     <div class="info-title">① 案例含义</div>
     <p>
       训练完成后，在验证集上评估模型的导航能力（SR/SPL/nDTW），然后导出 checkpoint
-      为<b>纯推理权重文件</b>。这个文件就是 Step 7 部署到真机时需要加载的模型。
+      为<b>纯推理权重文件</b>。这个文件就是 第7章 部署到真机时需要加载的模型。
     </p>
   </div>
 
@@ -753,9 +753,9 @@ config = {
   <div class="tip-box">
     <div class="tip-title">💡 这两个文件就是部署的输入</div>
     <p>
-      <code>vln_inference.pth</code> + <code>vln_config.yaml</code> 是 Step 7（方法一：VLN+ROS Nav2）
+      <code>vln_inference.pth</code> + <code>vln_config.yaml</code> 是 第7章（方法一：VLN+ROS Nav2）
       部署时需要的两个文件。它们包含了<b>在真机上重建 VLN 模型并运行推理所需的一切</b>。
-      你在 Step 7 中会看到如何在 ROS 节点中加载它们。
+      你在 第7章 中会看到如何在 ROS 节点中加载它们。
     </p>
   </div>
 
@@ -1087,7 +1087,7 @@ val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
     <p>
       这一章教的是"如何诊断"。下一阶段（阶段 3：真正的 VLN 训练）教的是"如何做对"——<br>
       teacher-forcing、cross-modal attention、在线训练、数据增强。<br>
-      <a href="habitat-textbook-step6.html">→ 回到第7步：VLN 视觉语言导航</a>
+      <a href="habitat-textbook-step6.html">→ 回到第7章：VLN 视觉语言导航</a>
     </p>
   </div>
 </div>
@@ -1400,7 +1400,7 @@ action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWAR
   <!-- ④ 环境准备 -->
   <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 环境准备</h3>
 
-  <p><b>Step 1 — 克隆 + 权重</b></p>
+  <p><b>第1章 — 克隆 + 权重</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
     <div class="code-block"><span class="kw">git clone</span> https://github.com/MIV-XJTU/JanusVLN.git && <span class="kw">cd</span> JanusVLN
@@ -1408,7 +1408,7 @@ action_idx = actions2idx[processor.decode(output)]  <span class="cmt"># 1=FORWAR
 <span class="kw">python</span> -c <span class="str">"from modelscope import snapshot_download; snapshot_download('misstl/JanusVLN_Base', cache_dir='./weights')"</span></div>
   </div>
 
-  <p style="margin-top:12px;"><b>Step 2 — 单卡适配</b></p>
+  <p style="margin-top:12px;"><b>第2章 — 单卡适配</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
     <div class="code-block"><span class="cmt"># 依赖（国内用 douban 镜像）</span>
@@ -1703,13 +1703,13 @@ h = W @ x + b + (B @ A) @ x   <span class="cmt"># W 冻结，A+B 共 4096×16×2
   <!-- ④ LoRA 代码实现 -->
   <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ LoRA 微调 JanusVLN（L40 单卡）</h3>
 
-  <p><b>Step 1 — 安装 peft</b></p>
+  <p><b>第1章 — 安装 peft</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
     <div class="code-block"><span class="kw">pip install</span> peft -i https://pypi.doubanio.com/simple</div>
   </div>
 
-  <p style="margin-top:12px;"><b>Step 2 — 修改 train_qwen.py，在模型加载后插入 LoRA</b></p>
+  <p style="margin-top:12px;"><b>第2章 — 修改 train_qwen.py，在模型加载后插入 LoRA</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
     <div class="code-block"><span class="kw">from</span> peft <span class="kw">import</span> LoraConfig, get_peft_model, TaskType
@@ -1728,7 +1728,7 @@ model.print_trainable_parameters()
 <span class="cmt"># 输出: trainable params: 41,943,040 || all params: 8,294,967,296 || trainable%: 0.506%</span></div>
   </div>
 
-  <p style="margin-top:12px;"><b>Step 3 — 冻结 VGGT + 视觉编码器（节省更多显存）</b></p>
+  <p style="margin-top:12px;"><b>第3章 — 冻结 VGGT + 视觉编码器（节省更多显存）</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
     <div class="code-block"><span class="cmt"># 冻结 VGGT（3D 特征提取器——通用能力，不需要微调）</span>
@@ -1742,7 +1742,7 @@ model.print_trainable_parameters()
 <span class="cmt"># 只训练：LoRA adapter + 投影层 (merger) + token embedding</span></div>
   </div>
 
-  <p style="margin-top:12px;"><b>Step 4 — 单卡训练命令（移除 DeepSpeed）</b></p>
+  <p style="margin-top:12px;"><b>第4章 — 单卡训练命令（移除 DeepSpeed）</b></p>
   <div class="code-block-wrapper">
     <button class="copy-btn">复制</button>
     <div class="code-block"><span class="cmt"># 原版需要 8 卡 + DeepSpeed，LoRA 版本单卡即可</span>
@@ -1951,17 +1951,17 @@ dataset = []
     <button class="copy-btn">复制</button>
     <div class="code-block"><span class="cmt"># 真机采集流程（Spark-I + ROS 2）</span>
 
-<span class="cmt"># Step 1: 录 rosbag（遥控机器人走一遍路径）</span>
+<span class="cmt"># 第1章: 录 rosbag（遥控机器人走一遍路径）</span>
 $ ros2 bag record /camera/color/image_raw /odom /tf /tf_static \
     -o my_nav_path_01
 
-<span class="cmt"># Step 2: 从 rosbag 提取位姿序列 → reference_path</span>
+<span class="cmt"># 第2章: 从 rosbag 提取位姿序列 → reference_path</span>
 $ python3 extract_poses_from_bag.py my_nav_path_01/
 
-<span class="cmt"># Step 3: 人工标注指令（对着视频写）</span>
+<span class="cmt"># 第3章: 人工标注指令（对着视频写）</span>
 <span class="cmt">#   示例："从实验室门口出发，经过机械臂工位，走到3D打印区停下"</span>
 
-<span class="cmt"># Step 4: 重复 30-50 条 → 开始微调</span></div>
+<span class="cmt"># 第4章: 重复 30-50 条 → 开始微调</span></div>
   </div>
 
   <p style="margin-top:16px;"><b>数据采集检查清单</b></p>
@@ -2063,20 +2063,20 @@ $ python3 extract_poses_from_bag.py my_nav_path_01/
 
   <!-- Page Nav -->
   <div class="page-nav">
-    <a href="habitat-textbook-step6.html" class="prev">← 第6步：RL 训练入门</a>
-    <a href="habitat-textbook-step8.html" class="next">第8步：真机部署 →</a>
+    <a href="habitat-textbook-step6.html" class="prev">← 第6章：RL 训练入门</a>
+    <a href="habitat-textbook-step8.html" class="next">第8章：真机部署 →</a>
   </div>
 
 </div>
 </section>
 
 <footer class="footer">
-  <p><b>Habitat 从零理解</b> · Step 6 · VLN 仿真训练</p>
+  <p><b>Habitat 从零理解</b> · 第6章 · VLN 仿真训练</p>
   <p style="margin-top:6px;">
-    <a href="index.html">门户</a> ·
+    <a href="index.html">学习中心</a> ·
     <a href="habitat-textbook.html">教科书</a> ·
-    <a href="habitat-textbook-step5.html">← Step 5</a> ·
-    <a href="habitat-textbook-step7.html">Step 7 →</a>
+    <a href="habitat-textbook-step5.html">← 第5章</a> ·
+    <a href="habitat-textbook-step7.html">第7章 →</a>
   </p>
 </footer>
 

@@ -812,7 +812,7 @@ obs = env.reset()           <span class="cmt"># 开局：把演员放到起点</
         配置文件的核心思想是<b>"继承 + 覆盖"</b>——就像面向对象编程里的类继承一样。<br>
         <code>pointnav_habitat_test.yaml</code> 继承了 <code>pointnav_base</code> 的全部骨架（Env 参数、PointNav 任务、RGBD Agent），<b>只覆盖了 3 个东西</b>：数据集改为 test、分辨率降到 256、步数设为 500。<br><br>
         同理，如果你想把测试换成 Gibson 数据集训练正式模型，只需要把 <code>habitat_test</code> 换成 <code>gibson</code>，其他一切照旧——这就是配置驱动的威力。<br>
-        （具体的"改配置做实验"是第 4 步的内容，但不急，先把第 3 步的架构搞清楚。）
+        （具体的"改配置做实验"是第4章的内容，但不急，先把第3章的架构搞清楚。）
       </p>
     </div>
 
@@ -1471,9 +1471,9 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         第7章讲的是 Habitat 框架级的 Sim-to-Real 抽象（切换 Simulator 后端）。如果你想了解
         <b>具体怎么在 Spark-I 或 Leo 机器人上跑 VLN（视觉语言导航）</b>——包括两种实战方案
         （VLN+ROS Nav2 和 VLM 端到端），请直接跳到主线教程的部署轨：
-        <a href="habitat-textbook-step6.html" style="color:#2dd4bf; font-weight:600;">Step 6 · VLN 仿真训练 →</a>
-        <a href="habitat-textbook-step7.html" style="color:#c4b5fd; font-weight:600; margin-left:12px;">Step 7 · 方法一：VLN+ROS →</a>
-        <a href="habitat-textbook-step8.html" style="color:#f9a8d4; font-weight:600; margin-left:12px;">Step 8 · 方法二：VLM 端到端 →</a>
+        <a href="habitat-textbook-step6.html" style="color:#2dd4bf; font-weight:600;">第6章 · VLN 仿真训练 →</a>
+        <a href="habitat-textbook-step7.html" style="color:#c4b5fd; font-weight:600; margin-left:12px;">第7章 · 方法一：VLN+ROS →</a>
+        <a href="habitat-textbook-step8.html" style="color:#f9a8d4; font-weight:600; margin-left:12px;">第8章 · 方法二：VLM 端到端 →</a>
       </p>
     </div>
 
@@ -1488,11 +1488,11 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
       前面的章节帮你建立了"这是什么"的心智模型。这一章把所有内容串成一条可执行的学习路径：
       <b style="color:#60a5fa;">认知轨</b>（Steps 1–5，认识 Habitat 平台）
       →
-      <b style="color:#60a5fa;">训练轨</b>（Step 6，学会 RL 训练）
+      <b style="color:#60a5fa;">训练轨</b>（第6章，学会 RL 训练）
       →
       <b style="color:#2dd4bf;">部署轨</b>（Steps 7–8，将模型部署到真实机器人）
       →
-      <b style="color:#c4b5fd;">进阶轨</b>（Step 9，Habitat 2.0 交互式操作）。
+      <b style="color:#c4b5fd;">进阶轨</b>（第9章，Habitat 2.0 交互式操作）。
     </p>
 
     <!-- 研究轨 5 步 -->
@@ -1559,7 +1559,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
     <!-- 每步详细说明 -->
     <div class="module-grid" style="margin-top: 32px;">
       <div class="module" style="border-left-color: #64748b;">
-        <h3>第1步：安装环境 (1-2天) &nbsp;<a href="habitat-textbook-step1.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第1章：安装环境 (1-2天) &nbsp;<a href="habitat-textbook-step1.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li>创建 conda 环境 (Python 3.9 + cmake)</li>
           <li>安装 habitat-sim (conda install)</li>
@@ -1569,7 +1569,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: #10b981;">
-        <h3>第1B步：完整数据集下载 (半天) &nbsp;<a href="habitat-textbook-step1b.html" style="font-size:0.78rem; color:#6ee7b7; text-decoration:none; border:1px solid #10b98140; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第1B章：完整数据集下载 (半天) &nbsp;<a href="habitat-textbook-step1b.html" style="font-size:0.78rem; color:#6ee7b7; text-decoration:none; border:1px solid #10b98140; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>7 种场景数据集</b>：Gibson / MP3D / HM3D / ReplicaCAD 对比</li>
           <li><b>6 种任务数据集</b>：PointNav / ObjectNav / VLN / Rearrange</li>
@@ -1578,7 +1578,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: var(--accent-core);">
-        <h3>第2步：跑通示例 (1天) &nbsp;<a href="habitat-textbook-step2.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第2章：跑通示例 (1天) &nbsp;<a href="habitat-textbook-step2.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li>跑 <code>examples/example.py</code> — 理解 step/reset</li>
           <li>跑 <code>examples/interactive_play.py</code> — 用键盘控制 Agent</li>
@@ -1587,7 +1587,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: var(--accent-task);">
-        <h3>第3步：读核心代码 (3-5天) &nbsp;<a href="habitat-textbook-step3.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #8b5cf640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第3章：读核心代码 (3-5天) &nbsp;<a href="habitat-textbook-step3.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #8b5cf640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>Day 1：</b>registry.py → sensor.py → simulator.py</li>
           <li><b>Day 2：</b>agent.py → embodied_task.py → env.py</li>
@@ -1597,7 +1597,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: var(--accent-config);">
-        <h3>第4步：改配置实验 (2-3天)</h3>
+        <h3>第4章：改配置实验 (2-3天)</h3>
         <ul>
           <li>修改 RGB 分辨率 / HFOV → 观察输出变化</li>
           <li>添加/移除传感器（加 Depth、去 Compass）</li>
@@ -1607,7 +1607,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: #a78bfa;">
-        <h3>第5步：导航任务全景 (半天) &nbsp;<a href="habitat-textbook-step5.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #a78bfa40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第5章：导航任务全景 (半天) &nbsp;<a href="habitat-textbook-step5.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #a78bfa40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>5种导航任务全景</b>：PointNav / ObjectNav / ImageNav / InstanceNav / VLN</li>
           <li>对比表：目标表示、传感器、动作空间、数据集</li>
@@ -1616,7 +1616,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: var(--accent-rl);">
-        <h3>第6步：RL 训练入门 (1-2周) &nbsp;<a href="habitat-textbook-step6.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第6章：RL 训练入门 (1-2周) &nbsp;<a href="habitat-textbook-step6.html" style="font-size:0.78rem; color:#60a5fa; text-decoration:none; border:1px solid #3b82f640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>Day 1-2：</b>PointNav + PPO 训练（抄官方配置）</li>
           <li><b>Day 3-4：</b>理解训练循环：Rollout → PPO更新 → 评估</li>
@@ -1634,7 +1634,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: var(--accent-tip);">
-        <h3>第7步：VLN 视觉语言导航 (2-3周) &nbsp;<a href="habitat-textbook-step7.html" style="font-size:0.78rem; color:#2dd4bf; text-decoration:none; border:1px solid #14b8a640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第7章：VLN 视觉语言导航 (2-3周) &nbsp;<a href="habitat-textbook-step7.html" style="font-size:0.78rem; color:#2dd4bf; text-decoration:none; border:1px solid #14b8a640; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>7-1~7-3：</b>VLN 理论 → 配置 → IL 训练 → SR≈32%</li>
           <li><b>7-4：</b>避坑诊断 — CLIP实验、行为漂移分析</li>
@@ -1643,7 +1643,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
         </ul>
       </div>
       <div class="module" style="border-left-color: #a78bfa;">
-        <h3>第8步：真机部署 (2-3周) &nbsp;<a href="habitat-textbook-step8.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #a78bfa40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
+        <h3>第8章：真机部署 (2-3周) &nbsp;<a href="habitat-textbook-step8.html" style="font-size:0.78rem; color:#c4b5fd; text-decoration:none; border:1px solid #a78bfa40; padding:3px 10px; border-radius:14px;">📖 详细教程 →</a></h3>
         <ul>
           <li><b>方案一（8-1~8-6）：</b>VLN → 子目标 → ROS Nav2 执行</li>
           <li><b>方案二（8-7~8-10）：</b>VLM 端到端，无地图导航</li>
@@ -1674,7 +1674,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
 
 <!-- ═══════════════ Footer ═══════════════ -->
 <footer class="footer">
-  <p><a href="index.html">门户首页</a> · <b>教科书</b> · <a href="habitat-textbook-step1b.html">数据集</a> · <a href="habitat-textbook-step5b.html">DD-PPO</a> · <a href="habitat-textbook-step9.html">Rearrange</a> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
+  <p><a href="index.html">学习中心</a> · <b>教科书</b> · <a href="habitat-textbook-step1b.html">数据集</a> · <a href="habitat-textbook-step5b.html">DD-PPO</a> · <a href="habitat-textbook-step9.html">Rearrange</a> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
   <p style="margin-top:8px;">Habitat 从零理解 — 具身智能入门教科书 &nbsp;|&nbsp;
   基于 Habitat-Lab v0.2.5 工程架构 &nbsp;|&nbsp;
   Meta FAIR · Habitat 1.0 (ICCV 2019) · Habitat 2.0 (NeurIPS 2021) &nbsp;|&nbsp;
@@ -1683,7 +1683,7 @@ env = gym.make(<span class="str">"Habitat-v0"</span>, cfg_file_path=<span class=
 
 <script>
 document.getElementById('topnav').innerHTML =
-  '<a href="index.html">🏠 门户</a>' +
+  '<a href="index.html">🏠 学习中心</a>' +
   '<span class="sep">|</span>' +
   '<span class="current">📗 教科书</span>' +
   '<span class="sep">|</span>' +

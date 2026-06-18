@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>第8步：真机部署 — Habitat 从零理解</title>
+<title>第8章：真机部署 — Habitat 从零理解</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 
 <style>
-  /* ── Step 8 补充变量 ─── */
+  /* ── 第8章 补充变量 ─── */
   :root {
     --accent-vlm: #f9a8d4;
     --accent-nav: #f59e0b;
@@ -18,19 +18,19 @@
 <body>
 
 <nav class="topnav">
-  <a href="index.html">🏠 门户</a>
+  <a href="index.html">🏠 学习中心</a>
   <span class="sep">|</span>
   <a href="habitat-textbook.html">📗 教科书</a>
   <span class="sep">/</span>
-  <a href="habitat-textbook-step7.html">第7步：方法一 · VLN+ROS</a>
+  <a href="habitat-textbook-step7.html">第7章：方法一 · VLN+ROS</a>
   <span class="sep">/</span>
-  <span class="current">第8步：方法二 · VLM 端到端</span>
+  <span class="current">第8章：真机部署</span>
   <span class="sep" style="margin-left:auto;"></span>
   <a href="vln.html">🧭 VLN 专题</a>
 </nav>
 
 <header class="hero">
-  <div class="step-badge">第 8 步 · 部署轨 — 从仿真到真机</div>
+  <div class="step-badge">第8章 · 部署轨 — 从仿真到真机</div>
   <h1>真机部署：VLM 端到端</h1>
   <p class="subtitle">
     视觉语言模型（VLM）直接接收 RGB 图像 + 自然语言指令 → 输出控制命令。
@@ -46,7 +46,7 @@
   <p class="section-subtitle">
     从理解 VLM 导航原理，到选型、部署、与方法一对比。方法二仍在快速发展中——这里的方案基于 2024–2025 的 SOTA 工作。
   </p>
-      <p class="section-subtitle">两种真机方案：VLN→ROS Nav2（稳妥）和 VLM 端到端（前沿）。前置：<a href="habitat-textbook-step7.html" style="color:#2dd4bf;">第7步 VLN</a> 和 <a href="habitat-textbook-step6.html" style="color:#60a5fa;">第6步 RL训练</a>。</p>
+      <p class="section-subtitle">两种真机方案：VLN→ROS Nav2（稳妥）和 VLM 端到端（前沿）。前置：<a href="habitat-textbook-step7.html" style="color:#2dd4bf;">第7章 VLN</a> 和 <a href="habitat-textbook-step6.html" style="color:#60a5fa;">第6章 RL训练</a>。</p>
 
 
   <table class="compare-table">
@@ -100,7 +100,7 @@
 <div class="container">
   <h2 class="section-title"><span class="dot" style="background:#14b8a6;"></span> 方案一 · VLN → ROS Nav2</h2>
   <p class="section-subtitle">
-    将第7步训练好的 VLN 模型部署到真实机器人：VLN 做高层决策 → 输出子目标位姿 → ROS Nav2 执行底层导航。
+    将第7章训练好的 VLN 模型部署到真实机器人：VLN 做高层决策 → 输出子目标位姿 → ROS Nav2 执行底层导航。
   </p>
 </div>
 </section>
@@ -277,7 +277,7 @@
 │   ├── goal_publisher_node.py    <span class="cmt"># 子目标发布节点</span>
 │   └── vln_orchestrator.py       <span class="cmt"># 主循环编排器</span>
 └── models/
-    └── (vln_inference.pth)       <span class="cmt"># Step 6 导出的模型权重</span></div>
+    └── (vln_inference.pth)       <span class="cmt"># 第6章 导出的模型权重</span></div>
   </div>
 
   <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">vln_inference_node.py — 核心推理节点</h3>
@@ -314,7 +314,7 @@
         rospy.loginfo(<span class="str">"VLN 推理节点已启动，等待图像..."</span>)
 
     <span class="kw">def</span> <span class="fn">_load_model</span>(<span class="kw">self</span>, path):
-        <span class="cmt"># 从 Step 6 导出的 checkpoint 加载模型</span>
+        <span class="cmt"># 从 第6章 导出的 checkpoint 加载模型</span>
         <span class="cmt"># 实际使用时替换为你的 VLN Policy 类</span>
         model = torch.load(path, map_location=<span class="str">"cpu"</span>)
         model.eval()
@@ -566,7 +566,7 @@
       否则 goal_publisher_node 的 TF lookup 会失败。<br>
       <b>3. Nav2 地图格式：</b>预建地图需要与当前环境一致。如果环境布局变了，需要重新建图。<br>
       <b>4. Python 版本兼容：</b>ROS 1 (Python 3.8) 和 ROS 2 (Python 3.10) 的 pickle 格式兼容——确保
-      Step 6 导出的 checkpoint 能在两边加载。
+      第6章 导出的 checkpoint 能在两边加载。
     </p>
   </div>
 
@@ -994,7 +994,7 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
   <div class="info-box">
     <div class="info-title">① 案例含义 — VLM 导航与传统 VLN 有什么不同？</div>
     <p>
-      传统 VLN（如 Step 6 训练的模型）是一个<b>任务专用的小模型</b>：CNN 编码图像 + LSTM 编码指令 → 输出离散动作。
+      传统 VLN（如 第6章 训练的模型）是一个<b>任务专用的小模型</b>：CNN 编码图像 + LSTM 编码指令 → 输出离散动作。
       VLM 导航则使用一个<b>通用的大模型</b>（数亿到数十亿参数），已在海量图文数据上预训练过，
       具备对场景、物体、空间关系的广泛理解。
       <br><br>
@@ -1014,7 +1014,7 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
         输出：<b>未来轨迹</b>（一系列 waypoint 坐标）<br>
         特点：不显式建图，利用视频中的时序信息隐式编码空间结构。<br>
         模型：基于 Video Diffusion 架构，在 Habitat 仿真中训练。<br>
-        <b>与我们的关系：</b>可以复用 Step 6 训练出的模型作为特征提取器。
+        <b>与我们的关系：</b>可以复用 第6章 训练出的模型作为特征提取器。
       </p>
     </div>
     <div class="panel">
@@ -1468,11 +1468,11 @@ Output ONLY the action name, nothing else."""</span>
     <div class="module" style="border-left-color: var(--accent-tip);">
       <h3>🎓 部署轨学习路径回顾</h3>
       <p style="margin-top:4px;">
-        <a href="habitat-textbook-step6.html" style="color:#2dd4bf;">Step 6</a> →
+        <a href="habitat-textbook-step6.html" style="color:#2dd4bf;">第6章</a> →
         在 Habitat 仿真中训练 VLN 模型，导出 checkpoint<br>
-        <a href="habitat-textbook-step7.html" style="color:#c4b5fd;">Step 7</a> →
+        <a href="habitat-textbook-step7.html" style="color:#c4b5fd;">第7章</a> →
         方法一：VLN 模型 + ROS Nav2，部署到真机<br>
-        <a href="#" style="color:#f9a8d4;">Step 8</a> →
+        <a href="#" style="color:#f9a8d4;">第8章</a> →
         方法二：VLM 端到端，无地图导航<br><br>
         三条路径相互补充。你可以选择其中一条深入，也可以全部掌握。
       </p>
@@ -1480,19 +1480,19 @@ Output ONLY the action name, nothing else."""</span>
   </div>
 
   <div class="page-nav">
-    <a href="habitat-textbook-step7.html" class="prev">← 第7步：VLN 视觉语言导航</a>
-    <a href="habitat-textbook-step9.html" class="next">第9步：Rearrange 操作 →</a>
+    <a href="habitat-textbook-step7.html" class="prev">← 第7章：VLN 视觉语言导航</a>
+    <a href="habitat-textbook-step9.html" class="next">第9章：Rearrange 操作 →</a>
   </div>
 
 </div>
 </section>
 
 <footer class="footer">
-  <p><b>Habitat 从零理解</b> · Step 8 · 真机部署：方法二 · VLM 端到端</p>
+  <p><b>Habitat 从零理解</b> · 第8章 · 真机部署：方法二 · VLM 端到端</p>
   <p style="margin-top:6px;">
-    <a href="index.html">门户</a> ·
+    <a href="index.html">学习中心</a> ·
     <a href="habitat-textbook.html">教科书</a> ·
-    <a href="habitat-textbook-step7.html">← Step 7</a> ·
+    <a href="habitat-textbook-step7.html">← 第7章</a> ·
     <a href="vln.html">VLN 专题</a>
   </p>
 </footer>

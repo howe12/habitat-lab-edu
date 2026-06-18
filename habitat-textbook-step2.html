@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>第2步：跑通示例 — Habitat 从零理解</title>
+<title>第2章：跑通示例 — Habitat 从零理解</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <style>
-  /* ── Step 2 专属样式：观测卡片 / 自检卡 ─── */
+  /* ── 第2章 专属样式：观测卡片 / 自检卡 ─── */
   .obs-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 14px; margin: 18px 0;
@@ -48,13 +48,13 @@
 
 <!-- ═══════════════ TOP NAV ═══════════════ -->
 <nav class="topnav">
-  <a href="index.html">🏠 门户</a>
+  <a href="index.html">🏠 学习中心</a>
   <span class="sep">|</span>
   <a href="habitat-textbook.html">📗 教科书</a>
   <span class="sep">/</span>
-  <a href="habitat-textbook-step1.html">第1步：安装环境</a>
+  <a href="habitat-textbook-step1.html">第1章：安装环境</a>
   <span class="sep">/</span>
-  <span class="current">第2步：跑通示例</span>
+  <span class="current">第2章：跑通示例</span>
   <span class="sep" style="margin-left:auto;"></span>
   <a href="vln.html">🧭 VLN</a>
   <span class="sep">|</span>
@@ -63,7 +63,7 @@
 
 <!-- ═══════════════ HERO ═══════════════ -->
 <header class="hero">
-  <div class="step-badge">第 2 步 · 预计 1 天</div>
+  <div class="step-badge">第2章 · 预计 1 天</div>
   <h1>跑通示例</h1>
   <p class="subtitle">
     亲手运行 Habitat 的示例程序，亲眼看到 3D 场景中的 Agent 移动。从"环境装好了"到"我知道它在做什么"。
@@ -117,7 +117,7 @@
     <div class="tip-box">
       <div class="tip-title">本章的学习策略</div>
       <p>
-        <b>2-1 到 2-3 必须亲手跑通。</b>2-4 跑通即可，不需要逐行理解。2-5 留到第 4 步（改配置实验）再深入。
+        <b>2-1 到 2-3 必须亲手跑通。</b>2-4 跑通即可，不需要逐行理解。2-5 留到第4章（改配置实验）再深入。
         目标不是"读懂所有代码"，而是<b>建立对关键数据格式和交互循环的肌肉记忆</b>。
       </p>
     </div>
@@ -388,9 +388,9 @@ After 9 steps metrics: {<span class="str">'distance_to_goal'</span>: 11.814, <sp
         <b>2. move_forward 的 reward 是 -0.17~-0.27：</b>而 turn_left / turn_right / stop 只有 -0.01（slack penalty）。
         为什么前进的惩罚更大？因为初始朝向 (1.56rad ≈ 89°) 几乎<b>垂直</b>于目标方向。
         往前走不仅不靠近目标，反而可能远离 — <b>在 PointNav 中，选对方向比走多远更重要。</b><br><br>
-        <b>3. 距离从 10.90m 降到 10.886m 后卡住：</b>Agent 在第 2 步撞墙。
+        <b>3. 距离从 10.90m 降到 10.886m 后卡住：</b>Agent 在第2章撞墙。
         后续 turn 只能改变朝向不能改位置 — <b>碰撞检测正常工作</b>，物理引擎阻止穿墙。<br><br>
-        <b>4. success=0.0 但 Agent 调用了 stop：</b>Step 9 的 stop 结束了 episode。
+        <b>4. success=0.0 但 Agent 调用了 stop：</b>第9章 的 stop 结束了 episode。
         但 success 仍是 0 — 因为 stop 时距目标还有 11.8m（远大于 success_distance=0.1m）。
         <b>success 需同时满足 (a) 调用 stop (b) distance &lt; 0.1m</b>。<br><br>
         <b>5. 随机动作很容易抽到 stop：</b>这就是 RL 训练时策略网络必须学会"不随便 stop"的原因。
@@ -583,7 +583,7 @@ env.close()</div>
 <span class="cmt"># 期望输出：</span>
 <span class="cmt"># 观测类型: ['rgb', 'depth', 'pointgoal_with_gps_compass']</span>
 <span class="cmt"># 初始 GPS: distance=10.9006m, angle=1.5645rad</span>
-<span class="cmt"># 第1步 — 到目标的距离: 10.90m, 角度: 1.59rad</span>
+<span class="cmt"># 第1章 — 到目标的距离: 10.90m, 角度: 1.59rad</span>
 <span class="cmt"># ...</span></div>
 
     <div class="info-box" style="border-color:#22d3ee40; background:#22d3ee08; margin-top:14px;">
@@ -607,11 +607,11 @@ env.close()</div>
 
 初始 GPS: distance=<span class="num">10.9006</span>m, angle=<span class="num">1.5645</span>rad
 执行 5 步 move_forward...
-  第1步 — 到目标的距离: 10.9019m, 角度: 1.5874rad
-  第2步 — 到目标的距离: 10.8858m, 角度: 1.6013rad
-  第3步 — 到目标的距离: 10.8858m, 角度: 1.6013rad  <span class="cmt">← 距离不再变化, Agent 撞墙了!</span>
-  第4步 — 到目标的距离: 10.8858m, 角度: 1.6013rad
-  第5步 — 到目标的距离: 10.8858m, 角度: 1.6013rad
+  第1章 — 到目标的距离: 10.9019m, 角度: 1.5874rad
+  第2章 — 到目标的距离: 10.8858m, 角度: 1.6013rad
+  第3章 — 到目标的距离: 10.8858m, 角度: 1.6013rad  <span class="cmt">← 距离不再变化, Agent 撞墙了!</span>
+  第4章 — 到目标的距离: 10.8858m, 角度: 1.6013rad
+  第5章 — 到目标的距离: 10.8858m, 角度: 1.6013rad
 
 5 步后 metrics: {
   <span class="str">'distance_to_goal'</span>: 11.814,
@@ -686,7 +686,7 @@ env.close()</div>
         这和 Gym API 的 <code>render('rgb_array')</code> 返回的 256×512 不同 — render 自动拼接了深度图。<br><br>
         <b>2. depth dtype=float32：</b>深度值单位是<b>米</b>，不是像素。深度图记录的是从相机到物体表面的距离，
         不是到导航目标的距离 — 两者是不同的概念。<br><br>
-        <b>3. 第3步开始距离不再变化：</b>Agent 在第2步已经撞墙，后续 step 无法移动。
+        <b>3. 第3章开始距离不再变化：</b>Agent 在第2章已经撞墙，后续 step 无法移动。
         Habitat 的物理引擎<b>自动阻止穿墙</b> — Agent 只能在 NavMesh（导航网格）上移动。<br><br>
         <b>4. angle 随 move_forward 也会变化：</b>即使是直走（不转弯），角度也会轻微变化（1.5645→1.5874→1.6013）。
         因为 Agent 移动后，它相对于目标的方向自然改变 — 这是正常的几何效应。
@@ -2203,7 +2203,7 @@ Video created: examples/images/shortest_path_example/<span class="str">02</span>
       <div class="tip-title">这个案例为什么重要？</div>
       <p style="font-size:0.86rem; line-height:1.7;">
         2-1 到 2-4 你用的是<b>别人写好的组件</b>。2-5 是第一次<b>你写自己的组件</b>。
-        后面第 4 步（改配置实验）和第 6 步（RL 训练）都会频繁使用这个模式 —
+        后面第4章（改配置实验）和第6章（RL 训练）都会频繁使用这个模式 —
         你可能需要添加自定义奖励函数（Measure）、自定义传感器（Sensor）、甚至自定义任务（Task）。
         理解"写类 → 装饰器 → 配置声明"这个三步流程，是真正使用 Habitat 做研究的基础。
       </p>
@@ -2303,15 +2303,15 @@ Video created: examples/images/shortest_path_example/<span class="str">02</span>
 <section>
   <div class="container">
     <div class="page-nav">
-      <a href="habitat-textbook-step1.html" class="prev">← 第1步：安装环境</a>
-      <a href="habitat-textbook-step3.html" class="next">第3步：读核心代码 →</a>
+      <a href="habitat-textbook-step1.html" class="prev">← 第1章：安装环境</a>
+      <a href="habitat-textbook-step3.html" class="next">第3章：读核心代码 →</a>
     </div>
   </div>
 </section>
 
 <!-- ═══════════════ Footer ═══════════════ -->
 <footer class="footer">
-  <p><a href="index.html">门户首页</a> · <a href="habitat-textbook.html">教科书</a> · <b>第2步：跑通示例</b> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
+  <p><a href="index.html">学习中心</a> · <a href="habitat-textbook.html">教科书</a> · <b>第2章：跑通示例</b> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
   <p style="margin-top:4px;">仅供学习参考</p>
 </footer>
 

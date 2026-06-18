@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>第3步：读核心代码 — Habitat 从零理解</title>
+<title>第3章：读核心代码 — Habitat 从零理解</title>
 <link rel="stylesheet" href="assets/css/theme.css">
 <style>
-  /* ── Step 3 专属样式：架构图 / 链路 / 参数调控台 ─── */
+  /* ── 第3章 专属样式：架构图 / 链路 / 参数调控台 ─── */
 
   /* Architecture Map (核心架构) */
   .arch-map { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0; }
@@ -159,15 +159,15 @@
 <!--  TOP NAVIGATION                         -->
 <!-- ═══════════════════════════════════════ -->
 <nav class="topnav">
-  <a href="index.html">🏠 门户</a>
+  <a href="index.html">🏠 学习中心</a>
   <span class="sep">|</span>
   <a href="habitat-textbook.html">📗 教科书</a>
   <span class="sep">/</span>
-  <a href="habitat-textbook-step1.html">第1步：安装环境</a>
+  <a href="habitat-textbook-step1.html">第1章：安装环境</a>
   <span class="sep">/</span>
-  <a href="habitat-textbook-step2.html">第2步：跑通示例</a>
+  <a href="habitat-textbook-step2.html">第2章：跑通示例</a>
   <span class="sep">/</span>
-  <span class="current">第3步：读核心代码</span>
+  <span class="current">第3章：读核心代码</span>
   <span class="sep" style="margin-left:auto;"></span>
   <a href="vln.html">🧭 VLN</a>
   <span class="sep">|</span>
@@ -178,7 +178,7 @@
 <!--  HERO                                  -->
 <!-- ═══════════════════════════════════════ -->
 <header class="hero">
-  <div class="step-badge">第 3 步 · 预计 1–2 天</div>
+  <div class="step-badge">第3章 · 预计 1–2 天</div>
   <h1>读核心代码 — 理解 Habitat 的骨架</h1>
   <p class="subtitle">
     以运行时逻辑为主线，模块化探索 <code>env.step()</code> 从用户代码到 C++ 引擎的完整旅程。
@@ -250,7 +250,7 @@
   <p class="section-subtitle">点击每一步展开源码细节。这是整个框架的 <b>运行时主循环</b>。</p>
 
   <div class="chain-container" id="chainTracer">
-    <!-- Step 1 -->
+    <!-- 第1章 -->
     <div class="chain-node expanded" onclick="toggleChainNode(this)">
       <div class="chain-node-header">
         <div class="step-num" style="background:#fbbf2430; color:#fbbf24;">1</div>
@@ -281,7 +281,7 @@ observations = env.<span class="hl">step</span>({<span class="str">"action"</spa
 
     <div class="chain-arrow">│</div>
 
-    <!-- Step 2 -->
+    <!-- 第2章 -->
     <div class="chain-node expanded" onclick="toggleChainNode(this)">
       <div class="chain-node-header">
         <div class="step-num" style="background:#3b82f630; color:#60a5fa;">2</div>
@@ -322,7 +322,7 @@ observations = env.<span class="hl">step</span>({<span class="str">"action"</spa
 
     <div class="chain-arrow">│</div>
 
-    <!-- Step 3 -->
+    <!-- 第3章 -->
     <div class="chain-node expanded" onclick="toggleChainNode(this)">
       <div class="chain-node-header">
         <div class="step-num" style="background:#8b5cf630; color:#a78bfa;">3</div>
@@ -366,7 +366,7 @@ observations = env.<span class="hl">step</span>({<span class="str">"action"</spa
 
     <div class="chain-arrow">│</div>
 
-    <!-- Step 4 -->
+    <!-- 第4章 -->
     <div class="chain-node expanded" onclick="toggleChainNode(this)">
       <div class="chain-node-header">
         <div class="step-num" style="background:#f472b630; color:#f472b6;">4</div>
@@ -402,7 +402,7 @@ observations = env.<span class="hl">step</span>({<span class="str">"action"</spa
 
     <div class="chain-arrow">│</div>
 
-    <!-- Step 5 -->
+    <!-- 第5章 -->
     <div class="chain-node expanded" onclick="toggleChainNode(this)">
       <div class="chain-node-header">
         <div class="step-num" style="background:#10b98130; color:#34d399;">5</div>
@@ -431,7 +431,7 @@ observations = env.<span class="hl">step</span>({<span class="str">"action"</spa
 
     <div class="chain-arrow">│</div>
 
-    <!-- Step 6-7 -->
+    <!-- 第6章-7 -->
     <div class="chain-node expanded" onclick="toggleChainNode(this)">
       <div class="chain-node-header">
         <div class="step-num" style="background:#06b6d430; color:#22d3ee;">6</div>
@@ -930,15 +930,15 @@ mapping: DefaultDict[str, dict] = {
       <div class="collapsible-body">
         <div class="code-block"><span class="kw">class</span> <span class="fn">Env</span>:
     <span class="kw">def</span> <span class="hl">__init__</span>(self, config, dataset=None):
-        <span class="cmt"># Step 1: 加载 Dataset → 取第一个 episode → 写 scene_id 到 config</span>
+        <span class="cmt"># 第1章: 加载 Dataset → 取第一个 episode → 写 scene_id 到 config</span>
         self._dataset = dataset <span class="kw">or</span> <span class="fn">make_dataset</span>(config.dataset.type, config.dataset)
         self.current_episode = <span class="fn">next</span>(self.episode_iterator)
         config.simulator.scene = self.current_episode.scene_id
 
-        <span class="cmt"># Step 2: 创建 Simulator（此时 config.simulator.scene 已就绪）</span>
+        <span class="cmt"># 第2章: 创建 Simulator（此时 config.simulator.scene 已就绪）</span>
         self._sim = <span class="fn">make_sim</span>(config.simulator.type, config.simulator)
 
-        <span class="cmt"># Step 3: 创建 EmbodiedTask（传入已就绪的 sim 和 dataset）</span>
+        <span class="cmt"># 第3章: 创建 EmbodiedTask（传入已就绪的 sim 和 dataset）</span>
         self._task = <span class="fn">make_task</span>(config.task.type, config.task, sim=self._sim, dataset=self._dataset)
 
         <span class="cmt"># 合并 Sim + Task 的观测空间</span>
@@ -1157,13 +1157,13 @@ mapping: DefaultDict[str, dict] = {
 <!-- ═══════════════════════════════════════ -->
 <div class="container">
   <div class="page-nav">
-    <a href="habitat-textbook-step2.html" class="prev">← 第2步：跑通示例</a>
-    <a href="habitat-textbook-step4.html" class="next">第4步：改配置实验 →</a>
+    <a href="habitat-textbook-step2.html" class="prev">← 第2章：跑通示例</a>
+    <a href="habitat-textbook-step4.html" class="next">第4章：改配置实验 →</a>
   </div>
 </div>
 
 <footer class="footer">
-  <p><a href="index.html">门户首页</a> · <a href="habitat-textbook.html">教科书</a> · <b>第3步：读核心代码</b> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
+  <p><a href="index.html">学习中心</a> · <a href="habitat-textbook.html">教科书</a> · <b>第3章：读核心代码</b> · <a href="vln.html">VLN 专题</a> · <a href="architecture.html">架构可视化</a></p>
   <p style="margin-top:4px;">基于 Meta AI Habitat-Lab 源码 <code style="background:#334155;padding:1px 6px;border-radius:3px;">habitat-lab/habitat/core/</code> + <code>habitat/tasks/nav/</code></p>
 </footer>
 
