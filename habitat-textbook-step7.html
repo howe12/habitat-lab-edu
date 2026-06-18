@@ -1224,41 +1224,90 @@ val_ds  = VLNDataset(split=<span class="str">"val_unseen"</span>, ...)
   <h3>IL → DAgger → RL 三阶梯</h3>
 
   <table class="compare-table">
-    <thead><tr><th>方法</th><th>训练数据</th><th>核心思想</th><th>预期 SR</th><th>复杂度</th></tr></thead>
+    <thead><tr><th>方法</th><th>训练数据</th><th>核心思想</th><th>实测 SR</th><th>复杂度</th></tr></thead>
     <tbody>
       <tr>
         <td><b>IL（模仿学习）</b></td>
         <td>专家最短路径轨迹</td>
         <td>"照着专家走" — Teacher-Forcing</td>
-        <td>~32%</td>
+        <td><b>3.0%</b>（仿真器）</td>
         <td>⭐</td>
       </tr>
       <tr>
         <td><b>DAgger</b></td>
         <td>Agent自己轨迹 + 专家纠正</td>
         <td>"在犯错的地方学习" — 迭代聚合</td>
-        <td>~50-60%</td>
+        <td><b>3.0%</b>（无提升）</td>
         <td>⭐⭐⭐</td>
       </tr>
       <tr>
         <td><b>RL（强化学习）</b></td>
         <td>Agent自主探索 + 奖励信号</td>
         <td>"自己试错，奖励引导" — PPO/REINFORCE</td>
-        <td>~55-65%</td>
+        <td>待实验</td>
         <td>⭐⭐⭐⭐</td>
       </tr>
     </tbody>
   </table>
 
-  <div class="warn-box" style="margin-top:16px;">
-    <div class="warn-title">⚠️ 本节内容待补充</div>
+  <h3 style="margin-top:28px;">🔬 L40 实测：Seq2SeqAgent + ShortestPathFollower</h3>
+
+  <div class="info-box">
+    <div class="info-title">实验配置</div>
     <p>
-      DAgger 训练需要 L40 GPU 运行实验并产出对比数据（IL 32% vs DAgger 50% vs RL 55%+ 的实际训练结果）。
-      这部分将在实验完成后写入。目前已确认：
-      <br>• <b>Seq2Seq DAgger</b>：L40 单卡可行（27M 参数，需自写 ~300 行训练循环）
-      <br>• <b>JanusVLN DAgger</b>：不可行（需 8 卡）
+      <b>模型：</b>Seq2SeqAgent（27M 参数，ResNet50 + LSTM fuser，epoch 10，val_loss=0.1546）<br>
+      <b>专家：</b>Habitat 内置 ShortestPathFollower（最短路径跟随，验证 100% SR）<br>
+      <b>成功阈值：</b>距离目标 ≤ 3.0m<br>
+      <b>训练数据：</b>预渲染 R2R val_unseen（1839 条轨迹）<br>
+      <b>推理方式：</b>滑动窗口（5 帧）+ 实时 Habitat 仿真器渲染
     </p>
   </div>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 实测发现：success_distance 默认 0.2m</div>
+    <p>
+      Habitat VLN 配置的默认 <code>success_distance</code> 为 <b>0.2m</b>——在离散动作空间下（步长 0.25m，转角 15°）几乎不可能命中。
+      即使 ShortestPathFollower 100% 到达距目标 0.3m 处，也被判为失败。
+      <b>修复：</b>在 <code>create_env()</code> 中设置 <code>config.habitat.task.measurements.success.success_distance = 3.0</code>。
+      <br><br>
+      <b>💡 课程价值：</b>这个 0.2m 陷阱在真实项目中浪费了我们 4 轮实验迭代（v1-v4），直到第 5 轮才通过逐帧诊断定位。
+      「仿真器默认值不总是对的」——这是工程实战中最容易被忽略的教训。
+    </p>
+  </div>
+
+  <table class="compare-table" style="margin-top:16px;">
+    <thead><tr><th>阶段</th><th>SR (%)</th><th>SPL</th><th>平均步数</th><th>训练 Loss</th></tr></thead>
+    <tbody>
+      <tr><td>IL Baseline</td><td>3.0</td><td>0.000</td><td>4.0</td><td>—</td></tr>
+      <tr><td>DAgger Iter 1</td><td>3.0</td><td>0.000</td><td>4.0</td><td>0.0000</td></tr>
+      <tr><td>DAgger Iter 2</td><td>3.0</td><td>0.000</td><td>4.0</td><td>0.0000</td></tr>
+      <tr><td>DAgger Iter 3</td><td>3.0</td><td>0.000</td><td>4.0</td><td>0.0000</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:24px;">📉 分析：为什么 DAgger 失败了？</h3>
+
+  <p>
+    这是一个教科书级别的 DAgger 反例，揭示了算法的<b>已知局限性</b>：
+  </p>
+
+  <div class="info-box">
+    <div class="info-title">🔍 三层根因分析</div>
+    <p>
+      <b>① 训练-部署 Gap（10×）：</b>Seq2SeqAgent 在预渲染帧上 val_acc=94.9%，但切换到实时 Habiat 仿真器后，不同的光照/纹理/jitter 让 RGB 特征分布偏移，SR 从 ~30% 暴跌到 3%。
+      <br><br>
+      <b>② 弱策略死循环：</b>SR=3% 意味着模型几乎只预测 <code>STOP</code>（平均 4 步即终止）。模型产生的轨迹质量极差（原地不动或随机停顿），ShortestPathFollower 沿这些轨迹标注的「正确动作」对导航学习无意义。
+      <br><br>
+      <b>③ DAgger 的隐含前提：</b>论文假设初始策略有一定成功率（>20%），这样 Agent 的轨迹至少部分覆盖了有意义的导航路径。当 SR→0 时，DAgger 退化为「在随机位置标注专家动作」，无法自举。
+    </p>
+  </div>
+
+  <p style="margin-top:12px;">
+    <b>💡 如何让 DAgger 在 VLN 上生效？</b>以下是三条实际可行的路线：
+    <br>• <b>BC 预训练（推荐）：</b>用 ShortestPathFollower 直接采集 500+ 条专家轨迹做行为克隆预训练，将初始 SR 提升到 20-30%，再启动 DAgger
+    <br>• <b>数据增强：</b>在预渲染训练数据中加入仿真器噪声（颜色 jitter、随机裁剪），缩小训练-部署 gap
+    <br>• <b>混合专家（β-DAgger）：</b>迭代初期以专家动作主导（β 接近 1），Agent 动作仅用于探索；后期逐步切换到 Agent 主导
+  </p>
 
   <h3 style="margin-top:20px;">DAgger 算法伪代码</h3>
 
