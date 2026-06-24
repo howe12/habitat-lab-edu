@@ -53,41 +53,55 @@
     <thead><tr><th style="width:50px;">#</th><th style="width:220px;">案例</th><th>你将学会</th><th style="width:60px;">难度</th></tr></thead>
     <tbody>
       <tr>
-        <td style="color:#f9a8d4;font-weight:700;">8-1</td>
-        <td><a href="#case8-7">理解 VLM 导航原理</a></td>
-        <td>VLM 为什么能做导航、核心论文思路拆解、与 VLN 的本质区别</td>
+        <td style="color:#2dd4bf;font-weight:700;">8-1</td>
+        <td><a href="#case8-1">云-边-端 VLN 架构</a></td>
+        <td>Spark→L40 拓扑、SSH 隧道、推理链路</td>
         <td>⭐⭐</td>
       </tr>
       <tr>
-        <td style="color:#f9a8d4;font-weight:700;">8-2</td>
-        <td><a href="#case8-8">模型选型与部署方案</a></td>
-        <td>NaVid-4D / NaVILA / 商业 API 的对比与选择</td>
+        <td style="color:#f59e0b;font-weight:700;">8-2</td>
+        <td><a href="#case8-2">仿真与真机测试计划</a></td>
+        <td>评估指标、测试场景设计、数据采集策略</td>
+        <td>⭐⭐</td>
+      </tr>
+      <tr>
+        <td style="color:#f9a8d4;font-weight:700;">8-3</td>
+        <td><a href="#case8-3">理解 VLM 导航原理</a></td>
+        <td>VLM 为什么能做导航、核心论文思路拆解</td>
+        <td>⭐⭐</td>
+      </tr>
+      <tr>
+        <td style="color:#8b5cf6;font-weight:700;">8-4</td>
+        <td><a href="#case8-4">模型选型与部署方案</a></td>
+        <td>JanusVLN/Seq2SeqAgent 对比、INT8 量化</td>
         <td>⭐⭐⭐</td>
       </tr>
       <tr>
-        <td style="color:#fbbf24;font-weight:700;">8-3</td>
-        <td><a href="#case8-9">真机 Pipeline 实现</a></td>
-        <td>从相机采集到 /cmd_vel 输出的端到端代码</td>
-        <td>⭐⭐⭐</td>
+        <td style="color:#ec4899;font-weight:700;">8-5</td>
+        <td><a href="#case8-5">真机 Pipeline 实现</a></td>
+        <td>vln_client/server.py、ROS2 对接</td>
+        <td>⭐⭐⭐⭐</td>
       </tr>
       <tr>
-        <td style="color:#fbbf24;font-weight:700;">8-4</td>
-        <td><a href="#case8-10">两种方法全面对比</a></td>
-        <td>逐维度对比方法一 vs 方法二，帮你做出选择</td>
-        <td>⭐</td>
+        <td style="color:#a78bfa;font-weight:700;">8-6</td>
+        <td><a href="#case8-6">两种方法全面对比</a></td>
+        <td>VLN+Nav2 vs JanusVLN 直控</td>
+        <td>⭐⭐⭐</td>
       </tr>
     </tbody>
   </table>
 
   <div class="progress-section">
-      <div class="progress-label"><span>学习进度</span><span id="progress-text">0 / 4 阶段完成</span></div>
+      <div class="progress-label"><span>学习进度</span><span id="progress-text">0 / 6 阶段完成</span></div>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
     </div>
   <ul class="checklist" id="checklist">
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-1: 理解 VLM 导航的核心思路</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-2: 选定适合自己机器人的 VLM 方案</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-3: 实现端到端推理 pipeline</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-4: 理解两种方法的适用场景</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-1: 理解云-边-端 VLN 推理架构</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-2: 设计仿真与真机测试方案</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-3: 理解 VLM 导航推理原理</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-4: 掌握模型选型与 INT8 量化</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-5: 实现真机 Pipeline</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-6: 对比两种部署方案</div></li>
   </ul>
 
 </div>
@@ -116,569 +130,11 @@
 </div>
 </section>
 
-<section id="case8-7">
-<div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-ros);"></span> 8-7 · 理解部署架构</h2>
-
-  <div class="info-box">
-    <div class="info-title">① 案例含义 — 为什么用 VLN + Nav2 而不是端到端？</div>
-    <p>
-      方法一的核心理念是<b>分而治之</b>：VLN 模型擅于<b>理解指令 + 识别视觉地标</b>（"走到厨房水池前"），
-      但不擅于<b>底层的避障和路径规划</b>。ROS Nav2 正好相反——它能在已知地图中高效规划路径、动态避障，
-      但它不理解自然语言指令。
-      <br><br>
-      <b>两者分工：</b>VLN 负责"要去哪里"，Nav2 负责"怎么过去"。
-    </p>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 系统架构图</h3>
-
-  <div class="arch-diagram">
-    <div style="font-size:0.85rem;color:#c4b5fd;font-weight:700;margin-bottom:18px;">三层架构：感知 → 决策 → 执行</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#3b82f620;border:2px solid #3b82f6;min-width:180px;">
-        📷 RGB 相机<br><small>/camera/rgb (sensor_msgs/Image)</small>
-      </div>
-      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;min-width:180px;">
-        📍 Odometry<br><small>/odom (nav_msgs/Odometry)</small>
-      </div>
-      <div class="arch-layer" style="background:#ec489920;border:2px solid #ec4899;min-width:180px;">
-        🗺️ 地图<br><small>/map (预建 2D 占据栅格)</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; 输入到 &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#8b5cf620;border:2px solid #8b5cf6;min-width:500px;">
-        <b>vln_inference_node</b> &nbsp; (Python)<br>
-        <small>加载 VLN checkpoint → 接收 RGB → 推理 → 输出子目标位姿 (x, y, θ)</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; <code>vln_ros/GoalPose</code> &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:320px;">
-        <b>goal_publisher_node</b> &nbsp; (Python)<br>
-        <small>子目标位姿 → action 格式<br>→ /navigate_to_pose</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; <code>/navigate_to_pose</code> (MoveToGoal Action) &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b80;min-width:500px;">
-        <b>ROS Nav2 Stack</b><br>
-        <small>Global Planner → Local Planner → Controller → /cmd_vel → 电机</small>
-      </div>
-    </div>
-
-    <div class="arch-arrow-center">↓ &nbsp; 到达后 &nbsp; ↓</div>
-
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#14b8a620;border:2px solid #14b8a6;min-width:320px;">
-        <b>循环：拍新 RGB → VLN 预测下一子目标</b><br>
-        <small>直到 VLN 输出 STOP（到达最终目标）</small>
-      </div>
-    </div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">节点通信拓扑</h3>
-
-  <table class="compare-table">
-    <thead><tr><th>节点</th><th>订阅 (Subscribe)</th><th>发布 (Publish)</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>vln_inference_node</b></td>
-        <td><span class="topic-tag topic-sub">/camera/rgb</span> <span class="topic-tag topic-sub">/odom</span></td>
-        <td><span class="topic-tag topic-pub">/vln/subgoal_pose</span></td>
-      </tr>
-      <tr>
-        <td><b>goal_publisher_node</b></td>
-        <td><span class="topic-tag topic-sub">/vln/subgoal_pose</span></td>
-        <td><span class="topic-tag topic-pub">/navigate_to_pose</span> (Action)</td>
-      </tr>
-      <tr>
-        <td><b>Nav2 (bt_navigator)</b></td>
-        <td><span class="topic-tag topic-sub">/navigate_to_pose</span></td>
-        <td><span class="topic-tag topic-pub">/cmd_vel</span> <span class="topic-tag topic-pub">/plan</span></td>
-      </tr>
-      <tr>
-        <td><b>vln_orchestrator</b></td>
-        <td><span class="topic-tag topic-sub">/navigate_to_pose/result</span></td>
-        <td><span class="topic-tag topic-pub">/vln/trigger_next</span></td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="tip-box">
-    <div class="tip-title">💡 为什么中间加一个 goal_publisher_node？</div>
-    <p>
-      VLN 模型输出的子目标可能只是 <code>(x, y, θ)</code> 三个数，但 Nav2 的
-      <code>NavigateToPose</code> action 需要完整的 <code>geometry_msgs/PoseStamped</code>。
-      goal_publisher_node 专门负责<b>格式转换 + 坐标系变换</b>（从 VLN 的局部坐标系到 map 坐标系），
-      保持 vln_inference_node 干净——它只做一件事：模型推理。
-    </p>
-  </div>
-
-  <div class="dual-panel">
-    <div class="panel">
-      <h4 style="color:#2dd4bf;">✅ 这个架构的优点</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        • VLN 模型和 Nav2 独立运行，一方崩溃不影响另一方<br>
-        • Nav2 已有成熟的定位/规划/避障能力，不需要从头实现<br>
-        • 更换 VLN 模型（如换更大的 backbone）不影响导航层<br>
-        • 调试时可以单独测试每个节点的输入输出
-      </p>
-    </div>
-    <div class="panel">
-      <h4 style="color:#fbbf24;">⚠️ 这个架构的局限</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        • 需要预建地图（Nav2 的依赖）——不能在新环境中即开即用<br>
-        • VLN 和 Nav2 的目标粒度需要调校（子目标设太远则 VLN 失去控制<br>
-        &nbsp;&nbsp;子目标设太近则效率低）<br>
-        • 多了一个通信环节，增加了延迟
-      </p>
-    </div>
-  </div>
-</div>
-</section>
-
-<!-- ═══════════════ 8-2: ROS 软件包骨架 ═══════════════ -->
-<section id="case8-8">
-<div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-ros);"></span> 8-8 · ROS 软件包骨架</h2>
-
-  <div class="info-box">
-    <div class="info-title">① 案例含义</div>
-    <p>
-      创建一个完整的 ROS package <code>vln_ros</code>，包含 VLN 推理节点和目标发布节点。
-      即使在<b>没有 VLN 模型 checkpoint</b> 的情况下也能编译并验证通信链路——我们可以先用一个
-      mock 节点输出固定坐标来测试整个 pipeline。
-    </p>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 核心代码：文件结构</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">vln_ros/                          # ROS package 根目录</span>
-├── CMakeLists.txt                <span class="cmt"># 编译配置</span>
-├── package.xml                   <span class="cmt"># 包元数据</span>
-├── launch/
-│   ├── vln_nav_bringup.launch    <span class="cmt"># ROS 1 (Spark-I) 启动文件</span>
-│   └── vln_nav_bringup_ros2.launch.py  <span class="cmt"># ROS 2 (Leo) 启动文件</span>
-├── config/
-│   └── vln_params.yaml           <span class="cmt"># 模型路径、相机话题、坐标参数</span>
-├── scripts/
-│   ├── vln_inference_node.py     <span class="cmt"># VLN 模型推理节点</span>
-│   ├── goal_publisher_node.py    <span class="cmt"># 子目标发布节点</span>
-│   └── vln_orchestrator.py       <span class="cmt"># 主循环编排器</span>
-└── models/
-    └── (vln_inference.pth)       <span class="cmt"># 第6章 导出的模型权重</span></div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">vln_inference_node.py — 核心推理节点</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">#!/usr/bin/env python3</span>
-<span class="cmt"># vln_inference_node.py — VLN 模型推理节点</span>
-<span class="cmt"># 从 /camera/rgb 读图像 + 从参数服务器读指令 → 输出子目标位姿</span>
-<span class="kw">import</span> rospy
-<span class="kw">import</span> numpy <span class="kw">as</span> np
-<span class="kw">import</span> torch
-<span class="kw">from</span> sensor_msgs.msg <span class="kw">import</span> Image
-<span class="kw">from</span> geometry_msgs.msg <span class="kw">import</span> Pose2D
-<span class="kw">from</span> cv_bridge <span class="kw">import</span> CvBridge
-
-<span class="kw">class</span> <span class="fn">VLNInferenceNode</span>:
-    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>):
-        rospy.init_node(<span class="str">"vln_inference_node"</span>)
-
-        <span class="cmt"># 加载模型</span>
-        model_path = rospy.get_param(<span class="str">"~model_path"</span>, <span class="str">"models/vln_inference.pth"</span>)
-        <span class="kw">self</span>.model = <span class="kw">self</span>._load_model(model_path)
-        <span class="kw">self</span>.bridge = CvBridge()
-        <span class="kw">self</span>.instruction = rospy.get_param(<span class="str">"~instruction"</span>, <span class="str">""</span>)
-
-        <span class="cmt"># Publisher: 输出子目标位姿 (相对坐标)</span>
-        <span class="kw">self</span>.goal_pub = rospy.Publisher(<span class="str">"/vln/subgoal_pose"</span>, Pose2D, queue_size=<span class="num">1</span>)
-
-        <span class="cmt"># Subscriber: 相机图像</span>
-        camera_topic = rospy.get_param(<span class="str">"~camera_topic"</span>, <span class="str">"/camera/rgb/image_raw"</span>)
-        <span class="kw">self</span>.img_sub = rospy.Subscriber(camera_topic, Image, <span class="kw">self</span>._image_cb)
-
-        rospy.loginfo(<span class="str">"VLN 推理节点已启动，等待图像..."</span>)
-
-    <span class="kw">def</span> <span class="fn">_load_model</span>(<span class="kw">self</span>, path):
-        <span class="cmt"># 从 第6章 导出的 checkpoint 加载模型</span>
-        <span class="cmt"># 实际使用时替换为你的 VLN Policy 类</span>
-        model = torch.load(path, map_location=<span class="str">"cpu"</span>)
-        model.eval()
-        <span class="kw">return</span> model
-
-    <span class="kw">def</span> <span class="fn">_image_cb</span>(<span class="kw">self</span>, msg):
-        <span class="cmt"># 收到图像 → 推理 → 发布子目标</span>
-        cv_img = <span class="kw">self</span>.bridge.imgmsg_to_cv2(msg, <span class="str">"rgb8"</span>)
-        <span class="cmt"># 预处理: resize → normalize → tensor</span>
-        img_tensor = torch.from_numpy(cv_img).permute(<span class="num">2</span>, <span class="num">0</span>, <span class="num">1</span>).float() / <span class="num">255.0</span>
-        img_tensor = img_tensor.unsqueeze(<span class="num">0</span>)  <span class="cmt"># (1, 3, H, W)</span>
-
-        <span class="kw">with</span> torch.no_grad():
-            <span class="cmt"># 模型输出: 动作类别 (0=STOP, 1=FORWARD, 2=LEFT, 3=RIGHT)</span>
-            action_logits = <span class="kw">self</span>.model(img_tensor, <span class="kw">self</span>.instruction)
-            action = torch.argmax(action_logits, dim=<span class="num">-1</span>).item()
-
-        <span class="cmt"># 将动作转换为子目标位姿</span>
-        pose = <span class="kw">self</span>._action_to_pose(action)
-        <span class="kw">self</span>.goal_pub.publish(pose)
-
-    <span class="kw">def</span> <span class="fn">_action_to_pose</span>(<span class="kw">self</span>, action):
-        <span class="cmt"># 简化版：将离散动作映射为相对位姿</span>
-        <span class="cmt"># 0=STOP → 原地，1=FORWARD → 前方 1m，2=LEFT → 原地左转90°</span>
-        <span class="cmt"># 3=RIGHT → 原地右转90°</span>
-        pose = Pose2D()
-        <span class="kw">if</span> action == <span class="num">0</span>:    <span class="cmt"># STOP — 已到达最终目标</span>
-            pose.x, pose.y, pose.theta = <span class="num">0.0</span>, <span class="num">0.0</span>, <span class="num">0.0</span>
-        <span class="kw">elif</span> action == <span class="num">1</span>:  <span class="cmt"># MOVE_FORWARD</span>
-            pose.x, pose.y, pose.theta = <span class="num">1.0</span>, <span class="num">0.0</span>, <span class="num">0.0</span>
-        <span class="kw">elif</span> action == <span class="num">2</span>:  <span class="cmt"># TURN_LEFT</span>
-            pose.x, pose.y, pose.theta = <span class="num">0.0</span>, <span class="num">0.0</span>, <span class="num">1.5708</span>  <span class="cmt"># 90° in rad</span>
-        <span class="kw">elif</span> action == <span class="num">3</span>:  <span class="cmt"># TURN_RIGHT</span>
-            pose.x, pose.y, pose.theta = <span class="num">0.0</span>, <span class="num">0.0</span>, -<span class="num">1.5708</span>
-        <span class="kw">return</span> pose
-
-<span class="kw">if</span> __name__ == <span class="str">"__main__"</span>:
-    VLNInferenceNode()
-    rospy.spin()</div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">goal_publisher_node.py — 子目标→Nav2</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">#!/usr/bin/env python3</span>
-<span class="cmt"># goal_publisher_node.py — 将 VLN 输出的相对位姿转为 Nav2 Action Goal</span>
-<span class="kw">import</span> rospy
-<span class="kw">import</span> tf2_ros
-<span class="kw">import</span> actionlib
-<span class="kw">from</span> geometry_msgs.msg <span class="kw">import</span> Pose2D, PoseStamped
-<span class="kw">from</span> move_base_msgs.msg <span class="kw">import</span> MoveBaseAction, MoveBaseGoal
-
-<span class="kw">class</span> <span class="fn">GoalPublisherNode</span>:
-    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>):
-        rospy.init_node(<span class="str">"goal_publisher_node"</span>)
-
-        <span class="cmt"># TF 缓存 — 用于把 VLN 输出的相对坐标转换到 map 坐标系</span>
-        <span class="kw">self</span>.tf_buffer = tf2_ros.Buffer()
-        <span class="kw">self</span>.tf_listener = tf2_ros.TransformListener(<span class="kw">self</span>.tf_buffer)
-
-        <span class="cmt"># Nav2 / move_base Action 客户端</span>
-        <span class="kw">self</span>.ac = actionlib.SimpleActionClient(<span class="str">"move_base"</span>, MoveBaseAction)
-        rospy.loginfo(<span class="str">"等待 move_base action server..."</span>)
-        <span class="kw">self</span>.ac.wait_for_server()
-        rospy.loginfo(<span class="str">"已连接到 move_base!"</span>)
-
-        <span class="cmt"># 订阅 VLN 子目标</span>
-        rospy.Subscriber(<span class="str">"/vln/subgoal_pose"</span>, Pose2D, <span class="kw">self</span>._goal_cb)
-
-    <span class="kw">def</span> <span class="fn">_goal_cb</span>(<span class="kw">self</span>, pose2d):
-        <span class="kw">if</span> pose2d.x == <span class="num">0</span> <span class="kw">and</span> pose2d.y == <span class="num">0</span> <span class="kw">and</span> pose2d.theta == <span class="num">0</span>:
-            rospy.loginfo(<span class="str">"收到 STOP 信号，取消导航"</span>)
-            <span class="kw">self</span>.ac.cancel_all_goals()
-            <span class="kw">return</span>
-
-        <span class="cmt"># 根据当前 odom 变换，将相对坐标转为绝对 map 坐标</span>
-        <span class="kw">try</span>:
-            trans = <span class="kw">self</span>.tf_buffer.lookup_transform(
-                <span class="str">"map"</span>, <span class="str">"base_link"</span>, rospy.Time(<span class="num">0</span>), rospy.Duration(<span class="num">1.0</span>)
-            )
-        <span class="kw">except</span> <span class="kw">Exception</span> <span class="kw">as</span> e:
-            rospy.logwarn(<span class="str">f"TF lookup 失败: {e}"</span>)
-            <span class="kw">return</span>
-
-        goal = MoveBaseGoal()
-        goal.target_pose.header.frame_id = <span class="str">"map"</span>
-        goal.target_pose.header.stamp = rospy.Time.now()
-        <span class="cmt"># 在当前位置基础上叠加 VLN 输出的相对位移</span>
-        goal.target_pose.pose.position.x = trans.transform.translation.x + pose2d.x
-        goal.target_pose.pose.position.y = trans.transform.translation.y + pose2d.y
-        goal.target_pose.pose.orientation.w = <span class="num">1.0</span>  <span class="cmt"># 保持当前朝向</span>
-
-        rospy.loginfo(<span class="str">f"发送导航目标: ({goal.target_pose.pose.position.x:.2f}, "</span>
-                      <span class="str">f"{goal.target_pose.pose.position.y:.2f})"</span>)
-        <span class="kw">self</span>.ac.send_goal(goal)
-
-<span class="kw">if</span> __name__ == <span class="str">"__main__"</span>:
-    GoalPublisherNode()
-    rospy.spin()</div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">ROS 1 Launch 文件 (Spark-I)</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">&lt;!-- launch/vln_nav_bringup.launch — Spark-I (ROS Noetic) --&gt;</span>
-<span class="kw">&lt;launch&gt;</span>
-  <span class="cmt">&lt;!-- 1. Nav2 / move_base --&gt;</span>
-  <span class="kw">&lt;include</span> <span class="key">file</span>=<span class="str">"$(find spark_navigation)/launch/move_base.launch"</span><span class="kw">/&gt;</span>
-
-  <span class="cmt">&lt;!-- 2. VLN 推理节点 --&gt;</span>
-  <span class="kw">&lt;node</span> <span class="key">name</span>=<span class="str">"vln_inference"</span> <span class="key">pkg</span>=<span class="str">"vln_ros"</span> <span class="key">type</span>=<span class="str">"vln_inference_node.py"</span> <span class="key">output</span>=<span class="str">"screen"</span><span class="kw">&gt;</span>
-    <span class="kw">&lt;param</span> <span class="key">name</span>=<span class="str">"model_path"</span> <span class="key">value</span>=<span class="str">"$(find vln_ros)/models/vln_inference.pth"</span><span class="kw">/&gt;</span>
-    <span class="kw">&lt;param</span> <span class="key">name</span>=<span class="str">"instruction"</span> <span class="key">value</span>=<span class="str">"Walk down the hallway and stop at the kitchen entrance."</span><span class="kw">/&gt;</span>
-    <span class="kw">&lt;param</span> <span class="key">name</span>=<span class="str">"camera_topic"</span> <span class="key">value</span>=<span class="str">"/camera/color/image_raw"</span><span class="kw">/&gt;</span>
-  <span class="kw">&lt;/node&gt;</span>
-
-  <span class="cmt">&lt;!-- 3. 子目标→Nav2 桥接节点 --&gt;</span>
-  <span class="kw">&lt;node</span> <span class="key">name</span>=<span class="str">"goal_publisher"</span> <span class="key">pkg</span>=<span class="str">"vln_ros"</span> <span class="key">type</span>=<span class="str">"goal_publisher_node.py"</span> <span class="key">output</span>=<span class="str">"screen"</span><span class="kw">/&gt;</span>
-<span class="kw">&lt;/launch&gt;</span></div>
-  </div>
-
-  <div class="tip-box">
-    <div class="tip-title">💡 先 Mock 测试，再接入真实 VLN 模型</div>
-    <p>
-      建议先用一个 <b>mock 节点</b>替代 vln_inference_node（例如：每 3 秒发布一个固定的子目标坐标），
-      先验证整个 pipeline 的通信链路（RGB → ??? → subgoal → Nav2 → /cmd_vel → 机器人移动）可以跑通。
-      <br><br>
-      通信链路验证通过后，再替换为真实的 VLN 推理节点。这样可以<b>分隔问题域</b>——如果导航失败，
-      你知道是 VLN 输出的问题还是 Nav2 配置的问题。
-    </p>
-  </div>
-</div>
-</section>
-
-<!-- ═══════════════ 8-3: 适配 Spark-I / Leo ═══════════════ -->
-<section id="case8-9">
-<div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-spark);"></span> 8-9 · 适配 Spark-I / Leo</h2>
-
-  <div class="info-box">
-    <div class="info-title">① 案例含义</div>
-    <p>
-      两种机器人使用不同版本的 ROS 和不同的传感器配置。本案例提供两台机器人的<b>差异化配置表</b>
-      和<b>ROS 2 版本的 launch 文件</b>（Leo 使用 ROS 2 Humble）。
-    </p>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 配置差异对比</h3>
-
-  <table class="compare-table">
-    <thead><tr><th>配置项</th><th>Spark-I</th><th>Leo</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>ROS 版本</b></td>
-        <td>ROS Noetic (Ubuntu 20.04)</td>
-        <td>ROS 2 Humble (Ubuntu 22.04)</td>
-      </tr>
-      <tr>
-        <td><b>RGB 相机 Topic</b></td>
-        <td><code>/camera/color/image_raw</code></td>
-        <td><code>/camera/image_raw</code></td>
-      </tr>
-      <tr>
-        <td><b>Odometry Topic</b></td>
-        <td><code>/odom</code></td>
-        <td><code>/odometry/filtered</code></td>
-      </tr>
-      <tr>
-        <td><b>导航框架</b></td>
-        <td>move_base (ROS 1)</td>
-        <td>Nav2 (ROS 2)</td>
-      </tr>
-      <tr>
-        <td><b>底盘运动 Topic</b></td>
-        <td><code>/cmd_vel</code></td>
-        <td><code>/cmd_vel</code></td>
-      </tr>
-      <tr>
-        <td><b>激光雷达 Topic</b></td>
-        <td><code>/scan</code> (360° LiDAR)</td>
-        <td><code>/scan</code></td>
-      </tr>
-      <tr>
-        <td><b>TF 基座 Frame</b></td>
-        <td><code>base_link</code></td>
-        <td><code>base_footprint</code></td>
-      </tr>
-      <tr>
-        <td><b>相机分辨率</b></td>
-        <td>640×480 (RealSense D435)</td>
-        <td>640×480</td>
-      </tr>
-      <tr>
-        <td><b>Python 版本</b></td>
-        <td>Python 3.8</td>
-        <td>Python 3.10</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">ROS 2 Launch 文件 (Leo)</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt"># launch/vln_nav_bringup_ros2.launch.py — Leo (ROS 2 Humble)</span>
-<span class="kw">from</span> launch <span class="kw">import</span> LaunchDescription
-<span class="kw">from</span> launch_ros.actions <span class="kw">import</span> Node
-<span class="kw">from</span> launch.actions <span class="kw">import</span> IncludeLaunchDescription
-<span class="kw">from</span> launch.launch_description_sources <span class="kw">import</span> PythonLaunchDescriptionSource
-
-<span class="kw">def</span> <span class="fn">generate_launch_description</span>():
-    <span class="kw">return</span> LaunchDescription([
-        <span class="cmt"># 1. Nav2 (Leo 自带)</span>
-        IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(<span class="str">"$(find leo_navigation)/launch/nav2_bringup.launch.py"</span>)
-        ),
-
-        <span class="cmt"># 2. VLN 推理节点</span>
-        Node(
-            package=<span class="str">"vln_ros"</span>,
-            executable=<span class="str">"vln_inference_node.py"</span>,
-            name=<span class="str">"vln_inference"</span>,
-            parameters=[{
-                <span class="str">"model_path"</span>: <span class="str">"models/vln_inference.pth"</span>,
-                <span class="str">"instruction"</span>: <span class="str">"Navigate to the kitchen."</span>,
-                <span class="str">"camera_topic"</span>: <span class="str">"/camera/image_raw"</span>,
-            }],
-            output=<span class="str">"screen"</span>,
-        ),
-
-        <span class="cmt"># 3. 目标发布节点 (ROS 2 版本)</span>
-        Node(
-            package=<span class="str">"vln_ros"</span>,
-            executable=<span class="str">"goal_publisher_ros2.py"</span>,
-            name=<span class="str">"goal_publisher"</span>,
-            output=<span class="str">"screen"</span>,
-        ),
-    ])</div>
-  </div>
-
-  <div class="warn-box">
-    <div class="warn-title">⚠️ 适配时的关键检查项</div>
-    <p>
-      <b>1. 相机内参：</b>RealSense D435 的内参与 Habitat 仿真中的针孔相机参数不同。
-      如果 VLN 模型在仿真中训练时使用了特定的 FOV/分辨率，真机采集的图像需要<b>做预处理匹配</b>（crop/resize/FOV 矫正）。<br>
-      <b>2. TF 树完整性：</b>确保 <code>map → odom → base_link → camera_link</code> 链完整，
-      否则 goal_publisher_node 的 TF lookup 会失败。<br>
-      <b>3. Nav2 地图格式：</b>预建地图需要与当前环境一致。如果环境布局变了，需要重新建图。<br>
-      <b>4. Python 版本兼容：</b>ROS 1 (Python 3.8) 和 ROS 2 (Python 3.10) 的 pickle 格式兼容——确保
-      第6章 导出的 checkpoint 能在两边加载。
-    </p>
-  </div>
-
-</div>
-</section>
-
-<!-- ═══════════════ 8-4: 联调与部署 ═══════════════ -->
-<section id="case8-10">
-<div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-nav2);"></span> 8-10 · 联调与部署</h2>
-
-  <div class="info-box">
-    <div class="info-title">① 案例含义</div>
-    <p>
-      将全部节点串联起来，在真机上跑通完整的 VLN 导航流程。包含启动顺序、验证方法和常见调试技巧。
-    </p>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 启动顺序与命令</h3>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt"># ===== Spark-I (ROS Noetic) 启动流程 =====</span>
-
-<span class="cmt"># 终端 1: 启动机器人底层驱动</span>
-$ roslaunch spark_bringup base.launch
-
-<span class="cmt"># 终端 2: 启动激光雷达 + 相机</span>
-$ roslaunch spark_bringup sensors.launch
-
-<span class="cmt"># 终端 3: 启动 Nav2 / move_base（需要先建好地图）</span>
-$ roslaunch spark_navigation move_base.launch map_file:=/home/spark/maps/office.yaml
-
-<span class="cmt"># 终端 4: 启动 VLN 部署全栈</span>
-$ roslaunch vln_ros vln_nav_bringup.launch
-
-<span class="cmt"># 终端 5: 发送 VLN 指令（测试用）</span>
-$ rosservice call /vln/set_instruction <span class="str">"Go to the kitchen, then turn left and stop at the sink."</span>
-
-<span class="cmt"># ===== Leo (ROS 2 Humble) 启动流程 =====</span>
-
-<span class="cmt"># 终端 1: 机器人驱动</span>
-$ ros2 launch leo_bringup base.launch.py
-
-<span class="cmt"># 终端 2: Nav2</span>
-$ ros2 launch leo_navigation nav2_bringup.launch.py map:=/home/leo/maps/office.yaml
-
-<span class="cmt"># 终端 3: VLN 部署</span>
-$ ros2 launch vln_ros vln_nav_bringup_ros2.launch.py</div>
-  </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 运行效果验证方法</h3>
-
-  <table class="compare-table">
-    <thead><tr><th>验证步骤</th><th>命令/方法</th><th>预期结果</th></tr></thead>
-    <tbody>
-      <tr>
-        <td>1. 节点都在</td>
-        <td><code>rosnode list</code> 或 <code>ros2 node list</code></td>
-        <td>看到 vln_inference, goal_publisher, move_base/bt_navigator</td>
-      </tr>
-      <tr>
-        <td>2. Topic 有数据</td>
-        <td><code>rostopic echo /vln/subgoal_pose</code></td>
-        <td>每收到一帧图像后，输出一个子目标位姿</td>
-      </tr>
-      <tr>
-        <td>3. Nav2 收到 goal</td>
-        <td>观察 rviz 中的 /plan 和 /global_plan</td>
-        <td>每次 VLN 输出新子目标时，Nav2 重新规划路径</td>
-      </tr>
-      <tr>
-        <td>4. 机器人移动</td>
-        <td>直接观察机器人</td>
-        <td>机器人按规划路径移动，到达子目标后停止等待下一个</td>
-      </tr>
-      <tr>
-        <td>5. STOP 判定</td>
-        <td>VLN 输出 STOP 后 <code>rostopic echo /move_base/status</code></td>
-        <td>goal 被取消，机器人停止</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="warn-box">
-    <div class="warn-title">⚠️ 常见调试场景</div>
-    <p>
-      <b>场景 1："机器人不动"</b> → 检查 <code>rostopic echo /cmd_vel</code> 是否有输出。
-      如果 /cmd_vel 为空 → Nav2 没收到 goal → 检查 goal_publisher_node 的 TF lookup 是否成功。<br>
-      <b>场景 2："机器人走错方向"</b> → 90% 是坐标系问题。VLN 输出的坐标是相对 base_link 还是 map？
-      在 rviz 中添加 Pose 显示，可视化每个子目标的位置。<br>
-      <b>场景 3："VLN 推理太慢"</b> → 模型在 CPU 上推理可能 &gt;500ms。考虑使用 ONNX Runtime 或 TensorRT
-      加速，或将模型量化到 FP16/INT8。
-    </p>
-  </div>
-
-  <div class="tip-box">
-    <div class="tip-title">💡 调试建议：分阶段验证</div>
-    <p>
-      <b>Phase 1：</b>不用 VLN 模型，用手动 rviz "2D Nav Goal" 验证 Nav2 基本导航正常<br>
-      <b>Phase 2：</b>用 mock_vln_node（固定坐标输出）验证 vln → goal_publisher → Nav2 链路<br>
-      <b>Phase 3：</b>接入真实 VLN 模型，先用 rosbag 录好的图像数据做离线推理测试<br>
-      <b>Phase 4：</b>真机实时推理 + 导航
-    </p>
-  </div>
-</div>
-</section>
 
 <!-- ═══════════════ 8-5: 云-边-端 VLN 架构 ═══════════════ -->
-<section id="case8-5">
+<section id="case8-1">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-cloud);"></span> 8-5 · 云-边-端 VLN 架构</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-cloud);"></span> 8-1 · 云-边-端 VLN 架构</h2>
 
   <!-- ① -->
   <div class="info-box">
@@ -820,9 +276,9 @@ model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
 </section>
 
 <!-- ═══════════════ 8-6: 仿真与真机测试计划 ═══════════════ -->
-<section id="case8-6">
+<section id="case8-2">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-test);"></span> 8-6 · 仿真与真机测试计划</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-test);"></span> 8-2 · 仿真与真机测试计划</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
@@ -987,9 +443,9 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
 
 
 
-<section id="case8-7">
+<section id="case8-3">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-7 · 理解 VLM 导航原理</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-3 · 理解 VLM 导航原理</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义 — VLM 导航与传统 VLN 有什么不同？</div>
@@ -1086,9 +542,9 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
 </section>
 
 <!-- ═══════════════ 8-2: 模型选型 ═══════════════ -->
-<section id="case8-8">
+<section id="case8-4">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-8 · 模型选型与部署方案</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-4 · 模型选型与部署方案</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
@@ -1191,9 +647,9 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
 </section>
 
 <!-- ═══════════════ 8-3: 真机 Pipeline ═══════════════ -->
-<section id="case8-9">
+<section id="case8-5">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-nav);"></span> 8-9 · 真机 Pipeline 实现</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-nav);"></span> 8-5 · 真机 Pipeline 实现</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
@@ -1350,9 +806,9 @@ Output ONLY the action name, nothing else."""</span>
 </section>
 
 <!-- ═══════════════ 8-4: 两张方法全面对比 ═══════════════ -->
-<section id="case8-10">
+<section id="case8-6">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-compare);"></span> 8-10 · 两种方法全面对比</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-compare);"></span> 8-6 · 两种方法全面对比</h2>
 
   <div class="info-box">
     <div class="info-title">① 对比维度</div>
@@ -1498,6 +954,6 @@ Output ONLY the action name, nothing else."""</span>
 </footer>
 
 <script src="assets/js/site.js"></script>
-<script>window.totalStages = 4;</script>
+<script>window.totalStages = 6;</script>
 </body>
 </html>
