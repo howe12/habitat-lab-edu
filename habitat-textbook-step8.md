@@ -351,20 +351,21 @@ ROS2 Twist→底盘
 
 ```
 加载时加一行 load_in_8bit=True
-    # BF16 — 43GB, 第8步OOM
+    
+```
+# BF16 — 43GB, 第8步OOM
 model = Qwen2_5_VLForConditionalGenerationForJanusVLN.from_pretrained(
-    MODEL_PATH,
-    torch_dtype=torch.bfloat16,
-    device_map="auto",
+MODEL_PATH,
+torch_dtype=torch.bfloat16,
+device_map="auto",
 )
 
 # INT8 — 10.6GB, 永不OOM
 model = Qwen2_5_VLForConditionalGenerationForJanusVLN.from_pretrained(
-    MODEL_PATH,
-    load_in_8bit=True,
-    device_map="auto",
+MODEL_PATH,
+load_in_8bit=True,
+device_map="auto",
 )
-```
 
 > 💡 **📊 实测对比**
 
@@ -373,7 +374,6 @@ INT8：**10.6GB** / **永远不崩** / ~6-8s/步
 
 #### 推理端点设计
 
-```
 # POST /reset — 新任务开始
 {"session_id": "spark_001", "instruction": "去打印机前"}
 
@@ -382,7 +382,6 @@ INT8：**10.6GB** / **永远不崩** / ~6-8s/步
 
 # 响应
 {"action": "MOVE_FORWARD", "step_id": 5, "raw_output": "move_forward"}
-```
 
 > ⚠️ **⚠️ 两处防 OOM 的关键代码**
 
@@ -404,27 +403,22 @@ INT8：**10.6GB** / **永远不崩** / ~6-8s/步
 
 #### 防打转逻辑
 
-```
 # JanusVLN 零样本方向感弱，容易连续输出转弯
 # 兜底策略：检查连续同向转弯次数，>=3 则强制直行
 if action in ("TURN_LEFT", "TURN_RIGHT"):
-    if action == self._last_turn_dir:
-        self._turn_count += 1
-    else:
-        self._turn_count = 1
-    self._last_turn_dir = action
-    if self._turn_count >= 3:
-        action = "MOVE_FORWARD"      # 强制打破打转
-        self._turn_count = 0
-```
+if action == self._last_turn_dir:
+self._turn_count += 1
+else:
+self._turn_count = 1
+self._last_turn_dir = action
+if self._turn_count >= 3:
+action = "MOVE_FORWARD"      # 强制打破打转
+self._turn_count = 0
 
 ### ③ 启动命令
 
 ```
 L40 端 — 启动推理服务
-```
-
-```
 # 1. 安装 bitsandbytes（一次性）
 $ pip install bitsandbytes
 
@@ -435,13 +429,7 @@ $ nohup python server.py /tmp/srv.log 2>&1 &
 # 4. 验证
 $ curl http://localhost:8443/health
 {"status": "ok", "model_loaded": true}
-```
-
-```
 Spark 端 — 启动导航
-```
-
-```
 # 1. 清理僵尸进程（重要！否则 D435 断连）
 $ pkill -9 -f spark_base; pkill -9 -f realsense2_camera; pkill -9 -f vln_client
 
@@ -625,6 +613,8 @@ $ ros2 service call /vln/start std_srvs/srv/Trigger
 ### ③ 方式 A：仿真自动采集
 
   
+    
+    
 ```
 # collect_training_data.py — 在 Habitat 中自动采集导航轨迹
 import habitat, json, gzip, numpy as np
@@ -782,6 +772,8 @@ JanusVLN 用英文：中文翻译为英文或用英文直接标注
   
 
   
+    
+    
 ```
 # 标准全量微调：修改 W 的全部 4096×4096 = 16M 参数
 h = W @ x + b          # W 可训练，16M 参数

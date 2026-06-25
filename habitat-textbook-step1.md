@@ -279,9 +279,6 @@ $ python examples/example.py
 
 ```
 Docker 部署三步骤
-```
-
-```
 # 步骤 1：拉取官方镜像（约 15GB，仅首次）
 $ docker pull fairembodied/habitat-challenge:testing_2022_habitat_base_docker
 

@@ -720,32 +720,3 @@ class EpisodicCompassSensor(HeadingSensor):
 
 核心 Measure：Success + SPL 的计算逻辑
 评估核心
-
-```
-# Success — 两个条件必须同时满足
-class Success(Measure):
-    def update_metric(self, episode, task, **kwargs):
-        distance_to_target = task.measurements["distance_to_goal"].get_metric()
-
-        if (
-            task.is_stop_called                          # ① 调用了 stop
-            and distance_to_target 
-
-   文件速查表
-  
-
-6 个核心文件，按运行时依赖关系排列（从上到下 = 从上层到底层）。
-
-  
-| 文件 | 行数 | 关键类 | 在调用链中的位置 |
-| --- | --- | --- | --- |
-| `core/registry.py` | 231 | Registry | 框架启动时填充；运行时通过 `get_*()` 按名字查找组件 |
-| `core/dataset.py` | 547 | Episode, Dataset, EpisodeIterator | Env.__init__ 阶段加载；reset 时取下一个 episode |
-| `core/simulator.py` | 423 | Sensor, SensorSuite, Simulator | 抽象层，不直接执行；HabitatSim 是实现 |
-| `core/embodied_task.py` | 404 | Action, Measure, EmbodiedTask | env.step → task.step → action.step 的主链路 |
-| `core/env.py` | 494 | Env, RLEnv | 用户代码入口；串联 Sim + Task + Dataset |
-| `tasks/nav/nav.py` | 1344 | NavigationTask, 6 Action, 10+ Sensor, 8 Measure | 导航任务全链路实现；MoveForwardAction 直接驱动模拟器 |
-
-  
-    [← 第2章：跑通示例](habitat-textbook-step2.html)
-    [第4章：改配置实验 →](habitat-textbook-step4.html)

@@ -1114,6 +1114,8 @@ CLIP t-SNE (MMD=0.0053)
 ### DAgger 算法伪代码
 
   
+    
+    
 ```
 # DAgger (Dataset Aggregation) — Ross et al., 2011
 for iteration in range(K):
@@ -1207,6 +1209,8 @@ DAgger 把 Agent 走偏后的观测也加入训练集（附上专家纠正），
 ### ③ 数据流：每步从观测到动作
 
   
+    
+    
 ```
 # 1. Habitat 渲染当前前向 RGB（224×224）
 rgb = env.step(action)["rgb"]
@@ -1392,6 +1396,8 @@ pip install transformers==4.48 accelerate qwen_vl_utils -i https://pypi.doubanio
   
 
   
+    
+    
 ```
 for iteration in range(num_iterations):
 beta = p ** iteration  # 专家干预概率指数衰减
@@ -1435,6 +1441,8 @@ loss.backward(); optimizer.step()
 ### ⑧ 完整运行命令
 
   
+    
+    
 ```
 export HF_ENDPOINT=https://hf-mirror.com
 
@@ -1450,45 +1458,3 @@ python src/evaluation.py \
 # 保存可视化图片
 python src/evaluation.py ... --save_video --save_video_ratio 1.0
 # 图片保存到 results/val_unseen/vis_0/*.jpg
-```
-
-  
-##  本章总结
-
-  
-    
-      
-### ✅ 完成本章后你应该能
-
-      
-        
-- 创建并验证 VLN-v0 环境
-        
-- 理解 R2R episode 的数据结构（position + instruction + reference_path）
-        
-- 解释 InstructionSensor 如何从 episode 提取指令文本
-        
-- 启动 VLN 模仿学习训练并阅读 loss/acc 曲线
-        
-- 理解 SR/SPL/nDTW 三项评估指标
-        
-- 导出可用于真机推理的 checkpoint + config 文件
-        
-- 运行 SOTA 模型（JanusVLN）并在同一数据上对比 SR
-      
-    
-    
-      
-### 🔜 下一步：真机部署
-
-      
-
-        现在你手头有了训练好的 VLN 模型。接下来的问题是：**怎么让它在 Spark-I 或 Leo 上跑起来？**
-
-        [→ 第8章：真机部署](habitat-textbook-step8.html)（从架构到微调的完整流程）
-      
-    
-  
-  
-    [← 第6步：RL 训练入门](habitat-textbook-step6.html)
-    [第8章：真机部署 →](habitat-textbook-step8.html)

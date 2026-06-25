@@ -201,9 +201,6 @@ STOP/FWD/LEFT/RIGHT | MP3D (R2R) | success, SPL, nDTW
 
 ```
 完整代码
-```
-
-```
 import gym, habitat.gym  # noqa: F401 — 注册 Habitat-v0
 
 # 1. 创建环境：指定 PointNav + habitat-test 场景
@@ -274,9 +271,6 @@ pointgoal = [ρ, φ]
 
 ```
 运行命令
-```
-
-```
 # 直接运行上面的 Python 代码
 $ python3 pointnav_env.py
 ```
@@ -402,9 +396,6 @@ ckpt.{N}.pth (22MB)
 
 ```
 训练命令
-```
-
-```
 # PointNav PPO 训练（使用 habitat-test 数据，离线可用）
 $ python -u -m habitat_baselines.run \
     --config-name=pointnav/ppo_pointnav_example.yaml
@@ -507,9 +498,6 @@ PointNav 告诉你目标的 精确坐标——"往前走 10 米，右转"。
 
 ```
 完整代码
-```
-
-```
 import gym, habitat.gym  # 注册 Habitat-v0
 
 # 1. 创建 ObjectNav 环境 — 使用 MP3D 数据集（云端已有）
@@ -592,9 +580,6 @@ Gym 环境入口
 
 ```
 运行命令
-```
-
-```
 # 运行上面的 Python 代码
 $ python3 objectnav_env.py
 ```
@@ -711,9 +696,6 @@ ckpt.{N}.pth
 
 ```
 训练命令
-```
-
-```
 # ObjectNav 单 GPU PPO 训练（需 MP3D 数据集 — 云端已有）
 # 关键: trainer_name=ppo 将 DD-PPO 配置覆盖为单 GPU 模式
 $ python -u -m habitat_baselines.run \
@@ -812,9 +794,6 @@ $ python -u -m habitat_baselines.run \
 
 ```
 完整代码
-```
-
-```
 import gym, habitat.gym  # 注册 Habitat-v0
 
 # 1. 创建 ImageNav 环境 — 复用 PointNav MP3D 数据集
@@ -898,9 +877,6 @@ imagegoal → 决定动作
 
 ```
 运行命令
-```
-
-```
 # 运行上面的 Python 代码
 $ python3 imagenav_env.py
 ```
@@ -1026,9 +1002,6 @@ ckpt.{N}.pth
 
 ```
 训练命令
-```
-
-```
 # ImageNav DD-PPO 训练（需 MP3D 数据集 — 云端已有）
 # 单 GPU 模式: 添加 trainer_name=ppo 覆盖
 $ python -u -m habitat_baselines.run \
@@ -1210,9 +1183,6 @@ InstanceImageNav：特定椅子的多视角照片。
 
 ```
 完整代码
-```
-
-```
 import gym, habitat.gym  # 注册 Habitat-v0
 
 # 1. 创建 VLN 环境 — 使用 R2R 数据集（云端 MP3D R2R 已有）
@@ -1300,9 +1270,6 @@ R2R MP3D 数据集
 
 ```
 运行命令
-```
-
-```
 # 运行上面的 Python 代码
 $ python3 vln_env.py
 ```
@@ -1460,9 +1427,6 @@ LSTM/Transformer
 
 ```
 训练命令
-```
-
-```
 # VLN Imitation Learning 训练（PACMAN 多任务 IL）
 # 注意: 这不是 PPO — 不需要 total_num_steps 参数
 # 使用 BC (Behavioral Cloning) 或 DAgger 模式
@@ -1515,9 +1479,6 @@ EQA 是唯一需要**语言理解 + 视觉 + 导航**三者融合的任务。Age
 
 ```
 EQA 任务的基本使用
-```
-
-```
 import habitat
 from habitat.tasks.eqa.eqa import AnswerAction
 
