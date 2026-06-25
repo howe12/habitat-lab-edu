@@ -83,8 +83,8 @@
       </tr>
       <tr>
         <td style="color:#a78bfa;font-weight:700;">8-6</td>
-        <td><a href="#case8-6">真机采集 rosbag</a></td>
-        <td>遥控走路径，录制图像+位姿</td>
+        <td><a href="#case8-6">真机采集与数据处理</a></td>
+        <td>rosbag录制、仿真采集、数据质量检查</td>
         <td>⭐⭐⭐</td>
       </tr>
       <tr>
@@ -112,7 +112,7 @@
     <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-3: 掌握模型选型与 INT8 量化</div></li>
     <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-4: 部署 JanusVLN 零样本直控真机</div></li>
     <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-5: 设计仿真与真机测试方案</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-6: 真机录制 rosbag 采集数据</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-6: 采集导航数据（仿真+真机+质量检查）</div></li>
     <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-7: LoRA 微调 JanusVLN 适配新场景</div></li>
     <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-8: 对比两种部署方案做出选型决策</div></li>
   </ul>
@@ -938,21 +938,183 @@ $ ros2 service call /vln/start std_srvs/srv/Trigger</div>
 </div>
 </section>
 
-<!-- ═══════════════ 8-6: 真机采集 rosbag ═══════════════ -->
+<!-- ═══════════════ 8-6: 真机采集与数据处理 ═══════════════ -->
 <section id="case8-6">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 8-6 · 真机采集 rosbag</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 8-6 · 真机采集与数据处理</h2>
+
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
-    <p>要让 JanusVLN 真正理解"会议室""饮水机""打印机"的具体位置，需要采集真实办公室的导航数据。本案例遥控 Spark-I 走完指定路径，同时录制 ros2 bag，记录 RGB 图像、里程计、指令。</p>
-    <p style="margin-top:8px;"><b>前置条件：</b>已完成 8-4 零样本直控，确认 Spark-I 底盘+摄像头可用。</p>
+    <p>要让 JanusVLN 真正理解"会议室""饮水机""打印机"的具体位置，需要采集真实办公室的导航数据。本案例涵盖三种采集方式（仿真自动、真机手动、混合策略），以及数据格式规范和质量检查清单。</p>
+    <p style="margin-top:8px;"><b>前置条件：</b>已完成 <a href="#case8-4">8-4 零样本直控</a>，确认 Spark-I 底盘+摄像头可用。采集的数据将用于 <a href="#case8-7">8-7 LoRA 微调</a>。</p>
   </div>
+
+  <!-- ② 三种采集方式对比 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 三种采集方式对比</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>方式</th><th>工具</th><th>单条耗时</th><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>A. 仿真自动采集</b></td>
+        <td>Habitat + ShortestPathFollower</td>
+        <td>~10 秒</td>
+        <td>快速、安全、可批量</td>
+        <td>图像与真机有分布差</td>
+      </tr>
+      <tr>
+        <td><b>B. 真机手动录制</b></td>
+        <td>Spark-I + rosbag</td>
+        <td>~5 分钟</td>
+        <td>真实相机/光照/动态</td>
+        <td>慢、需人工操作</td>
+      </tr>
+      <tr>
+        <td><b>C. 混合策略</b></td>
+        <td>仿真 80% + 真机 20%</td>
+        <td>—</td>
+        <td>兼得速度与真实感</td>
+        <td>需对齐两种数据格式</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ③ 方式A：仿真自动采集 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ 方式 A：仿真自动采集</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># collect_training_data.py — 在 Habitat 中自动采集导航轨迹</span>
+<span class="kw">import</span> habitat, json, gzip, numpy <span class="kw">as</span> np
+<span class="kw">from</span> habitat.tasks.nav.shortest_path_follower <span class="kw">import</span> ShortestPathFollower
+
+env = habitat.Env(config=habitat.get_config(<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>))
+follower = ShortestPathFollower(env.sim, goal_radius=1.8, return_one_hot=<span class="kw">False</span>)
+
+dataset = []
+<span class="kw">for</span> ep_id, episode <span class="kw">in</span> enumerate(env.episodes):
+    obs = env.reset()
+    episode_data = {
+        <span class="str">"episode_id"</span>: ep_id,
+        <span class="str">"scene_id"</span>: episode.scene_id,
+        <span class="str">"start_position"</span>: episode.start_position.tolist(),
+        <span class="str">"start_rotation"</span>: episode.start_rotation.tolist(),
+        <span class="str">"goals"</span>: [{<span class="str">"position"</span>: g.position.tolist()} <span class="kw">for</span> g <span class="kw">in</span> episode.goals],
+        <span class="str">"reference_path"</span>: [p.tolist() <span class="kw">for</span> p <span class="kw">in</span> episode.reference_path],
+        <span class="str">"rgb_frames"</span>: [],        <span class="cmt"># 每步的 RGB 图像</span>
+        <span class="str">"actions"</span>: [],            <span class="cmt"># 每步的专家动作</span>
+        <span class="str">"instruction"</span>: <span class="str">""</span>        <span class="cmt"># 人工标注（采集后填）</span>
+    }
+
+    <span class="kw">while not</span> env.episode_over:
+        episode_data[<span class="str">"rgb_frames"</span>].append(obs[<span class="str">"rgb"</span>].copy())
+        action = follower.get_next_action(episode.reference_path)
+        episode_data[<span class="str">"actions"</span>].append(action)
+        obs = env.step(action)
+
+    dataset.append(episode_data)
+
+<span class="cmt"># 保存（不含 RGB 图片——图片单独存为 PNG 以节省 JSON 体积）</span>
+<span class="kw">with</span> gzip.open(<span class="str">"my_scene_train.json.gz"</span>, <span class="str">"wt"</span>) <span class="kw">as</span> f:
+    json.dump({<span class="str">"episodes"</span>: dataset}, f, default=<span class="kw">str</span>)</div>
+  </div>
+
+  <!-- ④ 方式B：真机手动录制 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ 方式 B：真机手动录制（rosbag）</h3>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 真机采集流程（Spark-I + ROS 2）</span>
+
+<span class="cmt"># Step 1: 录 rosbag（遥控机器人走一遍路径）</span>
+$ ros2 bag record /camera/color/image_raw /odom /tf /tf_static \
+    -o my_nav_path_01
+
+<span class="cmt"># Step 2: 从 rosbag 提取位姿序列 → reference_path</span>
+$ python3 extract_poses_from_bag.py my_nav_path_01/
+
+<span class="cmt"># Step 3: 人工标注指令（对着视频写）</span>
+<span class="cmt">#   示例："从实验室门口出发，经过机械臂工位，走到3D打印区停下"</span>
+
+<span class="cmt"># Step 4: 重复 30-50 条 → 开始微调</span></div>
+  </div>
+
+  <!-- ⑤ 数据质量检查清单 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑤ 数据质量检查清单</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>维度</th><th>✅ 正确做法</th><th>❌ 常见错误</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>路径多样性</b></td>
+        <td>包含最短路径 + 偏离路径（70:30）</td>
+        <td>只有最短路径 → 模型没见过走错的样子</td>
+      </tr>
+      <tr>
+        <td><b>指令语言</b></td>
+        <td>日常口语："走到白板前"<br>同路径 2-3 种说法</td>
+        <td>"前进 5 米，左转 30 度"→ 不是 VLN</td>
+      </tr>
+      <tr>
+        <td><b>光照覆盖</b></td>
+        <td>早/中/晚各采一批</td>
+        <td>只在下午 3 点采 → 早上模型就瞎了</td>
+      </tr>
+      <tr>
+        <td><b>视角覆盖</b></td>
+        <td>路径偏左/偏右/正中各一些</td>
+        <td>全都走正中间</td>
+      </tr>
+      <tr>
+        <td><b>动态物体</b></td>
+        <td>有行人 / 无行人各一半</td>
+        <td>全是空房间 → 真机一有人就乱</td>
+      </tr>
+      <tr>
+        <td><b>距离梯度</b></td>
+        <td>3m / 5m / 10m / 20m 均匀分布</td>
+        <td>全是 5m 以内的短距离</td>
+      </tr>
+      <tr>
+        <td><b>中英对应</b></td>
+        <td>JanusVLN 用英文：中文翻译为英文<br>或用英文直接标注</td>
+        <td>中文直接喂给英文训练的模型</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ⑥ 最小可行数据集 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ 最小可行数据集</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>场景规模</th><th>最少条数</th><th>采集时间</th><th>预期 SR（微调后）</th></tr></thead>
+    <tbody>
+      <tr><td>单个房间</td><td>30 条</td><td>1 小时（仿真）</td><td>~55%</td></tr>
+      <tr><td>一层办公楼</td><td>100 条</td><td>3 小时（仿真）</td><td>~65%</td></tr>
+      <tr><td>整栋建筑</td><td>300+ 条</td><td>1 天（仿真）</td><td>~70%</td></tr>
+    </tbody>
+  </table>
+
   <div class="warn-box" style="margin-top:12px;">
-    <div class="warn-title">⚠️ 本节为规划内容</div>
-    <p>详细的操作步骤、代码和实测数据将在后续版本中补充。</p>
+    <div class="warn-title">⚠️ 数据准备详见 <a href="#case8-6">8-6 真机采集与数据处理</a></div>
+    <p>
+      30 条高质量数据（路径多样 + 指令自然 + 光照覆盖）比 200 条劣质数据有效得多。
+      劣质数据的典型信号：微调后 SR 反而下降 → 说明数据引入了噪声而非信号。
+      如果时间有限，宁可花 80% 时间打磨 30 条数据，不要赶工产 100 条。
+    </p>
   </div>
+
+  <div class="tip-box" style="margin-top:12px;">
+    <div class="tip-title">💡 下一步：LoRA 微调</div>
+    <p>
+      数据准备好后，进入 <a href="#case8-7">8-7 LoRA 微调 JanusVLN</a>，将采集的数据用于适配新场景。
+    </p>
+  </div>
+
 </div>
 </section>
+
+
 
 <!-- ═══════════════ 8-7: LoRA 微调 JanusVLN ═══════════════ -->
 <section id="case8-7">
@@ -1204,167 +1366,10 @@ optimizer = AdamW(model.parameters(), lr=1e-4)
   </div>
 
 
-<!-- ⑧ 数据采集方法论 -->
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑧ 数据采集：如何制作微调数据集</h3>
-
-  <p style="margin-bottom:12px;">
-    微调效果的上限由数据决定。这一节介绍三种采集方式、数据格式规范、以及常见陷阱。
-  </p>
-
-  <p><b>三种采集方式对比</b></p>
-
-  <table class="compare-table">
-    <thead><tr><th>方式</th><th>工具</th><th>单条耗时</th><th>优点</th><th>缺点</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>A. 仿真自动采集</b></td>
-        <td>Habitat + ShortestPathFollower</td>
-        <td>~10 秒</td>
-        <td>快速、安全、可批量</td>
-        <td>图像与真机有分布差</td>
-      </tr>
-      <tr>
-        <td><b>B. 真机手动录制</b></td>
-        <td>Spark-I + rosbag</td>
-        <td>~5 分钟</td>
-        <td>真实相机/光照/动态</td>
-        <td>慢、需人工操作</td>
-      </tr>
-      <tr>
-        <td><b>C. 混合策略</b></td>
-        <td>仿真 80% + 真机 20%</td>
-        <td>—</td>
-        <td>兼得速度与真实感</td>
-        <td>需对齐两种数据格式</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p style="margin-top:16px;"><b>方式 A：仿真自动采集脚本</b></p>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="cmt"># collect_training_data.py — 在 Habitat 中自动采集导航轨迹</span>
-<span class="kw">import</span> habitat, json, gzip, numpy <span class="kw">as</span> np
-<span class="kw">from</span> habitat.tasks.nav.shortest_path_follower <span class="kw">import</span> ShortestPathFollower
-
-env = habitat.Env(config=habitat.get_config(<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>))
-follower = ShortestPathFollower(env.sim, goal_radius=1.8, return_one_hot=<span class="kw">False</span>)
-
-dataset = []
-<span class="kw">for</span> ep_id, episode <span class="kw">in</span> enumerate(env.episodes):
-    obs = env.reset()
-    episode_data = {
-        <span class="str">"episode_id"</span>: ep_id,
-        <span class="str">"scene_id"</span>: episode.scene_id,
-        <span class="str">"start_position"</span>: episode.start_position.tolist(),
-        <span class="str">"start_rotation"</span>: episode.start_rotation.tolist(),
-        <span class="str">"goals"</span>: [{<span class="str">"position"</span>: g.position.tolist()} <span class="kw">for</span> g <span class="kw">in</span> episode.goals],
-        <span class="str">"reference_path"</span>: [p.tolist() <span class="kw">for</span> p <span class="kw">in</span> episode.reference_path],
-        <span class="str">"rgb_frames"</span>: [],        <span class="cmt"># 每步的 RGB 图像</span>
-        <span class="str">"actions"</span>: [],            <span class="cmt"># 每步的专家动作</span>
-        <span class="str">"instruction"</span>: <span class="str">""</span>        <span class="cmt"># 人工标注（采集后填）</span>
-    }
-
-    <span class="kw">while not</span> env.episode_over:
-        episode_data[<span class="str">"rgb_frames"</span>].append(obs[<span class="str">"rgb"</span>].copy())
-        action = follower.get_next_action(episode.reference_path)
-        episode_data[<span class="str">"actions"</span>].append(action)
-        obs = env.step(action)
-
-    dataset.append(episode_data)
-
-<span class="cmt"># 保存（不含 RGB 图片——图片单独存为 PNG 以节省 JSON 体积）</span>
-<span class="kw">with</span> gzip.open(<span class="str">"my_scene_train.json.gz"</span>, <span class="str">"wt"</span>) <span class="kw">as</span> f:
-    json.dump({<span class="str">"episodes"</span>: dataset}, f, default=<span class="kw">str</span>)</div>
-  </div>
-
-  <p style="margin-top:16px;"><b>方式 B：真机手动录制</b></p>
-
-  <div class="code-block-wrapper">
-    <button class="copy-btn">复制</button>
-    <div class="code-block"><span class="cmt"># 真机采集流程（Spark-I + ROS 2）</span>
-
-<span class="cmt"># Step 1: 录 rosbag（遥控机器人走一遍路径）</span>
-$ ros2 bag record /camera/color/image_raw /odom /tf /tf_static \
-    -o my_nav_path_01
-
-<span class="cmt"># Step 2: 从 rosbag 提取位姿序列 → reference_path</span>
-$ python3 extract_poses_from_bag.py my_nav_path_01/
-
-<span class="cmt"># Step 3: 人工标注指令（对着视频写）</span>
-<span class="cmt">#   示例："从实验室门口出发，经过机械臂工位，走到3D打印区停下"</span>
-
-<span class="cmt"># Step 4: 重复 30-50 条 → 开始微调</span></div>
-  </div>
-
-  <p style="margin-top:16px;"><b>数据采集检查清单</b></p>
-
-  <table class="compare-table">
-    <thead><tr><th>维度</th><th>✅ 正确做法</th><th>❌ 常见错误</th></tr></thead>
-    <tbody>
-      <tr>
-        <td><b>路径多样性</b></td>
-        <td>包含最短路径 + 偏离路径（70:30）</td>
-        <td>只有最短路径 → 模型没见过走错的样子</td>
-      </tr>
-      <tr>
-        <td><b>指令语言</b></td>
-        <td>日常口语："走到白板前"<br>同路径 2-3 种说法</td>
-        <td>"前进 5 米，左转 30 度"→ 不是 VLN</td>
-      </tr>
-      <tr>
-        <td><b>光照覆盖</b></td>
-        <td>早/中/晚各采一批</td>
-        <td>只在下午 3 点采 → 早上模型就瞎了</td>
-      </tr>
-      <tr>
-        <td><b>视角覆盖</b></td>
-        <td>路径偏左/偏右/正中各一些</td>
-        <td>全都走正中间</td>
-      </tr>
-      <tr>
-        <td><b>动态物体</b></td>
-        <td>有行人 / 无行人各一半</td>
-        <td>全是空房间 → 真机一有人就乱</td>
-      </tr>
-      <tr>
-        <td><b>距离梯度</b></td>
-        <td>3m / 5m / 10m / 20m 均匀分布</td>
-        <td>全是 5m 以内的短距离</td>
-      </tr>
-      <tr>
-        <td><b>中英对应</b></td>
-        <td>JanusVLN 用英文：中文翻译为英文<br>或用英文直接标注</td>
-        <td>中文直接喂给英文训练的模型</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <p style="margin-top:16px;"><b>最小可行数据集</b></p>
-
-  <table class="compare-table">
-    <thead><tr><th>场景规模</th><th>最少条数</th><th>采集时间</th><th>预期 SR（微调后）</th></tr></thead>
-    <tbody>
-      <tr><td>单个房间</td><td>30 条</td><td>1 小时（仿真）</td><td>~55%</td></tr>
-      <tr><td>一层办公楼</td><td>100 条</td><td>3 小时（仿真）</td><td>~65%</td></tr>
-      <tr><td>整栋建筑</td><td>300+ 条</td><td>1 天（仿真）</td><td>~70%</td></tr>
-    </tbody>
-  </table>
-
-  <div class="warn-box" style="margin-top:12px;">
-    <div class="warn-title">⚠️ 第一优先级：数据质量 > 数据数量</div>
-    <p>
-      30 条高质量数据（路径多样 + 指令自然 + 光照覆盖）比 200 条劣质数据有效得多。
-      劣质数据的典型信号：微调后 SR 反而下降 → 说明数据引入了噪声而非信号。
-      如果时间有限，宁可花 80% 时间打磨 30 条数据，不要赶工产 100 条。
-    </p>
-  </div>
-
-
 
 </div>
 </section>
+
 
 <!-- ═══════════════ 8-4: 两张方法全面对比 ═══════════════ -->
 <section id="case8-8">
