@@ -42,12 +42,11 @@
 <section>
 <div class="container">
 
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 本章概览：方案一（VLN+ROS）+ 方案二（VLM端到端）</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 本章概览：从架构到微调的完整流程</h2>
   <p class="section-subtitle">
-    从理解 VLM 导航原理，到选型、部署、与方法一对比。方法二仍在快速发展中——这里的方案基于 2024–2025 的 SOTA 工作。
+    将仿真训练的 VLN 模型部署到真实 Spark‑I 机器人：架构设计 → 模型选型 → 零样本直控 → 数据采集 → LoRA 微调。
   </p>
-      <p class="section-subtitle">两种真机方案：VLN→ROS Nav2（稳妥）和 VLM 端到端（前沿）。前置：<a href="habitat-textbook-step7.html" style="color:#2dd4bf;">第7章 VLN</a> 和 <a href="habitat-textbook-step6.html" style="color:#60a5fa;">第6章 RL训练</a>。</p>
-
+  <p class="section-subtitle">两种真机方案：VLN→ROS Nav2（稳妥）和 VLM 端到端（前沿）。前置：<a href="habitat-textbook-step7.html" style="color:#2dd4bf;">第7章 VLN</a> 仿真训练。</p>
 
   <table class="compare-table">
     <thead><tr><th style="width:50px;">#</th><th style="width:220px;">案例</th><th>你将学会</th><th style="width:60px;">难度</th></tr></thead>
@@ -59,32 +58,44 @@
         <td>⭐⭐</td>
       </tr>
       <tr>
-        <td style="color:#f59e0b;font-weight:700;">8-2</td>
-        <td><a href="#case8-2">仿真与真机测试计划</a></td>
-        <td>评估指标、测试场景设计、数据采集策略</td>
+        <td style="color:#f9a8d4;font-weight:700;">8-2</td>
+        <td><a href="#case8-2">理解 VLM 导航原理</a></td>
+        <td>VLM 为什么能做导航、核心论文思路</td>
         <td>⭐⭐</td>
       </tr>
       <tr>
-        <td style="color:#f9a8d4;font-weight:700;">8-3</td>
-        <td><a href="#case8-3">理解 VLM 导航原理</a></td>
-        <td>VLM 为什么能做导航、核心论文思路拆解</td>
-        <td>⭐⭐</td>
-      </tr>
-      <tr>
-        <td style="color:#8b5cf6;font-weight:700;">8-4</td>
-        <td><a href="#case8-4">模型选型与部署方案</a></td>
-        <td>JanusVLN/Seq2SeqAgent 对比、INT8 量化</td>
+        <td style="color:#8b5cf6;font-weight:700;">8-3</td>
+        <td><a href="#case8-3">模型选型与部署方案</a></td>
+        <td>JanusVLN 等模型对比、INT8 量化</td>
         <td>⭐⭐⭐</td>
       </tr>
       <tr>
-        <td style="color:#ec4899;font-weight:700;">8-5</td>
-        <td><a href="#case8-5">真机 Pipeline 实现</a></td>
-        <td>vln_client/server.py、ROS2 对接</td>
+        <td style="color:#f472b6;font-weight:700;">8-4</td>
+        <td><a href="#case8-4">云端直控真机 ★</a></td>
+        <td>JanusVLN 零样本部署、防打转、显示窗口</td>
         <td>⭐⭐⭐⭐</td>
       </tr>
       <tr>
+        <td style="color:#f59e0b;font-weight:700;">8-5</td>
+        <td><a href="#case8-5">仿真与真机测试计划</a></td>
+        <td>评估指标、测试场景设计、安全守则</td>
+        <td>⭐⭐</td>
+      </tr>
+      <tr>
         <td style="color:#a78bfa;font-weight:700;">8-6</td>
-        <td><a href="#case8-6">两种方法全面对比</a></td>
+        <td><a href="#case8-6">真机采集 rosbag</a></td>
+        <td>遥控走路径，录制图像+位姿</td>
+        <td>⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td style="color:#34d399;font-weight:700;">8-7</td>
+        <td><a href="#case8-7">LoRA 微调 JanusVLN</a></td>
+        <td>单卡微调、数据采集方法论</td>
+        <td>⭐⭐⭐⭐</td>
+      </tr>
+      <tr>
+        <td style="color:#10b981;font-weight:700;">8-8</td>
+        <td><a href="#case8-8">两种方法全面对比</a></td>
         <td>VLN+Nav2 vs JanusVLN 直控</td>
         <td>⭐⭐⭐</td>
       </tr>
@@ -92,22 +103,22 @@
   </table>
 
   <div class="progress-section">
-      <div class="progress-label"><span>学习进度</span><span id="progress-text">0 / 6 阶段完成</span></div>
+      <div class="progress-label"><span>学习进度</span><span id="progress-text">0 / 8 阶段完成</span></div>
       <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%;"></div></div>
     </div>
   <ul class="checklist" id="checklist">
     <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-1: 理解云-边-端 VLN 推理架构</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-2: 设计仿真与真机测试方案</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-3: 理解 VLM 导航推理原理</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-4: 掌握模型选型与 INT8 量化</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-5: 实现真机 Pipeline</div></li>
-    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-6: 对比两种部署方案</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-2: 理解 VLM 导航推理原理</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-3: 掌握模型选型与 INT8 量化</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-4: 部署 JanusVLN 零样本直控真机</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-5: 设计仿真与真机测试方案</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-6: 真机录制 rosbag 采集数据</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-7: LoRA 微调 JanusVLN 适配新场景</div></li>
+    <li><div class="checkbox" onclick="toggleCheck(this)"></div><div class="task-text">8-8: 对比两种部署方案做出选型决策</div></li>
   </ul>
 
 </div>
 </section>
-
-<!-- ═══════════════ 8-1: 理解 VLM 导航原理 ═══════════════ -->
 
 <!-- ═══════════════ Part A: 方案一 · VLN+ROS ═══════════════ -->
 <section>
@@ -275,10 +286,491 @@ model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
 </div>
 </section>
 
-<!-- ═══════════════ 8-6: 仿真与真机测试计划 ═══════════════ -->
+
+
+
+
 <section id="case8-2">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-test);"></span> 8-2 · 仿真与真机测试计划</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-2 · 理解 VLM 导航原理</h2>
+
+  <div class="info-box">
+    <div class="info-title">① 案例含义 — VLM 导航与传统 VLN 有什么不同？</div>
+    <p>
+      传统 VLN（如 第6章 训练的模型）是一个<b>任务专用的小模型</b>：CNN 编码图像 + LSTM 编码指令 → 输出离散动作。
+      VLM 导航则使用一个<b>通用的大模型</b>（数亿到数十亿参数），已在海量图文数据上预训练过，
+      具备对场景、物体、空间关系的广泛理解。
+      <br><br>
+      <b>核心区别：</b>VLN 需要针对导航任务专门训练；VLM 已经"知道"什么是厨房、走廊、门口，
+      导航只是它推理能力的延伸。
+    </p>
+  </div>
+
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 核心论文思路拆解</h3>
+
+  <div class="dual-panel">
+    <div class="panel">
+      <h4 style="color:#2dd4bf;">📄 NaVid-4D (CVPR 2025)</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        <b>核心思路：</b>将导航形式化为视频预测任务。<br>
+        输入：<b>历史视频帧</b>（多帧 RGB）+ 指令文本<br>
+        输出：<b>未来轨迹</b>（一系列 waypoint 坐标）<br>
+        特点：不显式建图，利用视频中的时序信息隐式编码空间结构。<br>
+        模型：基于 Video Diffusion 架构，在 Habitat 仿真中训练。<br>
+        <b>与我们的关系：</b>可以复用 第6章 训练出的模型作为特征提取器。
+      </p>
+    </div>
+    <div class="panel">
+      <h4 style="color:#a78bfa;">📄 NaVILA (CoRL 2024)</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        <b>核心思路：</b>结合 VLM 的语义理解 + 传统导航策略。<br>
+        输入：RGB 图像 + 指令<br>
+        输出：<b>子目标</b>（不是最终动作，而是中间目标点）<br>
+        定位：介于方法一和方法二之间——VLM 做高层规划，但还需要底层控制器。<br>
+        <b>与我们的关系：</b>可视为方法一的升级版：将 VLN 模型替换为大 VLM。
+      </p>
+    </div>
+  </div>
+
+  <div class="arch-diagram">
+    <div style="font-size:0.85rem;color:#f9a8d4;font-weight:700;margin-bottom:18px;">VLM 端到端导航 — 极简架构</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#3b82f620;border:2px solid #3b82f6;min-width:180px;">
+        📷 RGB 相机<br><small>单帧或历史帧 stack</small>
+      </div>
+      <div class="arch-layer" style="background:#8b5cf620;border:2px solid #8b5cf6;min-width:200px;">
+        📝 自然语言指令<br><small>"走到厨房水池前"</small>
+      </div>
+    </div>
+    <div class="arch-arrow-center">↓ &nbsp; 输入 &nbsp; ↓</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#ec489920;border:2px solid #ec4899;min-width:500px;">
+        <b>VLM (Vision-Language Model)</b><br>
+        <small>Qwen2-VL / LLaVA / GPT-4V / NaVid / NaVILA</small>
+      </div>
+    </div>
+    <div class="arch-arrow-center">↓ &nbsp; 输出 &nbsp; ↓</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
+        ⬆️ 前进<br><small>FORWARD 0.5m</small>
+      </div>
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
+        ⬅️ 左转<br><small>LEFT 30°</small>
+      </div>
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
+        ➡️ 右转<br><small>RIGHT 30°</small>
+      </div>
+      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
+        ⏹️ 停止<br><small>STOP</small>
+      </div>
+    </div>
+    <div class="arch-arrow-center">↓ &nbsp; 直接映射 &nbsp; ↓</div>
+    <div class="arch-row">
+      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;min-width:300px;">
+        /cmd_vel (Twist)<br><small>驱动底盘电机</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <h4>🔑 关键洞察：VLM 导航的本质是 "视觉问答 + 行动"</h4>
+    <p style="font-size:0.88rem;color:var(--text-dim);">
+      你可以把 VLM 导航理解为：
+      <br><br>
+      <b>Q（指令）：</b>"走到厨房水池前面"<br>
+      <b>VLM 看当前图像：</b>识别到 "我在客厅，前方是走廊，左边是厨房门"<br>
+      <b>VLM 推理：</b>"我应该往前走，到厨房门口再左转"<br>
+      <b>A（动作）：</b>FORWARD<br><br>
+      每一步都是一个新的视觉问答循环。VLM 不维护地图——它依赖<b>实时视觉 + 常识推理</b>来做决策。
+      这最接近人类导航的方式：你不需要心里有精确的 2D 栅格地图，你只需要"看到前方是什么"就能决定下一步。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 8-2: 模型选型 ═══════════════ -->
+<section id="case8-3">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-3 · 模型选型与部署方案</h2>
+
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      开源和商业 VLM 模型各有优劣。选型取决于你的<b>硬件算力</b>（Spark-I 的 i5-1240P 无独显 vs 是否有远程 GPU 服务器）、
+      <b>延迟要求</b>（实时导航需要 &lt;500ms 推理）和<b>费用预算</b>。
+    </p>
+  </div>
+
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 模型对比</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>模型</th><th>类型</th><th>参数量</th><th>推理速度 (CPU)</th><th>导航能力</th><th>硬件需求</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>Qwen2-VL-2B</b></td>
+        <td>开源</td>
+        <td>2B</td>
+        <td>~300ms (量化)</td>
+        <td>基础理解，可 fine-tune</td>
+        <td>4GB RAM，CPU 可行</td>
+      </tr>
+      <tr>
+        <td><b>LLaVA-1.6-7B</b></td>
+        <td>开源</td>
+        <td>7B</td>
+        <td>~2s (CPU)</td>
+        <td>较强推理，需量化</td>
+        <td>8GB VRAM (GPU)，14GB RAM (CPU)</td>
+      </tr>
+      <tr>
+        <td><b>NaVid-4D</b></td>
+        <td>研究 (复现)</td>
+        <td>~1B</td>
+        <td>~200ms (GPU)</td>
+        <td>专为导航优化</td>
+        <td>4GB VRAM</td>
+      </tr>
+      <tr>
+        <td><b>GPT-4V (API)</b></td>
+        <td>商业 API</td>
+        <td>未公开</td>
+        <td>~500ms–2s (网络)</td>
+        <td>极强常识推理</td>
+        <td>仅需网络连接</td>
+      </tr>
+      <tr>
+        <td><b>Claude Vision (API)</b></td>
+        <td>商业 API</td>
+        <td>未公开</td>
+        <td>~300ms–1s (网络)</td>
+        <td>极强空间推理</td>
+        <td>仅需网络连接</td>
+      </tr>
+      <tr>
+        <td><b>Qwen2-VL-72B (API)</b></td>
+        <td>商业/开源</td>
+        <td>72B</td>
+        <td>~2–5s (API)</td>
+        <td>最强综合能力</td>
+        <td>仅需网络连接</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="dual-panel">
+    <div class="panel">
+      <h4 style="color:#2dd4bf;">🖥️ 方案 A：本地推理（Spark-I 离线运行）</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        <b>选型：</b>Qwen2-VL-2B 量化版 (INT8/INT4)<br>
+        <b>优点：</b>无网络依赖、低延迟、数据不出设备<br>
+        <b>缺点：</b>导航能力弱于大模型，可能在复杂场景出错<br>
+        <b>适配：</b>使用 ONNX Runtime 或 llama.cpp 在 i5-1240P 上运行<br>
+        <b>调优：</b>可以用 R2R 数据做少量 fine-tune 提升导航表现
+      </p>
+    </div>
+    <div class="panel">
+      <h4 style="color:#a78bfa;">☁️ 方案 B：云端 API（机器人连 WiFi）</h4>
+      <p style="font-size:0.85rem;color:var(--text-dim);">
+        <b>选型：</b>GPT-4V 或 Claude Vision API<br>
+        <b>优点：</b>最强推理能力，几乎不需要 fine-tune<br>
+        <b>缺点：</b>依赖网络、有延迟波动、API 调用费用<br>
+        <b>适配：</b>ROS 节点通过 HTTP/gRPC 调用 API<br>
+        <b>适用场景：</b>研究原型验证、Demo、非实时任务
+      </p>
+    </div>
+  </div>
+
+  <div class="tip-box">
+    <div class="tip-title">💡 推荐策略：本地 + 云端混合</div>
+    <p>
+      先用<b>方案 B（云端 API）快速验证</b> VLM 导航的可行性——用最聪明的模型看看你的场景是否能靠纯视觉+语言解决。
+      确认可行后，再考虑<b>方案 A 部署本地模型</b>以获得更低的延迟和更稳定的表现。
+      <br><br>
+      Spark-I 的 i5-1240P 虽然无独显，但 16GB RAM + Intel Iris Xe 集成显卡可以跑 ONNX 量化模型。
+      Leo 如果有更强算力（或外接 GPU），选择余地更大。
+    </p>
+  </div>
+</div>
+</section>
+
+<!-- ═══════════════ 7-8: JanusVLN 云端直控真机 ═══════════════ -->
+<section id="case8-4">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-sota);"></span> 8-4 · JanusVLN 云端直控真机 ★</h2>
+
+  <!-- ① 案例含义 -->
+  <div class="info-box">
+    <div class="info-title">① 案例含义</div>
+    <p>
+      7-6 在仿真里评估了 JanusVLN（SR=46.7%），但仿真不是现实。7-8 把同一个模型<b>部署到真实的 Spark-I 机器人上</b>，
+      用中文自然语言指令驱动它在办公室里导航——"去打印机前""去有显示器的桌子"。
+    </p>
+    <p style="margin-top:8px;">
+      <b>核心创新：</b>机器人本地没 GPU，通过 SSH 隧道把摄像头画面实时发给云端 L40，
+      JanusVLN 推理后返回动作指令，形成一个 <b>"云端大脑 + 本地身体"</b> 的异构架构。
+    </p>
+    <p style="margin-top:8px;">
+      <b>前置条件：</b>Spark-I 机器人（ROS2 Humble）+ L40 云端 GPU（>= 24GB 显存）+ 稳定网络。
+      需要安装 <code>bitsandbytes</code> 做 INT8 量化。
+    </p>
+  </div>
+
+  <!-- 架构图 -->
+  <h4 style="font-size:0.9rem;margin:16px 0 6px;color:#93c5fd;">云-边 VLN 推理架构</h4>
+  <div class="flow-box">
+    <div class="flow-step" style="border-top:3px solid #64748b;">
+      <b>① Spark-I 本地</b>
+      <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">D435 摄像头拍照<br>ROS2 vln_client 节点</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #3b82f6;">
+      <b>② SSH 隧道</b>
+      <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">384px JPEG 编码<br>localhost:18001→L40:8443</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #8b5cf6;">
+      <b>③ L40 推理</b>
+      <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">JanusVLN INT8<br>~6-8s/步推理</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #f59e0b;">
+      <b>④ 返回动作</b>
+      <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">MOVE_FORWARD/TURN/STOP<br>JSON HTTP 200</p>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-top:3px solid #10b981;">
+      <b>⑤ 执行动作</b>
+      <p style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;">ROS2 Twist→底盘<br>连续运动不顿挫</p>
+    </div>
+  </div>
+
+  <!-- ② L40 端 -->
+  <h3 style="font-size:1.1rem;margin:20px 0 10px;color:#93c5fd;">② L40 端：推理服务 (server.py)</h3>
+
+  <div class="info-box">
+    <div class="info-title">📦 模型加载 — 关键参数</div>
+    <p>
+      直接加载 JanusVLN（~10B 参数，BF16 精度）需要 <b>43GB 显存</b>，L40 总共 44GB。
+      加上推理时的 KV cache 和激活值——<b>第 8 步必然 OOM</b>。
+    </p>
+  </div>
+
+  <h4 style="font-size:0.88rem;margin:12px 0 6px;color:#fbbf24;">🔑 解决方案：INT8 量化</h4>
+  <div class="code-block">
+    <p style="color:var(--text-dim);font-size:0.78em;margin-bottom:4px;">加载时加一行 <code>load_in_8bit=True</code></p>
+    <pre><span class="c"># BF16 — 43GB, 第8步OOM</span>
+model = Qwen2_5_VLForConditionalGenerationForJanusVLN.from_pretrained(
+    MODEL_PATH,
+    <span style="color:#f87171;">torch_dtype=torch.bfloat16,</span>
+    device_map=<span class="s">"auto"</span>,
+)
+
+<span class="c"># INT8 — 10.6GB, 永不OOM</span>
+model = Qwen2_5_VLForConditionalGenerationForJanusVLN.from_pretrained(
+    MODEL_PATH,
+    <span style="color:#4ade80;">load_in_8bit=True,</span>
+    device_map=<span class="s">"auto"</span>,
+)</pre>
+  </div>
+
+  <div class="tip-box" style="margin-top:12px;">
+    <div class="tip-title">📊 实测对比</div>
+    <p>
+      BF16：43GB / 第8步OOM / ~2-5s/步 · 
+      INT8：<b>10.6GB</b> / <b>永远不崩</b> / ~6-8s/步
+    </p>
+  </div>
+
+  <h4 style="font-size:0.88rem;margin:12px 0 6px;">推理端点设计</h4>
+  <div class="code-block">
+    <pre><span class="c"># POST /reset — 新任务开始</span>
+{<span class="s">"session_id"</span>: <span class="s">"spark_001"</span>, <span class="s">"instruction"</span>: <span class="s">"去打印机前"</span>}
+
+<span class="c"># POST /step — 每步推理</span>
+{<span class="s">"session_id"</span>: <span class="s">"spark_001"</span>, <span class="s">"image_base64"</span>: <span class="s">"..."</span>, <span class="s">"step_id"</span>: 5}
+
+<span class="c"># 响应</span>
+{<span class="s">"action"</span>: <span class="s">"MOVE_FORWARD"</span>, <span class="s">"step_id"</span>: 5, <span class="s">"raw_output"</span>: <span class="s">"move_forward"</span>}</pre>
+  </div>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 两处防 OOM 的关键代码</div>
+    <p>
+      <b>1. 限制历史帧数</b>：保持最近 10 帧历史图像，超出丢弃
+      <br><b>2. 每步清理 KV cache</b>：推理后重置 past_key_values 并调用 torch.cuda.empty_cache()
+      <br><br>
+      历史帧越多 → KV cache 越大 → 推理越慢 + 显存越紧。10 帧是平衡点。
+    </p>
+  </div>
+
+  <!-- ② Spark 端 -->
+  <h3 style="font-size:1.1rem;margin:20px 0 10px;color:#93c5fd;">② Spark 端：客户端节点 (vln_client.py)</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>模块</th><th>作用</th><th>关键技术点</th></tr></thead>
+    <tbody>
+      <tr><td><b>SSH 隧道</b></td><td>连接 L40 推理服务</td><td>localhost:18001→L40:8443 端口映射</td></tr>
+      <tr><td><b>摄像头订阅</b></td><td>接收 D435 彩色图像</td><td>cv_bridge 转 OpenCV，缩放至 384px 节省带宽</td></tr>
+      <tr><td><b>推理循环</b></td><td>每步：拍照→HTTP POST→等回复→执行</td><td>INT8 推理慢，http_timeout 设 15s</td></tr>
+      <tr><td><b>防打转</b></td><td>连续3次同向转弯→强制直行</td><td>零样本方向感弱时的兜底策略</td></tr>
+      <tr><td><b>显示窗口</b></td><td>Spark 屏幕实时画面</td><td>cv2.imshow + 动作叠加，DISPLAY=:0</td></tr>
+    </tbody>
+  </table>
+
+  <h4 style="font-size:0.88rem;margin:12px 0 6px;">防打转逻辑</h4>
+  <div class="code-block">
+    <pre><span class="c"># JanusVLN 零样本方向感弱，容易连续输出转弯</span>
+<span class="c"># 兜底策略：检查连续同向转弯次数，>=3 则强制直行</span>
+<span class="k">if</span> action <span class="k">in</span> (<span class="s">"TURN_LEFT"</span>, <span class="s">"TURN_RIGHT"</span>):
+    <span class="k">if</span> action == self._last_turn_dir:
+        self._turn_count += 1
+    <span class="k">else</span>:
+        self._turn_count = 1
+    self._last_turn_dir = action
+    <span class="k">if</span> self._turn_count >= 3:
+        action = <span class="s">"MOVE_FORWARD"</span>      <span class="c"># 强制打破打转</span>
+        self._turn_count = 0</pre>
+  </div>
+
+  <!-- ③ 启动命令 -->
+  <h3 style="font-size:1.1rem;margin:20px 0 10px;color:#93c5fd;">③ 启动命令</h3>
+
+  <div class="code-block">
+    <div class="info-title">L40 端 — 启动推理服务</div>
+    <pre><span class="c"># 1. 安装 bitsandbytes（一次性）</span>
+$ pip install bitsandbytes
+
+<span class="c"># 2. 修改 server.py：torch_dtype → load_in_8bit=True</span>
+<span class="c"># 3. 后台启动</span>
+$ nohup python server.py &lt;/dev/null &gt;/tmp/srv.log 2&gt;&amp;1 &amp;
+
+<span class="c"># 4. 验证</span>
+$ curl http://localhost:8443/health
+{<span class="s">"status"</span>: <span class="s">"ok"</span>, <span class="s">"model_loaded"</span>: <span class="k">true</span>}</pre>
+  </div>
+
+  <div class="code-block" style="margin-top:8px;">
+    <div class="info-title">Spark 端 — 启动导航</div>
+    <pre><span class="c"># 1. 清理僵尸进程（重要！否则 D435 断连）</span>
+$ pkill -9 -f spark_base; pkill -9 -f realsense2_camera; pkill -9 -f vln_client
+
+<span class="c"># 2. 一键启动底盘+摄像头+VLN</span>
+$ ros2 launch spark_vln vln_bringup.launch.py
+
+<span class="c"># 3. 设置指令（ROS2 param，支持中文）</span>
+$ ros2 param set /vln_client instruction <span class="s">"去打印机前"</span>
+
+<span class="c"># 4. 启动导航</span>
+$ ros2 service call /vln/start std_srvs/srv/Trigger</pre>
+  </div>
+
+  <!-- ④ 实测数据 -->
+  <h3 style="font-size:1.1rem;margin:20px 0 10px;color:#93c5fd;">④ 实测数据</h3>
+
+  <div class="info-box">
+    <div class="info-title">📊 "去打印机前" — 19步完整记录（INT8）</div>
+    <div style="font-size:0.82em;font-family:monospace;line-height:1.8;margin-top:8px;">
+      Step 1-6:  TURN_LEFT/TURN_RIGHT 交替扫描（找打印机）<br>
+      <span style="color:#4ade80;">Step 7:   MOVE_FORWARD</span> ← 找到了！<br>
+      Step 8-9:  TURN_LEFT/TURN_RIGHT（微调方向）<br>
+      <span style="color:#4ade80;">Step 10:  MOVE_FORWARD</span><br>
+      <span style="color:#4ade80;">Step 12:  MOVE_FORWARD</span><br>
+      Step 13-14: TURN_LEFT（调整方向）<br>
+      <span style="color:#4ade80;">Step 15:  MOVE_FORWARD</span> ← 第三次自主前进<br>
+      <span style="color:#4ade80;">Step 16:  MOVE_FORWARD</span><br>
+      Step 17-19: TURN_LEFT/RIGHT
+    </div>
+    <p style="margin-top:10px;">
+      ✅ <b>3 次自主 MOVE_FORWARD，零次防打转触发</b>——机器人交替扫描→锁定目标→前进，行为合理。<br>
+      ✅ 19 步零 OOM，零 HTTP 500。显存稳定在 10.9GB。
+    </p>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>指标</th><th>BF16</th><th>INT8</th></tr></thead>
+    <tbody>
+      <tr><td><b>显存占用</b></td><td style="color:#f87171;">43 GB</td><td style="color:#4ade80;">10.6 GB</td></tr>
+      <tr><td><b>稳定性</b></td><td style="color:#f87171;">第8步必崩</td><td style="color:#4ade80;">永不崩</td></tr>
+      <tr><td><b>推理速度</b></td><td>~2-5s/步</td><td>~6-8s/步</td></tr>
+      <tr><td><b>自主前进次数</b></td><td>0 次（7步纯转后OOM）</td><td>3 次（19步）</td></tr>
+      <tr><td><b>防打转触发</b></td><td>2 次</td><td>0 次</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ⑤ 输出含义 -->
+  <h3 style="font-size:1.1rem;margin:20px 0 10px;color:#93c5fd;">⑤ 输出结果的含义</h3>
+
+  <div class="info-box">
+    <div class="info-title">每步日志解读</div>
+    <p>
+      <code>[vln_client] Step 7: MOVE_FORWARD (move_forward)</code>
+      <br>→ 模型认为当前方向接近目标，建议前进 0.2m/s
+      <br><br>
+      <code>[vln_client] Step 8: TURN_RIGHT</code>
+      <br>→ 模型发现目标偏右，建议右转 0.5rad/s
+      <br><br>
+      <code style="color:#fbbf24;">[WARN] Anti-spin: 3 consecutive TURN_LEFT, forcing MOVE_FORWARD</code>
+      <br>→ 连续3次同向转弯，防打转机制介入——模型可能在犹豫，强制直行打破僵局
+      <br><br>
+      <code style="color:#4ade80;">[INFO] Goal reached (STOP)</code>
+      <br>→ 模型判定已到达目标，输出 STOP，导航结束
+    </p>
+  </div>
+
+  <!-- ⑥ 可调参数 -->
+  <h3 style="font-size:1.1rem;margin:20px 0 10px;color:#93c5fd;">⑥ 试试调整这些</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>调整项</th><th>怎么改</th><th>预期看到什么</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>history 帧数</b></td>
+        <td><code>server.py</code> 中改 <code>10</code> → <code>5</code> 或 <code>20</code></td>
+        <td>5帧=推理更快但容易迷路；20帧=更稳但更慢</td>
+      </tr>
+      <tr>
+        <td><b>HTTP timeout</b></td>
+        <td><code>vln_client.py</code> 中 <code>http_timeout</code>（默认 15s）</td>
+        <td>INT8 推理 6-8s，设 < 10s 会误报超时</td>
+      </tr>
+      <tr>
+        <td><b>防打转阈值</b></td>
+        <td><code>self._turn_count >= 3</code> 改 <code>2</code> 或 <code>5</code></td>
+        <td>2=更激进打断转弯；5=更容忍原地扫描</td>
+      </tr>
+      <tr>
+        <td><b>图像分辨率</b></td>
+        <td><code>max_size = 384</code> 改 <code>256</code> 或 <code>512</code></td>
+        <td>256=更快但识别率降；512=更准但推理更慢</td>
+      </tr>
+      <tr>
+        <td><b>量化精度</b></td>
+        <td><code>load_in_8bit=True</code> → <code>load_in_4bit=True</code></td>
+        <td>4bit=~6GB显存，推理更快但质量可能微降</td>
+      </tr>
+      <tr>
+        <td><b>线/角速度</b></td>
+        <td><code>linear_speed=0.2, angular_speed=0.5</code></td>
+        <td>0.3/0.8=更快但更抖；0.1/0.3=更稳但更慢</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:12px;">
+    <div class="tip-title">💡 下一步 — 真机采集 + LoRA 微调</div>
+    <p>
+      零样本的局限性：模型不认识你的办公室布局。想让 JanusVLN 真正理解"会议室""饮水机""打印机"的具体位置，
+      需要用 Spark 录制真实路径数据（rosbag）→ 标注中文指令 → LoRA 微调。这是下一节的内容。
+    </p>
+  </div>
+
+</div>
+</section>
+
+<!-- ═══════════════ 8-6: 仿真与真机测试计划 ═══════════════ -->
+<section id="case8-5">
+<div class="container">
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-test);"></span> 8-5 · 仿真与真机测试计划</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
@@ -441,374 +933,438 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
 </div>
 </section>
 
-
-
-<section id="case8-3">
+<!-- ═══════════════ 7-8: 真机采集 rosbag ═══════════════ -->
+<section id="case8-6">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-3 · 理解 VLM 导航原理</h2>
-
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 8-6 · 真机采集 rosbag</h2>
   <div class="info-box">
-    <div class="info-title">① 案例含义 — VLM 导航与传统 VLN 有什么不同？</div>
-    <p>
-      传统 VLN（如 第6章 训练的模型）是一个<b>任务专用的小模型</b>：CNN 编码图像 + LSTM 编码指令 → 输出离散动作。
-      VLM 导航则使用一个<b>通用的大模型</b>（数亿到数十亿参数），已在海量图文数据上预训练过，
-      具备对场景、物体、空间关系的广泛理解。
-      <br><br>
-      <b>核心区别：</b>VLN 需要针对导航任务专门训练；VLM 已经"知道"什么是厨房、走廊、门口，
-      导航只是它推理能力的延伸。
-    </p>
+    <div class="info-title">① 案例含义</div>
+    <p>要让 JanusVLN 真正理解"会议室""饮水机""打印机"的具体位置，需要采集真实办公室的导航数据。本案例遥控 Spark-I 走完指定路径，同时录制 ros2 bag，记录 RGB 图像、里程计、指令。</p>
+    <p style="margin-top:8px;"><b>前置条件：</b>已完成 8-4 零样本直控，确认 Spark-I 底盘+摄像头可用。</p>
   </div>
-
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 核心论文思路拆解</h3>
-
-  <div class="dual-panel">
-    <div class="panel">
-      <h4 style="color:#2dd4bf;">📄 NaVid-4D (CVPR 2025)</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        <b>核心思路：</b>将导航形式化为视频预测任务。<br>
-        输入：<b>历史视频帧</b>（多帧 RGB）+ 指令文本<br>
-        输出：<b>未来轨迹</b>（一系列 waypoint 坐标）<br>
-        特点：不显式建图，利用视频中的时序信息隐式编码空间结构。<br>
-        模型：基于 Video Diffusion 架构，在 Habitat 仿真中训练。<br>
-        <b>与我们的关系：</b>可以复用 第6章 训练出的模型作为特征提取器。
-      </p>
-    </div>
-    <div class="panel">
-      <h4 style="color:#a78bfa;">📄 NaVILA (CoRL 2024)</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        <b>核心思路：</b>结合 VLM 的语义理解 + 传统导航策略。<br>
-        输入：RGB 图像 + 指令<br>
-        输出：<b>子目标</b>（不是最终动作，而是中间目标点）<br>
-        定位：介于方法一和方法二之间——VLM 做高层规划，但还需要底层控制器。<br>
-        <b>与我们的关系：</b>可视为方法一的升级版：将 VLN 模型替换为大 VLM。
-      </p>
-    </div>
-  </div>
-
-  <div class="arch-diagram">
-    <div style="font-size:0.85rem;color:#f9a8d4;font-weight:700;margin-bottom:18px;">VLM 端到端导航 — 极简架构</div>
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#3b82f620;border:2px solid #3b82f6;min-width:180px;">
-        📷 RGB 相机<br><small>单帧或历史帧 stack</small>
-      </div>
-      <div class="arch-layer" style="background:#8b5cf620;border:2px solid #8b5cf6;min-width:200px;">
-        📝 自然语言指令<br><small>"走到厨房水池前"</small>
-      </div>
-    </div>
-    <div class="arch-arrow-center">↓ &nbsp; 输入 &nbsp; ↓</div>
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#ec489920;border:2px solid #ec4899;min-width:500px;">
-        <b>VLM (Vision-Language Model)</b><br>
-        <small>Qwen2-VL / LLaVA / GPT-4V / NaVid / NaVILA</small>
-      </div>
-    </div>
-    <div class="arch-arrow-center">↓ &nbsp; 输出 &nbsp; ↓</div>
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
-        ⬆️ 前进<br><small>FORWARD 0.5m</small>
-      </div>
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
-        ⬅️ 左转<br><small>LEFT 30°</small>
-      </div>
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
-        ➡️ 右转<br><small>RIGHT 30°</small>
-      </div>
-      <div class="arch-layer" style="background:#f59e0b20;border:2px solid #f59e0b;min-width:160px;">
-        ⏹️ 停止<br><small>STOP</small>
-      </div>
-    </div>
-    <div class="arch-arrow-center">↓ &nbsp; 直接映射 &nbsp; ↓</div>
-    <div class="arch-row">
-      <div class="arch-layer" style="background:#10b98120;border:2px solid #10b981;min-width:300px;">
-        /cmd_vel (Twist)<br><small>驱动底盘电机</small>
-      </div>
-    </div>
-  </div>
-
-  <div class="highlight-box">
-    <h4>🔑 关键洞察：VLM 导航的本质是 "视觉问答 + 行动"</h4>
-    <p style="font-size:0.88rem;color:var(--text-dim);">
-      你可以把 VLM 导航理解为：
-      <br><br>
-      <b>Q（指令）：</b>"走到厨房水池前面"<br>
-      <b>VLM 看当前图像：</b>识别到 "我在客厅，前方是走廊，左边是厨房门"<br>
-      <b>VLM 推理：</b>"我应该往前走，到厨房门口再左转"<br>
-      <b>A（动作）：</b>FORWARD<br><br>
-      每一步都是一个新的视觉问答循环。VLM 不维护地图——它依赖<b>实时视觉 + 常识推理</b>来做决策。
-      这最接近人类导航的方式：你不需要心里有精确的 2D 栅格地图，你只需要"看到前方是什么"就能决定下一步。
-    </p>
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 本节为规划内容</div>
+    <p>详细的操作步骤、代码和实测数据将在后续版本中补充。</p>
   </div>
 </div>
 </section>
 
-<!-- ═══════════════ 8-2: 模型选型 ═══════════════ -->
-<section id="case8-4">
+<!-- ═══════════════ 7-7: VLN 模型微调 ═══════════════ -->
+<section id="case8-7">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-vlm);"></span> 8-4 · 模型选型与部署方案</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-finetune);"></span> 8-7 · VLN 模型微调</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
     <p>
-      开源和商业 VLM 模型各有优劣。选型取决于你的<b>硬件算力</b>（Spark-I 的 i5-1240P 无独显 vs 是否有远程 GPU 服务器）、
-      <b>延迟要求</b>（实时导航需要 &lt;500ms 推理）和<b>费用预算</b>。
+      7-6 展示了 JanusVLN 在 R2R 上的零样本推理（SR=46.7%）。如果想在<b>自己的场景</b>上提升性能——
+      比如办公室、工厂、家庭——就需要微调。8-7 介绍三种微调方案及其硬件需求。
     </p>
   </div>
 
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 模型对比</h3>
+  <!-- ② 三种方案对比 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 三种微调方案</h3>
 
   <table class="compare-table">
-    <thead><tr><th>模型</th><th>类型</th><th>参数量</th><th>推理速度 (CPU)</th><th>导航能力</th><th>硬件需求</th></tr></thead>
+    <thead><tr><th>方案</th><th>原理</th><th>显存需求</th><th>L40 可行？</th><th>适用场景</th></tr></thead>
     <tbody>
-      <tr>
-        <td><b>Qwen2-VL-2B</b></td>
-        <td>开源</td>
-        <td>2B</td>
-        <td>~300ms (量化)</td>
-        <td>基础理解，可 fine-tune</td>
-        <td>4GB RAM，CPU 可行</td>
+      <tr style="background:rgba(74,222,128,0.06);">
+        <td><b>A. 分组件微调</b></td>
+        <td>冻结视觉编码器，只训练 LLM + 投影层</td>
+        <td>~60 GB（8 卡）</td>
+        <td>❌</td>
+        <td>JanusVLN 原版训练方式</td>
+      </tr>
+      <tr style="background:rgba(74,222,128,0.06);">
+        <td><b>B. LoRA 微调</b></td>
+        <td>冻结全部权重，插入少量可训练的秩分解矩阵</td>
+        <td>~30 GB（单卡）</td>
+        <td><b>✅ 可行</b></td>
+        <td>JanusVLN 适配新场景，最低成本</td>
       </tr>
       <tr>
-        <td><b>LLaVA-1.6-7B</b></td>
-        <td>开源</td>
-        <td>7B</td>
-        <td>~2s (CPU)</td>
-        <td>较强推理，需量化</td>
-        <td>8GB VRAM (GPU)，14GB RAM (CPU)</td>
-      </tr>
-      <tr>
-        <td><b>NaVid-4D</b></td>
-        <td>研究 (复现)</td>
-        <td>~1B</td>
-        <td>~200ms (GPU)</td>
-        <td>专为导航优化</td>
-        <td>4GB VRAM</td>
-      </tr>
-      <tr>
-        <td><b>GPT-4V (API)</b></td>
-        <td>商业 API</td>
-        <td>未公开</td>
-        <td>~500ms–2s (网络)</td>
-        <td>极强常识推理</td>
-        <td>仅需网络连接</td>
-      </tr>
-      <tr>
-        <td><b>Claude Vision (API)</b></td>
-        <td>商业 API</td>
-        <td>未公开</td>
-        <td>~300ms–1s (网络)</td>
-        <td>极强空间推理</td>
-        <td>仅需网络连接</td>
-      </tr>
-      <tr>
-        <td><b>Qwen2-VL-72B (API)</b></td>
-        <td>商业/开源</td>
-        <td>72B</td>
-        <td>~2–5s (API)</td>
-        <td>最强综合能力</td>
-        <td>仅需网络连接</td>
+        <td><b>C. Seq2Seq 全量微调</b></td>
+        <td>2700 万参数全部训练</td>
+        <td>~8 GB（单卡）</td>
+        <td>✅</td>
+        <td>我们的小模型在新数据上微调</td>
       </tr>
     </tbody>
   </table>
 
-  <div class="dual-panel">
-    <div class="panel">
-      <h4 style="color:#2dd4bf;">🖥️ 方案 A：本地推理（Spark-I 离线运行）</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        <b>选型：</b>Qwen2-VL-2B 量化版 (INT8/INT4)<br>
-        <b>优点：</b>无网络依赖、低延迟、数据不出设备<br>
-        <b>缺点：</b>导航能力弱于大模型，可能在复杂场景出错<br>
-        <b>适配：</b>使用 ONNX Runtime 或 llama.cpp 在 i5-1240P 上运行<br>
-        <b>调优：</b>可以用 R2R 数据做少量 fine-tune 提升导航表现
-      </p>
-    </div>
-    <div class="panel">
-      <h4 style="color:#a78bfa;">☁️ 方案 B：云端 API（机器人连 WiFi）</h4>
-      <p style="font-size:0.85rem;color:var(--text-dim);">
-        <b>选型：</b>GPT-4V 或 Claude Vision API<br>
-        <b>优点：</b>最强推理能力，几乎不需要 fine-tune<br>
-        <b>缺点：</b>依赖网络、有延迟波动、API 调用费用<br>
-        <b>适配：</b>ROS 节点通过 HTTP/gRPC 调用 API<br>
-        <b>适用场景：</b>研究原型验证、Demo、非实时任务
-      </p>
-    </div>
-  </div>
-
-  <div class="tip-box">
-    <div class="tip-title">💡 推荐策略：本地 + 云端混合</div>
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 为什么方案 A 需要 8 卡</div>
     <p>
-      先用<b>方案 B（云端 API）快速验证</b> VLM 导航的可行性——用最聪明的模型看看你的场景是否能靠纯视觉+语言解决。
-      确认可行后，再考虑<b>方案 A 部署本地模型</b>以获得更低的延迟和更稳定的表现。
-      <br><br>
-      Spark-I 的 i5-1240P 虽然无独显，但 16GB RAM + Intel Iris Xe 集成显卡可以跑 ONNX 量化模型。
-      Leo 如果有更强算力（或外接 GPU），选择余地更大。
-    </p>
-  </div>
-</div>
-</section>
-
-<!-- ═══════════════ 8-3: 真机 Pipeline ═══════════════ -->
-<section id="case8-5">
-<div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-nav);"></span> 8-5 · 真机 Pipeline 实现</h2>
-
-  <div class="info-box">
-    <div class="info-title">① 案例含义</div>
-    <p>
-      实现一个极简的 ROS 节点：订阅相机图像 → 调用 VLM → 解析动作 → 发布 /cmd_vel。
-      与方法一的五节点架构不同，方法二的整个 pipeline <b>只有一个核心节点</b>。
+      方案 A 训练 LLM 全部 70 亿参数 + 投影层，即使用 DeepSpeed ZeRO-3 分片也需要 8 卡。
+      L40 单卡 46GB 只够推理，不够训练。但 <b>方案 B（LoRA）在原代码基础上只需加 ~30 行</b>，
+      就能在单卡上微调 JanusVLN。
     </p>
   </div>
 
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">② 核心代码</h3>
+  <!-- ③ LoRA 原理 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">③ LoRA 原理解析</h3>
+
+  <p>
+    LoRA（Low-Rank Adaptation）不修改原始权重 <b>W</b>，而是在旁边插入两个小矩阵 <b>A 和 B</b>：
+  </p>
 
   <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt">#!/usr/bin/env python3</span>
-<span class="cmt"># vlm_navigation_node.py — VLM 端到端导航（云端 API 方案）</span>
-<span class="cmt"># 设计原则：极简单节点，低耦合</span>
-<span class="kw">import</span> rospy
-<span class="kw">import</span> base64
-<span class="kw">import</span> requests
-<span class="kw">from</span> sensor_msgs.msg <span class="kw">import</span> Image
-<span class="kw">from</span> geometry_msgs.msg <span class="kw">import</span> Twist
-<span class="kw">from</span> cv_bridge <span class="kw">import</span> CvBridge
-<span class="kw">import</span> cv2
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 标准全量微调：修改 W 的全部 4096×4096 = 16M 参数</span>
+h = W @ x + b          <span class="cmt"># W 可训练，16M 参数</span>
 
-<span class="kw">class</span> <span class="fn">VLMNavigationNode</span>:
-    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>):
-        rospy.init_node(<span class="str">"vlm_navigation"</span>)
-
-        <span class="cmt"># 配置</span>
-        <span class="kw">self</span>.instruction = rospy.get_param(<span class="str">"~instruction"</span>,
-            <span class="str">"Navigate to the kitchen and stop in front of the sink."</span>)
-        <span class="kw">self</span>.api_key = rospy.get_param(<span class="str">"~api_key"</span>, <span class="str">""</span>)
-        <span class="kw">self</span>.api_url = rospy.get_param(<span class="str">"~api_url"</span>,
-            <span class="str">"https://api.openai.com/v1/chat/completions"</span>)
-
-        <span class="kw">self</span>.bridge = CvBridge()
-        <span class="kw">self</span>.cmd_pub = rospy.Publisher(<span class="str">"/cmd_vel"</span>, Twist, queue_size=<span class="num">1</span>)
-
-        <span class="cmt"># 限速：每秒最多推理一次</span>
-        <span class="kw">self</span>._last_inference = rospy.Time.now()
-        <span class="kw">self</span>._inference_interval = rospy.Duration(<span class="num">1.0</span>)
-
-        rospy.Subscriber(<span class="str">"/camera/color/image_raw"</span>, Image, <span class="kw">self</span>._image_cb)
-        rospy.loginfo(<span class="str">"VLM 导航节点已启动"</span>)
-
-    <span class="kw">def</span> <span class="fn">_image_cb</span>(<span class="kw">self</span>, msg):
-        <span class="kw">if</span> rospy.Time.now() - <span class="kw">self</span>._last_inference < <span class="kw">self</span>._inference_interval:
-            <span class="kw">return</span>  <span class="cmt"># 限速</span>
-        <span class="kw">self</span>._last_inference = rospy.Time.now()
-
-        <span class="cmt"># 1. 图像 → Base64</span>
-        cv_img = <span class="kw">self</span>.bridge.imgmsg_to_cv2(msg, <span class="str">"rgb8"</span>)
-        _, buffer = cv2.imencode(<span class="str">".jpg"</span>, cv_img, [cv2.IMWRITE_JPEG_QUALITY, <span class="num">70</span>])
-        img_b64 = base64.b64encode(buffer).decode()
-
-        <span class="cmt"># 2. 调用 VLM API</span>
-        action = <span class="kw">self</span>._call_vlm_api(img_b64)
-
-        <span class="cmt"># 3. 动作 → /cmd_vel</span>
-        twist = <span class="kw">self</span>._action_to_twist(action)
-        <span class="kw">self</span>.cmd_pub.publish(twist)
-
-    <span class="kw">def</span> <span class="fn">_call_vlm_api</span>(<span class="kw">self</span>, img_b64):
-        <span class="cmt"># GPT-4V / Claude API 调用</span>
-        headers = {<span class="str">"Authorization"</span>: <span class="str">f"Bearer {self.api_key}"</span>,
-                   <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span>}
-
-        prompt = <span class="str">f"""You are a robot navigation assistant.
-Current instruction: {self.instruction}
-Based on the current camera view, output ONE action from:
-[FORWARD, TURN_LEFT, TURN_RIGHT, STOP]
-Output ONLY the action name, nothing else."""</span>
-
-        payload = {
-            <span class="str">"model"</span>: <span class="str">"gpt-4o"</span>,
-            <span class="str">"messages"</span>: [{
-                <span class="str">"role"</span>: <span class="str">"user"</span>,
-                <span class="str">"content"</span>: [
-                    {<span class="str">"type"</span>: <span class="str">"text"</span>, <span class="str">"text"</span>: prompt},
-                    {<span class="str">"type"</span>: <span class="str">"image_url"</span>,
-                     <span class="str">"image_url"</span>: {<span class="str">"url"</span>: <span class="str">f"data:image/jpeg;base64,{img_b64}"</span>}}
-                ]
-            }],
-            <span class="str">"max_tokens"</span>: <span class="num">10</span>,
-            <span class="str">"temperature"</span>: <span class="num">0.0</span>,
-        }
-        resp = requests.post(<span class="kw">self</span>.api_url, headers=headers, json=payload, timeout=<span class="num">5</span>)
-        action = resp.json()[<span class="str">"choices"</span>][<span class="num">0</span>][<span class="str">"message"</span>][<span class="str">"content"</span>].strip()
-        <span class="kw">return</span> action
-
-    <span class="kw">def</span> <span class="fn">_action_to_twist</span>(<span class="kw">self</span>, action):
-        twist = Twist()
-        <span class="kw">if</span> action == <span class="str">"FORWARD"</span>:
-            twist.linear.x = <span class="num">0.3</span>   <span class="cmt"># 前进 0.3 m/s</span>
-        <span class="kw">elif</span> action == <span class="str">"TURN_LEFT"</span>:
-            twist.angular.z = <span class="num">0.8</span>  <span class="cmt"># 左转 0.8 rad/s</span>
-        <span class="kw">elif</span> action == <span class="str">"TURN_RIGHT"</span>:
-            twist.angular.z = -<span class="num">0.8</span> <span class="cmt"># 右转 0.8 rad/s</span>
-        <span class="kw">elif</span> action == <span class="str">"STOP"</span>:
-            <span class="kw">pass</span>  <span class="cmt"># 全零 = 停止</span>
-        <span class="kw">else</span>:
-            rospy.logwarn(<span class="str">f"未知动作: {action}"</span>)
-        <span class="kw">return</span> twist
-
-<span class="kw">if</span> __name__ == <span class="str">"__main__"</span>:
-    VLMNavigationNode()
-    rospy.spin()</div>
+<span class="cmt"># LoRA 微调：W 冻结，只训练 A 和 B</span>
+h = W @ x + b + (B @ A) @ x   <span class="cmt"># W 冻结，A+B 共 4096×16×2 = 131K 参数</span>
+<span class="cmt">#                  ↑ 秩 r=16，可训练参数减少 120 倍</span></div>
   </div>
 
-  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">本地推理方案（无网络依赖）</h3>
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>对比</th><th>全量微调</th><th>LoRA (r=16)</th></tr></thead>
+    <tbody>
+      <tr><td>可训练参数</td><td>~80 亿</td><td>~4000 万（0.5%）</td></tr>
+      <tr><td>显存（训练）</td><td>~120 GB</td><td>~30 GB</td></tr>
+      <tr><td>训练速度</td><td>基准</td><td>快 1.5-2×</td></tr>
+      <tr><td>推理开销</td><td>无</td><td>可合并回 W（无额外开销）</td></tr>
+      <tr><td>性能</td><td>最佳</td><td>通常持平，差距 &lt;2%</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ④ LoRA 代码实现 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">④ LoRA 微调 JanusVLN（L40 单卡）</h3>
+
+  <p><b>Step 1 — 安装 peft</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">pip install</span> peft -i https://pypi.doubanio.com/simple</div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 2 — 修改 train_qwen.py，在模型加载后插入 LoRA</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="kw">from</span> peft <span class="kw">import</span> LoraConfig, get_peft_model, TaskType
+
+<span class="cmt"># 在模型加载完成后，添加：</span>
+lora_config = LoraConfig(
+    r=16,                          <span class="cmt"># LoRA 秩（越大效果越好，显存越多）</span>
+    lora_alpha=32,                 <span class="cmt"># 缩放因子</span>
+    target_modules=[<span class="str">"q_proj"</span>, <span class="str">"k_proj"</span>, <span class="str">"v_proj"</span>, <span class="str">"o_proj"</span>],
+    lora_dropout=0.05,
+    bias=<span class="str">"none"</span>,
+    task_type=TaskType.CAUSAL_LM,
+)
+model = get_peft_model(model, lora_config)
+model.print_trainable_parameters()
+<span class="cmt"># 输出: trainable params: 41,943,040 || all params: 8,294,967,296 || trainable%: 0.506%</span></div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 3 — 冻结 VGGT + 视觉编码器（节省更多显存）</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 冻结 VGGT（3D 特征提取器——通用能力，不需要微调）</span>
+<span class="kw">for</span> param <span class="kw">in</span> model.vggt.parameters():
+    param.requires_grad = <span class="kw">False</span>
+
+<span class="cmt"># 冻结视觉编码器（Qwen2.5-VL 的视觉 tower）</span>
+<span class="kw">for</span> param <span class="kw">in</span> model.visual.parameters():
+    param.requires_grad = <span class="kw">False</span>
+
+<span class="cmt"># 只训练：LoRA adapter + 投影层 (merger) + token embedding</span></div>
+  </div>
+
+  <p style="margin-top:12px;"><b>Step 4 — 单卡训练命令（移除 DeepSpeed）</b></p>
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 原版需要 8 卡 + DeepSpeed，LoRA 版本单卡即可</span>
+<span class="kw">python</span> src/qwen_vl/train/train_qwen.py \
+    --model_name_or_path ./weights/misstl/JanusVLN_Base \
+    --vggt_model_path facebook/VGGT-1B \
+    --tune_mm_llm True \
+    --tune_mm_vision False \
+    --tune_mm_mlp True \
+    --use_lora True \
+    --lora_r 16 \
+    --dataset_use train_r2r \
+    --output_dir ./JanusVLN_LoRA_Office \
+    --bf16 \
+    --per_device_train_batch_size 1 \
+    --gradient_accumulation_steps 16 \
+    --learning_rate 1e-4 \
+    --num_train_epochs 3 \
+    --save_steps 500 \
+    --max_pixels $((576*28*28)) \               <span class="cmt"># 降低分辨率省显存</span>
+    --gradient_checkpointing                     <span class="cmt"># 用时间换显存</span></div>
+  </div>
+
+  <!-- ⑤ 数据准备 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑤ 微调数据准备</h3>
+
+  <p>需要把自己的场景做成 R2R 格式的 JSON：</p>
 
   <div class="code-block-wrapper">
-    <button class="copy-btn" >复制</button>
-    <div class="code-block"><span class="cmt"># 本地推理变体 — 使用 Qwen2-VL-2B 量化版 + ONNX Runtime</span>
-<span class="cmt"># 替换上面 _call_vlm_api() 方法：</span>
-
-<span class="kw">def</span> <span class="fn">_call_local_vlm</span>(<span class="kw">self</span>, cv_img):
-    <span class="kw">import</span> onnxruntime <span class="kw">as</span> ort
-    <span class="kw">import</span> numpy <span class="kw">as</span> np
-
-    <span class="cmt"># 预处理：resize 到模型输入尺寸</span>
-    img = cv2.resize(cv_img, (<span class="num">384</span>, <span class="num">384</span>))
-    img = img.astype(np.float32) / <span class="num">255.0</span>
-    img = np.transpose(img, (<span class="num">2</span>, <span class="num">0</span>, <span class="num">1</span>))[np.newaxis, ...]
-
-    <span class="cmt"># ONNX 推理</span>
-    logits = <span class="kw">self</span>.ort_session.run([<span class="str">"logits"</span>], {<span class="str">"image"</span>: img})[<span class="num">0</span>]
-    action = [<span class="str">"STOP"</span>, <span class="str">"FORWARD"</span>, <span class="str">"TURN_LEFT"</span>, <span class="str">"TURN_RIGHT"</span>][np.argmax(logits)]
-    <span class="kw">return</span> action</div>
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 每条训练数据 = 一个 navigation episode</span>
+{
+  <span class="str">"episodes"</span>: [
+    {
+      <span class="str">"episode_id"</span>: 1,
+      <span class="str">"scene_id"</span>: <span class="str">"mp3d/my_office/my_office.glb"</span>,
+      <span class="str">"start_position"</span>: [0, 0, 0],
+      <span class="str">"start_rotation"</span>: [0, 0.923, 0, 0.382],
+      <span class="str">"goals"</span>: [{<span class="str">"position"</span>: [5.2, 0, -3.1]}],
+      <span class="str">"reference_path"</span>: [[0,0,0], [0.5,0,0], ..., [5.2,0,-3.1]],
+      <span class="str">"instruction"</span>: {
+        <span class="str">"instruction_text"</span>: <span class="str">"Walk to the whiteboard and stop"</span>
+      }
+    }
+  ],
+  <span class="str">"instruction_vocab"</span>: {...}  <span class="cmt"># 复用 R2R 原始词表</span>
+}</div>
   </div>
 
-  <div class="warn-box">
-    <div class="warn-title">⚠️ VLM 端到端导航的关键挑战</div>
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>场景来源</th><th>数据制作方式</th><th>最少条数</th></tr></thead>
+    <tbody>
+      <tr><td>Habitat 仿真新场景</td><td>用 ShortestPathFollower 自动生成 reference_path，人工标注指令</td><td>50-100 条</td></tr>
+      <tr><td>真机录制的轨迹</td><td>SLAM 记录位姿序列 → 转成 reference_path，人工标注指令</td><td>30-50 条</td></tr>
+      <tr><td>现有 R2R 子集</td><td>从 R2R 训练集中筛选与目标场景相似的 episode</td><td>200+ 条</td></tr>
+    </tbody>
+  </table>
+
+  <!-- ⑥ 训练流程总结 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑥ 微调完整流程</h3>
+
+  <table class="compare-table">
+    <thead><tr><th>步骤</th><th>操作</th><th>预计时间</th></tr></thead>
+    <tbody>
+      <tr><td><b>1. 数据采集</b></td><td>在新场景中收集 50-200 条导航指令+轨迹</td><td>2-4 小时</td></tr>
+      <tr><td><b>2. 格式转换</b></td><td>转为 R2R JSON + gzip 压缩</td><td>30 分钟</td></tr>
+      <tr><td><b>3. LoRA 训练</b></td><td>L40 单卡，3 epoch，batch_size=1，grad_accum=16</td><td>4-8 小时</td></tr>
+      <tr><td><b>4. 合并权重</b></td><td><code>model.merge_and_unload()</code> → LoRA 合并回原始权重</td><td>1 分钟</td></tr>
+      <tr><td><b>5. 评估</b></td><td>在新场景的 val split 上跑 eval，对比微调前后</td><td>30 分钟</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">💡 微调预期效果</div>
     <p>
-      <b>1. 延迟：</b>云端 API 调用可能 500ms–2s，导致机器人每 2 秒才能做一次决策。高速行进时这很危险。
-      降低分辨率（320×240）和使用 JPEG 压缩可减少传输时间。<br>
-      <b>2. 安全性：</b>VLM 可能输出不合理动作（如前方是墙却说 FORWARD）。建议在 /cmd_vel 输出前加
-      一个<b>安全屏障节点</b>（基于激光雷达的碰撞检测），拦截危险指令。<br>
-      <b>3. 累积误差：</b>每个动作的小误差会累积。需要定期让 VLM "重新审视"当前位置与目标的偏差。<br>
-      <b>4. 提示工程：</b>prompt 的设计直接影响导航质量。你可能需要针对你的环境反复调试 prompt。
+      在 R2R 上零样本 SR=46.7%。如果用自己的 50-100 条数据进行 LoRA 微调：
+      <br>• <b>同场景 SR：</b>预期提升到 60-75%（模型"记住"了你的环境）
+      <br>• <b>跨场景泛化：</b>可能轻微下降（LoRA 的灾难性遗忘），需要混合原始 R2R 数据
+      <br>• <b>训练技巧：</b>前 1 epoch 混合 70% R2R + 30% 新数据，后 2 epoch 只用新数据
     </p>
   </div>
 
-  <div class="tip-box">
-    <div class="tip-title">💡 安全屏障：必须加</div>
+  <!-- ⑦ Seq2Seq 微调 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑦ 方案 C：微调我们自己的 Seq2Seq</h3>
+
+  <p>如果我们不想用 JanusVLN（硬件要求高），也可以微调自己在 §N 训练的 2700 万参数模型：</p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 加载 §N 训练的 checkpoint</span>
+model = Seq2SeqAgent(embed_dim=300, hidden_dim=512)
+model.load_state_dict(torch.load(<span class="str">'ckpt/seq2seq_best.pth'</span>))
+
+<span class="cmt"># 在新数据上全量微调（27M 参数全部可训练）</span>
+optimizer = AdamW(model.parameters(), lr=1e-4)
+<span class="kw">for</span> epoch <span class="kw">in</span> range(5):
+    <span class="kw">for</span> rgb, instruction, action_gt <span class="kw">in</span> new_dataloader:
+        pred = model(rgb, instruction)
+        loss = CrossEntropyLoss(pred, action_gt)
+        loss.backward()
+        optimizer.step()
+
+<span class="cmt"># 优点：快（10 分钟训完）、省显存（8GB）、可跑 DAgger</span>
+<span class="cmt"># 缺点：模型上限低（没有 VLM 的世界知识）</span></div>
+  </div>
+
+  <table class="compare-table" style="margin-top:12px;">
+    <thead><tr><th>对比</th><th>Seq2Seq 微调</th><th>JanusVLN LoRA</th></tr></thead>
+    <tbody>
+      <tr><td>显存</td><td>~8 GB</td><td>~30 GB</td></tr>
+      <tr><td>训练时间（100 条数据）</td><td>~10 分钟</td><td>~4 小时</td></tr>
+      <tr><td>SR 上限</td><td>~40-50%</td><td>~60-75%</td></tr>
+      <tr><td>适合场景</td><td>快速原型，验证数据质量</td><td>最终部署，追求性能</td></tr>
+      <tr><td>可做 DAgger</td><td>✅ 轻量，训练快</td><td>⚠️ 每轮 4 小时，迭代慢</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip-box" style="margin-top:12px;">
+    <div class="tip-title">💡 推荐策略：两级微调</div>
     <p>
-      无论选择方法一还是方法二，在 <code>/cmd_vel</code> 前都应加一个<b>碰撞检测节点</b>：
-      订阅 <code>/scan</code>（激光雷达），如果前方
-      &lt; 0.3m 内有障碍物，强制发布 STOP（<code>Twist() 全零</code>），
-      覆盖上游所有节点（VLN 或 VLM）的输出。Spark-I 的 360° LiDAR 为此提供了很好的硬件基础。
+      <b>第一级：</b>用 Seq2Seq 在新数据上快速微调（10 分钟），验证数据质量和任务可行性<br>
+      <b>第二级：</b>确认数据没问题后，用 JanusVLN LoRA 做正式微调（4-8 小时），拿到最优 SR<br>
+      这样避免了"花 4 小时训练发现数据有 bug"的情况。
     </p>
   </div>
+
+
+<!-- ⑧ 数据采集方法论 -->
+  <h3 style="margin-top:24px;margin-bottom:12px;color:var(--text-dim);">⑧ 数据采集：如何制作微调数据集</h3>
+
+  <p style="margin-bottom:12px;">
+    微调效果的上限由数据决定。这一节介绍三种采集方式、数据格式规范、以及常见陷阱。
+  </p>
+
+  <p><b>三种采集方式对比</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>方式</th><th>工具</th><th>单条耗时</th><th>优点</th><th>缺点</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>A. 仿真自动采集</b></td>
+        <td>Habitat + ShortestPathFollower</td>
+        <td>~10 秒</td>
+        <td>快速、安全、可批量</td>
+        <td>图像与真机有分布差</td>
+      </tr>
+      <tr>
+        <td><b>B. 真机手动录制</b></td>
+        <td>Spark-I + rosbag</td>
+        <td>~5 分钟</td>
+        <td>真实相机/光照/动态</td>
+        <td>慢、需人工操作</td>
+      </tr>
+      <tr>
+        <td><b>C. 混合策略</b></td>
+        <td>仿真 80% + 真机 20%</td>
+        <td>—</td>
+        <td>兼得速度与真实感</td>
+        <td>需对齐两种数据格式</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;"><b>方式 A：仿真自动采集脚本</b></p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># collect_training_data.py — 在 Habitat 中自动采集导航轨迹</span>
+<span class="kw">import</span> habitat, json, gzip, numpy <span class="kw">as</span> np
+<span class="kw">from</span> habitat.tasks.nav.shortest_path_follower <span class="kw">import</span> ShortestPathFollower
+
+env = habitat.Env(config=habitat.get_config(<span class="str">"benchmark/nav/vln/vln_r2r.yaml"</span>))
+follower = ShortestPathFollower(env.sim, goal_radius=1.8, return_one_hot=<span class="kw">False</span>)
+
+dataset = []
+<span class="kw">for</span> ep_id, episode <span class="kw">in</span> enumerate(env.episodes):
+    obs = env.reset()
+    episode_data = {
+        <span class="str">"episode_id"</span>: ep_id,
+        <span class="str">"scene_id"</span>: episode.scene_id,
+        <span class="str">"start_position"</span>: episode.start_position.tolist(),
+        <span class="str">"start_rotation"</span>: episode.start_rotation.tolist(),
+        <span class="str">"goals"</span>: [{<span class="str">"position"</span>: g.position.tolist()} <span class="kw">for</span> g <span class="kw">in</span> episode.goals],
+        <span class="str">"reference_path"</span>: [p.tolist() <span class="kw">for</span> p <span class="kw">in</span> episode.reference_path],
+        <span class="str">"rgb_frames"</span>: [],        <span class="cmt"># 每步的 RGB 图像</span>
+        <span class="str">"actions"</span>: [],            <span class="cmt"># 每步的专家动作</span>
+        <span class="str">"instruction"</span>: <span class="str">""</span>        <span class="cmt"># 人工标注（采集后填）</span>
+    }
+
+    <span class="kw">while not</span> env.episode_over:
+        episode_data[<span class="str">"rgb_frames"</span>].append(obs[<span class="str">"rgb"</span>].copy())
+        action = follower.get_next_action(episode.reference_path)
+        episode_data[<span class="str">"actions"</span>].append(action)
+        obs = env.step(action)
+
+    dataset.append(episode_data)
+
+<span class="cmt"># 保存（不含 RGB 图片——图片单独存为 PNG 以节省 JSON 体积）</span>
+<span class="kw">with</span> gzip.open(<span class="str">"my_scene_train.json.gz"</span>, <span class="str">"wt"</span>) <span class="kw">as</span> f:
+    json.dump({<span class="str">"episodes"</span>: dataset}, f, default=<span class="kw">str</span>)</div>
+  </div>
+
+  <p style="margin-top:16px;"><b>方式 B：真机手动录制</b></p>
+
+  <div class="code-block-wrapper">
+    <button class="copy-btn">复制</button>
+    <div class="code-block"><span class="cmt"># 真机采集流程（Spark-I + ROS 2）</span>
+
+<span class="cmt"># Step 1: 录 rosbag（遥控机器人走一遍路径）</span>
+$ ros2 bag record /camera/color/image_raw /odom /tf /tf_static \
+    -o my_nav_path_01
+
+<span class="cmt"># Step 2: 从 rosbag 提取位姿序列 → reference_path</span>
+$ python3 extract_poses_from_bag.py my_nav_path_01/
+
+<span class="cmt"># Step 3: 人工标注指令（对着视频写）</span>
+<span class="cmt">#   示例："从实验室门口出发，经过机械臂工位，走到3D打印区停下"</span>
+
+<span class="cmt"># Step 4: 重复 30-50 条 → 开始微调</span></div>
+  </div>
+
+  <p style="margin-top:16px;"><b>数据采集检查清单</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>维度</th><th>✅ 正确做法</th><th>❌ 常见错误</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>路径多样性</b></td>
+        <td>包含最短路径 + 偏离路径（70:30）</td>
+        <td>只有最短路径 → 模型没见过走错的样子</td>
+      </tr>
+      <tr>
+        <td><b>指令语言</b></td>
+        <td>日常口语："走到白板前"<br>同路径 2-3 种说法</td>
+        <td>"前进 5 米，左转 30 度"→ 不是 VLN</td>
+      </tr>
+      <tr>
+        <td><b>光照覆盖</b></td>
+        <td>早/中/晚各采一批</td>
+        <td>只在下午 3 点采 → 早上模型就瞎了</td>
+      </tr>
+      <tr>
+        <td><b>视角覆盖</b></td>
+        <td>路径偏左/偏右/正中各一些</td>
+        <td>全都走正中间</td>
+      </tr>
+      <tr>
+        <td><b>动态物体</b></td>
+        <td>有行人 / 无行人各一半</td>
+        <td>全是空房间 → 真机一有人就乱</td>
+      </tr>
+      <tr>
+        <td><b>距离梯度</b></td>
+        <td>3m / 5m / 10m / 20m 均匀分布</td>
+        <td>全是 5m 以内的短距离</td>
+      </tr>
+      <tr>
+        <td><b>中英对应</b></td>
+        <td>JanusVLN 用英文：中文翻译为英文<br>或用英文直接标注</td>
+        <td>中文直接喂给英文训练的模型</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:16px;"><b>最小可行数据集</b></p>
+
+  <table class="compare-table">
+    <thead><tr><th>场景规模</th><th>最少条数</th><th>采集时间</th><th>预期 SR（微调后）</th></tr></thead>
+    <tbody>
+      <tr><td>单个房间</td><td>30 条</td><td>1 小时（仿真）</td><td>~55%</td></tr>
+      <tr><td>一层办公楼</td><td>100 条</td><td>3 小时（仿真）</td><td>~65%</td></tr>
+      <tr><td>整栋建筑</td><td>300+ 条</td><td>1 天（仿真）</td><td>~70%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn-box" style="margin-top:12px;">
+    <div class="warn-title">⚠️ 第一优先级：数据质量 > 数据数量</div>
+    <p>
+      30 条高质量数据（路径多样 + 指令自然 + 光照覆盖）比 200 条劣质数据有效得多。
+      劣质数据的典型信号：微调后 SR 反而下降 → 说明数据引入了噪声而非信号。
+      如果时间有限，宁可花 80% 时间打磨 30 条数据，不要赶工产 100 条。
+    </p>
+  </div>
+
+
+
 </div>
 </section>
 
 <!-- ═══════════════ 8-4: 两张方法全面对比 ═══════════════ -->
-<section id="case8-6">
+<section id="case8-8">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-compare);"></span> 8-6 · 两种方法全面对比</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-compare);"></span> 8-8 · 两种方法全面对比</h2>
 
   <div class="info-box">
     <div class="info-title">① 对比维度</div>
@@ -904,6 +1460,7 @@ Output ONLY the action name, nothing else."""</span>
 </div>
 </section>
 
+
 <!-- ═══════════════ 总结 ═══════════════ -->
 <section>
 <div class="container">
@@ -913,30 +1470,32 @@ Output ONLY the action name, nothing else."""</span>
     <div class="module" style="border-left-color: var(--accent-vlm);">
       <h3>✅ 完成本章后你应该能</h3>
       <ul>
+        <li>设计云-边-端 VLN 推理架构</li>
         <li>解释 VLM 导航和传统 VLN 的本质区别</li>
-        <li>根据硬件条件选择合适的 VLM 方案</li>
-        <li>实现 VLM + ROS 的端到端导航节点</li>
-        <li>理解安全屏障的必要性和实现方式</li>
-        <li>在 12 个维度上对比两种方法的优劣</li>
-        <li>为具体场景做出技术选型决策</li>
+        <li>根据硬件条件选择合适的 VLM 方案并配置 INT8 量化</li>
+        <li>在真机上部署 JanusVLN 零样本直控，理解防打转策略</li>
+        <li>制定仿真与真机的分层测试计划</li>
+        <li>用 ros2 bag 录制导航数据供后续微调</li>
+        <li>使用 LoRA 在单卡上微调 JanusVLN 适配新场景</li>
+        <li>在 12 个维度上对比两种方法并做出选型决策</li>
       </ul>
     </div>
     <div class="module" style="border-left-color: var(--accent-tip);">
       <h3>🎓 部署轨学习路径回顾</h3>
       <p style="margin-top:4px;">
         <a href="habitat-textbook-step6.html" style="color:#2dd4bf;">第6章</a> →
-        在 Habitat 仿真中训练 VLN 模型，导出 checkpoint<br>
+        RL 训练入门<br>
         <a href="habitat-textbook-step7.html" style="color:#c4b5fd;">第7章</a> →
-        方法一：VLN 模型 + ROS Nav2，部署到真机<br>
+        VLN 仿真训练（配置→训练→评估→诊断）<br>
         <a href="#" style="color:#f9a8d4;">第8章</a> →
-        方法二：VLM 端到端，无地图导航<br><br>
+        真机部署（架构→选型→直控→采集→微调→对比）<br><br>
         三条路径相互补充。你可以选择其中一条深入，也可以全部掌握。
       </p>
     </div>
   </div>
 
   <div class="page-nav">
-    <a href="habitat-textbook-step7.html" class="prev">← 第7章：VLN 视觉语言导航</a>
+    <a href="habitat-textbook-step7.html" class="prev">← 第7章：VLN 仿真训练</a>
     <a href="habitat-textbook-step9.html" class="next">第9章：Rearrange 操作 →</a>
   </div>
 
@@ -944,7 +1503,7 @@ Output ONLY the action name, nothing else."""</span>
 </section>
 
 <footer class="footer">
-  <p><b>Habitat 从零理解</b> · 第8章 · 真机部署：方法二 · VLM 端到端</p>
+  <p><b>Habitat 从零理解</b> · 第8章 · 真机部署</p>
   <p style="margin-top:6px;">
     <a href="index.html">学习中心</a> ·
     <a href="habitat-textbook.html">教科书</a> ·
@@ -954,6 +1513,6 @@ Output ONLY the action name, nothing else."""</span>
 </footer>
 
 <script src="assets/js/site.js"></script>
-<script>window.totalStages = 6;</script>
+<script>window.totalStages = 8;</script>
 </body>
 </html>
