@@ -493,7 +493,7 @@ model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
 </div>
 </section>
 
-<!-- ═══════════════ 7-8: JanusVLN 云端直控真机 ═══════════════ -->
+<!-- ═══════════════ 8-4: JanusVLN 云端直控真机 ═══════════════ -->
 <section id="case8-4">
 <div class="container">
   <h2 class="section-title"><span class="dot" style="background:var(--accent-sota);"></span> 8-4 · JanusVLN 云端直控真机 ★</h2>
@@ -502,7 +502,7 @@ model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
     <p>
-      7-6 在仿真里评估了 JanusVLN（SR=46.7%），但仿真不是现实。7-8 把同一个模型<b>部署到真实的 Spark-I 机器人上</b>，
+      7-6 在仿真里评估了 JanusVLN（SR=46.7%），但仿真不是现实。8-4 把同一个模型<b>部署到真实的 Spark-I 机器人上</b>，
       用中文自然语言指令驱动它在办公室里导航——"去打印机前""去有显示器的桌子"。
     </p>
     <p style="margin-top:8px;">
@@ -933,7 +933,7 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
 </div>
 </section>
 
-<!-- ═══════════════ 7-8: 真机采集 rosbag ═══════════════ -->
+<!-- ═══════════════ 8-6: 真机采集 rosbag ═══════════════ -->
 <section id="case8-6">
 <div class="container">
   <h2 class="section-title"><span class="dot" style="background:var(--accent-tip);"></span> 8-6 · 真机采集 rosbag</h2>
@@ -949,10 +949,10 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
 </div>
 </section>
 
-<!-- ═══════════════ 7-7: VLN 模型微调 ═══════════════ -->
+<!-- ═══════════════ 8-7: LoRA 微调 JanusVLN ═══════════════ -->
 <section id="case8-7">
 <div class="container">
-  <h2 class="section-title"><span class="dot" style="background:var(--accent-finetune);"></span> 8-7 · VLN 模型微调</h2>
+  <h2 class="section-title"><span class="dot" style="background:var(--accent-finetune);"></span> 8-7 · LoRA 微调 JanusVLN</h2>
 
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
