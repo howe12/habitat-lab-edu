@@ -151,8 +151,8 @@
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
     <p>
-      8-1 到 8-4 的架构假设 VLN 模型<b>本地运行</b>。但当模型大到 80 亿参数（JanusVLN），
-      真机的 Jetson / 树莓派根本跑不动。8-5 介绍<b>云-边-端分离</b>方案：
+      当模型大到 80 亿参数（JanusVLN），真机的 Jetson / 树莓派根本跑不动。
+      本案例介绍<b>云-边-端分离</b>方案（具体实现在 <a href="#case8-4">8-4</a>）：
       真机负责感知+执行，云端 GPU 负责推理。
     </p>
   </div>
@@ -297,7 +297,7 @@ model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
   <div class="info-box">
     <div class="info-title">① 案例含义 — VLM 导航与传统 VLN 有什么不同？</div>
     <p>
-      传统 VLN（如 第6章 训练的模型）是一个<b>任务专用的小模型</b>：CNN 编码图像 + LSTM 编码指令 → 输出离散动作。
+      传统 VLN（如 <a href="habitat-textbook-step7.html">第7章</a> 训练的模型）是一个<b>任务专用的小模型</b>：CNN 编码图像 + LSTM 编码指令 → 输出离散动作。
       VLM 导航则使用一个<b>通用的大模型</b>（数亿到数十亿参数），已在海量图文数据上预训练过，
       具备对场景、物体、空间关系的广泛理解。
       <br><br>
@@ -317,7 +317,7 @@ model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
         输出：<b>未来轨迹</b>（一系列 waypoint 坐标）<br>
         特点：不显式建图，利用视频中的时序信息隐式编码空间结构。<br>
         模型：基于 Video Diffusion 架构，在 Habitat 仿真中训练。<br>
-        <b>与我们的关系：</b>可以复用 第6章 训练出的模型作为特征提取器。
+        <b>与我们的关系：</b>可以复用 <a href="habitat-textbook-step7.html">第7章</a> 训练出的模型作为特征提取器。
       </p>
     </div>
     <div class="panel">
@@ -406,6 +406,14 @@ model = load_janusvln()  <span class="cmt"># 启动时加载模型</span>
   <table class="compare-table">
     <thead><tr><th>模型</th><th>类型</th><th>参数量</th><th>推理速度 (CPU)</th><th>导航能力</th><th>硬件需求</th></tr></thead>
     <tbody>
+      <tr style="background:rgba(244,114,182,0.08);">
+        <td><b>JanusVLN-7B</b> ⭐</td>
+        <td>开源</td>
+        <td>~8B</td>
+        <td>~2s (GPU) / ~6s (INT8)</td>
+        <td>双记忆导航，SOTA</td>
+        <td>10GB VRAM (INT8)，L40 单卡</td>
+      </tr>
       <tr>
         <td><b>Qwen2-VL-2B</b></td>
         <td>开源</td>
@@ -760,7 +768,7 @@ $ ros2 service call /vln/start std_srvs/srv/Trigger</pre>
     <div class="tip-title">💡 下一步 — 真机采集 + LoRA 微调</div>
     <p>
       零样本的局限性：模型不认识你的办公室布局。想让 JanusVLN 真正理解"会议室""饮水机""打印机"的具体位置，
-      需要用 Spark 录制真实路径数据（rosbag）→ 标注中文指令 → LoRA 微调。这是下一节的内容。
+      需要用 Spark 录制真实路径数据（<a href="#case8-6">8-6 rosbag</a>）→ 标注中文指令 → <a href="#case8-7">8-7 LoRA 微调</a>。
     </p>
   </div>
 
@@ -775,7 +783,7 @@ $ ros2 service call /vln/start std_srvs/srv/Trigger</pre>
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
     <p>
-      直接上真机风险大（撞墙、电机过载）。8-6 设计了两阶段测试计划：先在 <b>Gazebo 仿真</b> 中验证完整链路，
+      直接上真机风险大（撞墙、电机过载）。8-5 设计了两阶段测试计划：先在 <b>Gazebo 仿真</b> 中验证完整链路，
       再上 <b>Spark-I 真机</b>。每阶段都有明确的 Pass/Fail 条件。
     </p>
   </div>
@@ -805,21 +813,21 @@ $ ros2 service call /vln/start std_srvs/srv/Trigger</pre>
       <tr>
         <td><b>T3</b></td>
         <td>动作映射</td>
-        <td>FORWARD → 计算目标位姿 → 检查合理性</td>
-        <td>位姿在机器人前方 0.25m</td>
-        <td>位置误差 &lt; 0.05m，角度误差 &lt; 5°</td>
+        <td>FORWARD → /cmd_vel 发布 → 检查移动</td>
+        <td>机器人向前移动 0.25m</td>
+        <td>里程计位移 &gt; 0.2m，角度偏差 &lt; 5°</td>
       </tr>
       <tr>
         <td><b>T4</b></td>
-        <td>Nav2 单步导航</td>
-        <td>发布一个 goal_pose → 观察机器人移动</td>
-        <td>机器人到达目标点</td>
-        <td>最终位置距目标 &lt; 0.1m</td>
+        <td>端到端单步执行</td>
+        <td>云端返回 FORWARD → 真机执行 0.25m</td>
+        <td>机器人直行 0.25m</td>
+        <td>里程计位移在 0.2–0.3m 之间</td>
       </tr>
       <tr>
         <td><b>T5</b></td>
         <td>多步导航</td>
-        <td>连续 10 步 VLN → Nav2 循环</td>
+        <td>连续 10 步 拍照→推理→执行 循环</td>
         <td>每步正确执行</td>
         <td>10/10 步无卡死、无超时</td>
       </tr>
@@ -846,18 +854,15 @@ $ ros2 service call /vln/start std_srvs/srv/Trigger</pre>
 <span class="cmt"># 终端 1: 启动 Gazebo 仿真世界</span>
 $ ros2 launch spark_bringup gazebo.launch.py world:=turtlebot3_world
 
-<span class="cmt"># 终端 2: 启动 Nav2</span>
-$ ros2 launch spark_navigation nav2_bringup.launch.py
+<span class="cmt"># 终端 2: 启动 VLN 客户端（端到端）</span>
+$ ros2 launch spark_vln vln_bringup.launch.py
 
-<span class="cmt"># 终端 3: 启动云桥接节点</span>
-$ ros2 run vln_ros image_bridge_node --ros-args -p cloud_url:=http://L40_IP:8000
+<span class="cmt"># 终端 3 (云端): 启动推理服务</span>
+$ ssh L40 'nohup python server.py &</dev/null >/tmp/srv.log 2>&1 &'
 
-<span class="cmt"># 终端 4 (云端): 启动推理服务</span>
-$ uvicorn inference_server:app --host 0.0.0.0 --port 8000
-
-<span class="cmt"># 终端 5: 发送指令 → 开始导航</span>
-$ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
-    "{instruction: 'Go to the door and stop'}"</div>
+<span class="cmt"># 发送指令 → 开始导航</span>
+$ ros2 param set /vln_client instruction "去门口停下"
+$ ros2 service call /vln/start std_srvs/srv/Trigger</div>
   </div>
 
   <!-- Phase 2: 真机 -->
@@ -877,8 +882,8 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
       <tr>
         <td><b>T9</b></td>
         <td>坐标系对齐</td>
-        <td>VLN 输出是机器人坐标系，需转 map 系</td>
-        <td>rviz 中 goal_pose 出现在正确位置</td>
+        <td>端到端输出 /cmd_vel 是机器人坐标系</td>
+        <td>rviz 中移动方向与实际一致</td>
       </tr>
       <tr>
         <td><b>T10</b></td>
@@ -957,7 +962,7 @@ $ ros2 service call /vln/set_instruction vln_interfaces/srv/SetInstruction \
   <div class="info-box">
     <div class="info-title">① 案例含义</div>
     <p>
-      7-6 展示了 JanusVLN 在 R2R 上的零样本推理（SR=46.7%）。如果想在<b>自己的场景</b>上提升性能——
+      <a href="habitat-textbook-step7.html#case7-6">7-6</a> 和 <a href="#case8-4">8-4</a> 展示了 JanusVLN 的零样本能力。如果想在<b>自己的场景</b>上提升性能——
       比如办公室、工厂、家庭——就需要微调。8-7 介绍三种微调方案及其硬件需求。
     </p>
   </div>
